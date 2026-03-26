@@ -1,0 +1,100 @@
+/* ─── Badge ─────────────────────────────────────── */
+.badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.2rem 0.6rem;
+    font-size: var(--fs-xs);
+    font-weight: 600;
+    border-radius: var(--radius-full);
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+    line-height: 1;
+}
+
+/* Variants */
+.badge--default {
+    background: var(--bg-subtle);
+    color: var(--text);
+    border: 1px solid var(--border);
+}
+
+.badge--primary {
+    background: var(--primary-faint);
+    color: var(--primary);
+}
+
+.badge--success {
+    background: hsla(142, 76%, 36%, 0.12);
+    color: hsl(142, 70%, 35%);
+}
+
+.badge--warning {
+    background: hsla(38, 92%, 50%, 0.15);
+    color: hsl(38, 80%, 35%);
+}
+
+.badge--danger {
+    background: hsla(0, 85%, 60%, 0.12);
+    color: hsl(0, 75%, 50%);
+}
+
+.badge--info {
+    background: hsla(200, 90%, 55%, 0.12);
+    color: hsl(200, 80%, 40%);
+}
+
+/* Dot variant */
+.badge--dot {
+    width: 10px;
+    height: 10px;
+    padding: 0;
+    border-radius: 50%;
+    position: relative;
+}
+
+.badge--dot::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    background: inherit;
+    animation: badge-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes badge-pulse {
+    0% {
+        transform: scale(1);
+        opacity: 0.8;
+    }
+
+    50% {
+        transform: scale(1.8);
+        opacity: 0;
+    }
+
+    100% {
+        transform: scale(1);
+        opacity: 0;
+    }
+}
+
+.badge--dot.badge--success {
+    background: hsl(142, 70%, 40%);
+}
+
+.badge--dot.badge--warning {
+    background: hsl(38, 80%, 45%);
+}
+
+.badge--dot.badge--danger {
+    background: hsl(0, 75%, 55%);
+}
+
+.badge--dot.badge--info {
+    background: hsl(200, 80%, 45%);
+}
+
+.badge--dot.badge--primary {
+    background: var(--primary);
+}

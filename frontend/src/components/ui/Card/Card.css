@@ -1,0 +1,85 @@
+/* ─── Card ─────────────────────────────────────── */
+.card {
+    border-radius: var(--radius-xl);
+    background: var(--bg);
+    overflow: hidden;
+    transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+/* Padding variants */
+.card--pad-none {
+    padding: 0;
+}
+
+.card--pad-sm {
+    padding: var(--space-4);
+}
+
+.card--pad-md {
+    padding: var(--space-6);
+}
+
+.card--pad-lg {
+    padding: var(--space-8);
+}
+
+/* Card variants */
+.card--default {
+    background: var(--bg);
+    border: 1px solid var(--border);
+}
+
+.card--elevated {
+    background: var(--bg);
+    border: none;
+    box-shadow: var(--shadow-md);
+}
+
+.card--bordered {
+    background: var(--bg);
+    border: 2px solid var(--border);
+}
+
+.card--glass {
+    background: rgba(255, 255, 255, 0.6);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.4);
+    box-shadow: var(--shadow-md);
+}
+
+@media (prefers-color-scheme: dark) {
+    .card--glass {
+        background: rgba(15, 23, 42, 0.6);
+        border-color: rgba(255, 255, 255, 0.08);
+    }
+}
+
+/* Hover lift */
+.card--hover:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-lg);
+}
+
+/* Sub-components */
+.card__header {
+    padding: var(--space-4) var(--space-6);
+    border-bottom: 1px solid var(--border);
+    font-weight: 600;
+    color: var(--text-bold);
+    font-family: var(--font-display);
+}
+
+.card__body {
+    padding: var(--space-4) var(--space-6);
+    color: var(--text);
+    line-height: 1.6;
+}
+
+.card__footer {
+    padding: var(--space-4) var(--space-6);
+    border-top: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+}

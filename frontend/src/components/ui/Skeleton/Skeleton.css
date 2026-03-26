@@ -1,0 +1,32 @@
+.skeleton {
+    background: linear-gradient(90deg,
+            var(--border) 25%,
+            color-mix(in srgb, var(--border) 70%, var(--text-muted) 30%) 50%,
+            var(--border) 75%);
+    background-size: 200% 100%;
+    animation: skeleton-loading 1.5s infinite linear;
+    border-radius: 4px;
+    display: inline-block;
+}
+
+.skeleton--circle {
+    border-radius: 50%;
+}
+
+.skeleton--rect {
+    border-radius: 12px;
+}
+
+.skeleton--text {
+    margin-bottom: 0.5rem;
+}
+
+@keyframes skeleton-loading {
+    0% {
+        background-position: 200% 0;
+    }
+
+    100% {
+        background-position: -200% 0;
+    }
+}
