@@ -1,48 +1,51 @@
-/* ─── Button ─────────────────────────────────────── */
+/* ─── Premium Button ─────────────────────────────────────── */
 .btn {
     display: inline-flex;
     align-items: center;
     justify-content: center;
     gap: var(--space-2);
     font-family: var(--font-sans);
-    font-weight: 500;
-    border: 1.5px solid transparent;
+    font-weight: 600;
+    /* Bolder for premium feel */
+    border: 1px solid transparent;
     cursor: pointer;
-    border-radius: var(--radius-md);
-    transition: all var(--transition-fast);
+    border-radius: var(--radius-full);
+    /* Pill shaped modern buttons */
+    transition: all var(--transition-normal);
     text-decoration: none;
     white-space: nowrap;
     user-select: none;
     position: relative;
     overflow: hidden;
+    letter-spacing: -0.01em;
 }
 
 .btn:focus-visible {
     outline: 2px solid var(--primary);
-    outline-offset: 2px;
+    outline-offset: 4px;
+    /* More breathing room on focus */
 }
 
 .btn:disabled {
     opacity: 0.5;
     pointer-events: none;
+    filter: grayscale(100%);
 }
 
 /* Sizes */
 .btn--sm {
-    font-size: var(--fs-sm);
-    padding: var(--space-1) var(--space-3);
-    border-radius: var(--radius-sm);
+    font-size: var(--fs-xs);
+    padding: var(--space-2) var(--space-4);
 }
 
 .btn--md {
-    font-size: var(--fs-base);
-    padding: 0.55rem var(--space-4);
+    font-size: var(--fs-sm);
+    padding: var(--space-3) var(--space-6);
 }
 
 .btn--lg {
-    font-size: var(--fs-lg);
-    padding: 0.75rem var(--space-6);
-    border-radius: var(--radius-lg);
+    font-size: var(--fs-base);
+    padding: var(--space-4) var(--space-8);
 }
 
 /* Variants */
@@ -50,18 +53,19 @@
     background: var(--primary);
     color: #fff;
     border-color: var(--primary);
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
+    box-shadow: 0 4px 10px hsla(var(--primary-h), var(--primary-s), var(--primary-l), 0.2);
 }
 
 .btn--primary:hover:not(:disabled) {
     background: var(--primary-hover);
     border-color: var(--primary-hover);
-    box-shadow: var(--shadow-md);
+    box-shadow: 0 8px 25px hsla(var(--primary-h), var(--primary-s), var(--primary-l), 0.4);
+    /* Premium Glow */
     transform: translateY(-2px);
 }
 
 .btn:active:not(:disabled) {
-    transform: scale(0.98) translateY(0);
+    transform: scale(0.96) translateY(0);
 }
 
 .btn--secondary {
@@ -72,8 +76,9 @@
 
 .btn--secondary:hover:not(:disabled) {
     background: var(--border);
-    box-shadow: var(--shadow-sm);
-    transform: translateY(-1px);
+    border-color: var(--text-muted);
+    box-shadow: var(--shadow-md);
+    transform: translateY(-2px);
 }
 
 .btn--outline {
@@ -84,7 +89,8 @@
 
 .btn--outline:hover:not(:disabled) {
     background: var(--primary-faint);
-    transform: translateY(-1px);
+    box-shadow: 0 4px 15px hsla(var(--primary-h), var(--primary-s), var(--primary-l), 0.15);
+    transform: translateY(-2px);
 }
 
 .btn--ghost {
@@ -99,15 +105,16 @@
 }
 
 .btn--danger {
-    background: hsl(0, 85%, 60%);
+    background: var(--danger);
     color: #fff;
-    border-color: hsl(0, 85%, 60%);
+    border-color: var(--danger);
+    box-shadow: 0 4px 10px hsla(var(--danger-h), var(--danger-s), var(--danger-l), 0.2);
 }
 
 .btn--danger:hover:not(:disabled) {
-    background: hsl(0, 85%, 55%);
-    transform: translateY(-1px);
-    box-shadow: 0 4px 12px hsla(0, 85%, 60%, 0.35);
+    filter: brightness(1.1);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px hsla(var(--danger-h), var(--danger-s), var(--danger-l), 0.4);
 }
 
 /* Loading spinner */
@@ -117,12 +124,12 @@
 
 .btn__spinner {
     position: absolute;
-    width: 1em;
-    height: 1em;
+    width: 1.2em;
+    height: 1.2em;
     border: 2px solid currentColor;
     border-top-color: transparent;
     border-radius: 50%;
-    animation: btn-spin 0.6s linear infinite;
+    animation: btn-spin 0.6s cubic-bezier(0.4, 0, 0.2, 1) infinite;
 }
 
 @keyframes btn-spin {

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { UserCircle2, MessageSquare } from 'lucide-react';
 import { toast } from 'sonner';
 import { messageApi } from '../../../api/messages';
 import { useAuth } from '../../../context/AuthContext';
@@ -8,11 +9,11 @@ import Button from '../../ui/Button/Button';
 import Skeleton from '../../ui/Skeleton/Skeleton';
 import './MessagesTab.css';
 
-export default function MessagesTab() {
+export default function MessagesTab({ initialUserId }) {
     const { token, user } = useAuth();
     const socket = useSocket();
     const [conversations, setConversations] = useState([]);
-    const [selectedId, setSelectedId] = useState(null);
+    const [selectedId, setSelectedId] = useState(initialUserId || null);
     const [messages, setMessages] = useState([]);
     const [reply, setReply] = useState('');
     const [loading, setLoading] = useState(true);
@@ -27,8 +28,14 @@ export default function MessagesTab() {
     };
 
     useEffect(() => {
-        fetchConversations();
-    }, []);
+        const load = async () => {
+            await fetchConversations();
+            if (initialUserId) {
+                setSelectedId(initialUserId);
+            }
+        };
+        load();
+    }, [initialUserId]);
 
     useEffect(() => {
         if (selectedId) {
@@ -153,7 +160,7 @@ export default function MessagesTab() {
                                     className={`conv-item ${selectedId === conv.otherUser.id ? 'conv-item--active' : ''} ${conv.unreadCount > 0 ? 'conv-item--unread' : ''}`}
                                     onClick={() => selectConversation(conv.otherUser.id)}
                                 >
-                                    <div className="conv-avatar">👤</div>
+                                    <div className="conv-avatar"><UserCircle2 size={24} strokeWidth={1.5} /></div>
                                     <div className="conv-info">
                                         <div className="conv-name">
                                             {conv.otherUser.name}
@@ -182,7 +189,7 @@ export default function MessagesTab() {
                     {selectedId ? (
                         <>
                             <div className="chat-header">
-                                <div className="conv-avatar">👤</div>
+                                <div className="conv-avatar"><UserCircle2 size={28} strokeWidth={1.5} /></div>
                                 <div>
                                     <div className="chat-title">{selectedConv?.otherUser.name}</div>
                                     <div className="chat-status">{selectedConv?.otherUser.role}</div>
@@ -215,7 +222,7 @@ export default function MessagesTab() {
                         </>
                     ) : (
                         <div className="chat-placeholder">
-                            <div className="placeholder-icon">💬</div>
+                            <div className="placeholder-icon" style={{ opacity: 0.5 }}><MessageSquare size={64} strokeWidth={1} /></div>
                             <h3>Select a conversation</h3>
                             <p>Pick a thread from the left to start messaging.</p>
                         </div>

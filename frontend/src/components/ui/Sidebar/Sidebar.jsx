@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import * as Icons from 'lucide-react';
+import { Sparkles } from 'lucide-react';
 import './Sidebar.css';
 
 /**
@@ -34,26 +35,33 @@ const Sidebar = ({
             {/* Branding */}
             <div className="sidebar-brand">
                 <Link to="/" className="sidebar-logo">
-                    <span className="logo-icon">✨</span>
+                    <span className="logo-icon"><Sparkles size={22} /></span>
                     <span className="logo-text">{logoText}</span>
                 </Link>
             </div>
 
             {/* User Profile */}
-            <div className="sidebar-profile">
-                <div className="profile-glass"></div>
-                <div className="profile-avatar">
-                    {typeof user.avatar === 'string' && user.avatar.length < 5 ? (
-                        <span className="avatar-emoji">{user.avatar}</span>
-                    ) : (
-                        <div className="avatar-placeholder">
-                            {user.name?.charAt(0) || 'U'}
-                        </div>
-                    )}
+            <div className="sidebar-profile" onClick={() => onNav('settings')}>
+                <div className="profile-avatar-wrapper">
+                    <div className="avatar-glow"></div>
+                    <div className="profile-avatar">
+                        {React.isValidElement(user.avatar) ? (
+                            user.avatar
+                        ) : typeof user.avatar === 'string' && user.avatar.length < 5 ? (
+                            <span className="avatar-emoji">{user.avatar}</span>
+                        ) : (
+                            <div className="avatar-placeholder">
+                                {user.name?.charAt(0) || 'U'}
+                            </div>
+                        )}
+                    </div>
                 </div>
                 <div className="profile-info">
                     <h4 className="profile-name">{user.name}</h4>
                     <p className="profile-email">{user.email}</p>
+                </div>
+                <div className="profile-action-icon">
+                    <Icons.Settings size={14} />
                 </div>
             </div>
 

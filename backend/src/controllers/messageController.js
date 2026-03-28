@@ -13,6 +13,10 @@ export const sendMessage = async (req, res) => {
             return res.status(400).json({ message: 'Receiver and content are required' });
         }
 
+        if (receiverId === senderId) {
+            return res.status(400).json({ message: 'You cannot send a message to yourself' });
+        }
+
         const message = await prisma.message.create({
             data: {
                 senderId,

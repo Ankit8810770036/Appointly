@@ -6,12 +6,12 @@ import Home from './pages/Home/Home';
 import Login from './pages/Auth/Login';
 import Signup from './pages/Auth/Signup';
 import ForgotPassword from './pages/Auth/ForgotPassword';
-import ResetPassword from './pages/Auth/ResetPassword';
 import ProviderProfile from './pages/ProviderProfile/ProviderProfile';
 import ClientDashboard from './pages/ClientDashboard/ClientDashboard';
 import ProviderDashboard from './pages/ProviderDashboard/ProviderDashboard';
 import Terms from './pages/Legal/Terms';
 import Privacy from './pages/Legal/Privacy';
+import About from './pages/About/About';
 import ProtectedRoute from './components/auth/ProtectedRoute';
 import { Toaster } from 'sonner';
 import './App.css';
@@ -28,7 +28,6 @@ function App() {
               <Route path="/login" element={<Login />} />
               <Route path="/signup" element={<Signup />} />
               <Route path="/forgot-password" element={<ForgotPassword />} />
-              <Route path="/reset-password/:token" element={<ResetPassword />} />
               <Route
                 path="/provider/:id"
                 element={
@@ -55,6 +54,7 @@ function App() {
               />
               <Route path="/terms" element={<Terms />} />
               <Route path="/privacy" element={<Privacy />} />
+              <Route path="/about" element={<About />} />
             </Routes>
           </Router>
         </SocketProvider>

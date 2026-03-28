@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { Mail, Lock } from 'lucide-react';
 import { useLocation, useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import Button from '../../components/ui/Button/Button';
@@ -8,19 +9,6 @@ import { authApi } from '../../api/auth';
 import { useSound } from '../../hooks/useSound';
 import './Auth.css';
 
-/* ── Icons (inline SVG for zero deps) ── */
-const EyeIcon = () => (
-    <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-        <circle cx="12" cy="12" r="3" />
-    </svg>
-);
-const EyeOffIcon = () => (
-    <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-        <path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24" />
-        <line x1="1" y1="1" x2="23" y2="23" />
-    </svg>
-);
 
 export default function Login() {
     const navigate = useNavigate();
@@ -31,9 +19,18 @@ export default function Login() {
     const from = location.state?.from?.pathname || null;
 
     const [form, setForm] = useState({ email: '', password: '', role: 'client', rememberMe: true });
-    const [showPw, setShowPw] = useState(false);
     const [loading, setLoading] = useState(false);
     const [errors, setErrors] = useState({});
+    const [showRedirectMessage, setShowRedirectMessage] = useState(!!from);
+
+    useEffect(() => {
+        if (showRedirectMessage) {
+            const timer = setTimeout(() => {
+                setShowRedirectMessage(false);
+            }, 5000);
+            return () => clearTimeout(timer);
+        }
+    }, [showRedirectMessage]);
 
     const set = (field) => (e) => {
         setForm((f) => ({ ...f, [field]: e.target.value }));
@@ -129,7 +126,7 @@ export default function Login() {
                 >
                     <div className="auth-form-header">
                         <h1>Sign in</h1>
-                        {from && (
+                        {showRedirectMessage && (
                             <div className="auth-info-alert" style={{
                                 background: 'rgba(37, 99, 235, 0.1)',
                                 color: 'var(--primary)',
@@ -138,7 +135,8 @@ export default function Login() {
                                 fontSize: 'var(--fs-sm)',
                                 marginBottom: 'var(--space-4)',
                                 border: '1px solid rgba(37, 99, 235, 0.2)',
-                                fontWeight: '500'
+                                fontWeight: '500',
+                                animation: 'fadeIn 0.3s ease-out'
                             }}>
                                 🔒 Please sign in or create an account to view this professional's full profile.
                             </div>
@@ -170,23 +168,19 @@ export default function Login() {
                             value={form.email}
                             onChange={set('email')}
                             error={errors.email}
-                            leftIcon={<span>✉️</span>}
+                            leftIcon={<Mail size={16} />}
                             required
                         />
 
                         <Input
                             label="Password"
-                            type={showPw ? 'text' : 'password'}
+                            type="password"
                             placeholder="••••••••"
                             value={form.password}
                             onChange={set('password')}
                             error={errors.password}
-                            leftIcon={<span>🔒</span>}
-                            rightIcon={
-                                <button type="button" onClick={() => setShowPw((v) => !v)} className="auth-eye-btn" aria-label="Toggle password visibility">
-                                    {showPw ? <EyeOffIcon /> : <EyeIcon />}
-                                </button>
-                            }
+                            leftIcon={<Lock size={16} />}
+                            showPasswordToggle={true}
                             required
                         />
 

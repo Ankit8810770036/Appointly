@@ -5,7 +5,7 @@ import prisma from '../prisma.js';
 // @access  Public
 export const getProviders = async (req, res) => {
     try {
-        const { search, specialty, location, date } = req.query;
+        const { search, specialty, location, date, name, maxPrice } = req.query;
 
         const query = {
             where: {
@@ -31,11 +31,22 @@ export const getProviders = async (req, res) => {
         };
 
         if (search) {
+            const categoryMap = {
+                'Health & Wellness': ['Dentist', 'Doctor', 'Therapist', 'Health', 'Wellness', 'Medicine'],
+                'Beauty & Spa': ['Salon', 'Barber', 'Beauty', 'Spa', 'Nail', 'Hair'],
+                'Home Services': ['Plumber', 'Electrician', 'Cleaner', 'Home', 'Repair'],
+                'Fitness': ['Fitness', 'Yoga', 'Trainer', 'Gym'],
+                'Legal & Finance': ['Legal', 'Finance', 'Accountant', 'Lawyer', 'Consultant'],
+                'Education': ['Education', 'Tutor', 'Coach', 'Teacher', 'Specialist']
+            };
+
+            const keywords = categoryMap[search] || [search];
+
             query.where.AND.push({
-                OR: [
-                    { name: { contains: search, mode: 'insensitive' } },
-                    { providerProfile: { specialty: { contains: search, mode: 'insensitive' } } }
-                ]
+                OR: keywords.flatMap(kw => [
+                    { name: { contains: kw, mode: 'insensitive' } },
+                    { providerProfile: { specialty: { contains: kw, mode: 'insensitive' } } }
+                ])
             });
         }
 
@@ -51,6 +62,22 @@ export const getProviders = async (req, res) => {
             query.where.AND.push({
                 providerProfile: {
                     location: { contains: location, mode: 'insensitive' }
+                }
+            });
+        }
+
+        if (name) {
+            query.where.AND.push({ name: { contains: name, mode: 'insensitive' } });
+        }
+
+        if (maxPrice) {
+            query.where.AND.push({
+                providerProfile: {
+                    services: {
+                        some: {
+                            price: { lte: parseFloat(maxPrice) }
+                        }
+                    }
                 }
             });
         }

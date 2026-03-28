@@ -1,8 +1,8 @@
 /* ─── Premium Sidebar Styles ─────────────────────── */
 
 .premium-sidebar {
-    --sidebar-bg: rgba(255, 255, 255, 0.7);
-    --sidebar-border: rgba(0, 0, 0, 0.08);
+    --sidebar-bg: color-mix(in srgb, var(--bg) 85%, transparent);
+    --sidebar-border: var(--border-glass);
     --sidebar-glow: hsla(var(--primary-h), var(--primary-s), var(--primary-l), 0.1);
     --nav-item-h: 46px;
     --nav-item-gap: 8px;
@@ -15,8 +15,8 @@
     height: 100vh;
     width: 270px;
     background: var(--sidebar-bg);
-    backdrop-filter: blur(24px) saturate(160%);
-    -webkit-backdrop-filter: blur(24px) saturate(160%);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
     border-right: 1px solid var(--sidebar-border);
     display: flex;
     flex-direction: column;
@@ -28,13 +28,8 @@
     overflow-x: hidden;
 }
 
-/* Dark mode override – since the app uses :root media query, it will inherit automatically */
-@media (prefers-color-scheme: dark) {
-    .premium-sidebar {
-        --sidebar-bg: rgba(15, 23, 42, 0.65);
-        --sidebar-border: rgba(255, 255, 255, 0.05);
-        --sidebar-glow: hsla(var(--primary-h), var(--primary-s), var(--primary-l), 0.2);
-    }
+:root.dark .premium-sidebar {
+    --sidebar-glow: hsla(var(--primary-h), var(--primary-s), var(--primary-l), 0.2);
 }
 
 .sidebar-glass-glow {
@@ -78,80 +73,114 @@
 }
 
 /* ─── Profile ─── */
+/* ─── Profile Card ─── */
 .sidebar-profile {
     position: relative;
-    background: rgba(var(--primary-h), var(--primary-s), var(--primary-l), 0.04);
-    border: 1px solid var(--sidebar-border);
-    border-radius: 18px;
-    padding: 16px;
+    background: var(--grad-surface);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid var(--border-glass);
+    border-radius: var(--radius-lg);
+    padding: 18px 14px;
     display: flex;
     align-items: center;
-    gap: 14px;
-    margin-bottom: 32px;
-    overflow: hidden;
-    transition: all 0.3s ease;
+    gap: 12px;
+    margin-bottom: 24px;
+    cursor: pointer;
+    transition: all var(--transition-bounce);
+    box-shadow: var(--shadow-sm);
 }
 
 .sidebar-profile:hover {
-    background: rgba(var(--primary-h), var(--primary-s), var(--primary-l), 0.06);
-    transform: translateY(-2px);
-    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.04);
+    transform: translateY(-3px) scale(1.02);
+    box-shadow: var(--shadow-md);
+    border-color: var(--primary);
+    background: hsla(var(--primary-h), var(--primary-s), var(--primary-l), 0.05);
 }
 
-.profile-glass {
-    position: absolute;
-    inset: 0;
-    background: linear-gradient(135deg, rgba(255, 255, 255, 0.1), transparent);
-    z-index: 0;
+.profile-avatar-wrapper {
+    position: relative;
+    flex-shrink: 0;
 }
 
 .profile-avatar {
-    width: 48px;
-    height: 48px;
-    border-radius: 14px;
+    width: 44px;
+    height: 44px;
+    border-radius: var(--radius-full);
     background: var(--grad-primary);
     display: flex;
     align-items: center;
     justify-content: center;
-    flex-shrink: 0;
+    position: relative;
+    z-index: 2;
+    border: 2px solid var(--bg);
+    overflow: hidden;
+}
+
+.avatar-glow {
+    position: absolute;
+    inset: -3px;
+    background: var(--grad-primary);
+    border-radius: inherit;
     z-index: 1;
-    box-shadow: 0 4px 12px rgba(var(--primary-h), var(--primary-s), var(--primary-l), 0.3);
+    opacity: 0.5;
+    filter: blur(6px);
+    transition: opacity 0.3s ease;
+}
+
+.sidebar-profile:hover .avatar-glow {
+    opacity: 0.8;
+    filter: blur(8px);
 }
 
 .avatar-emoji {
-    font-size: 24px;
+    font-size: 20px;
 }
 
 .avatar-placeholder {
     color: white;
     font-weight: 800;
-    font-size: 20px;
+    font-size: 18px;
     font-family: var(--font-display);
 }
 
 .profile-info {
     flex: 1;
-    overflow: hidden;
-    z-index: 1;
+    min-width: 0;
 }
 
 .profile-name {
+    font-family: var(--font-display);
     font-weight: 700;
-    font-size: 15px;
+    font-size: 14px;
     color: var(--text-bold);
     margin: 0;
+    line-height: 1.2;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
 }
 
 .profile-email {
-    font-size: 12px;
+    font-size: 11px;
+    font-weight: 500;
     color: var(--text-muted);
-    margin: 2px 0 0;
+    margin-top: 2px;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+}
+
+.profile-action-icon {
+    color: var(--text-muted);
+    opacity: 0.4;
+    transition: all 0.2s ease;
+}
+
+.sidebar-profile:hover .profile-action-icon {
+    opacity: 1;
+    color: var(--primary);
+    transform: rotate(15deg);
 }
 
 /* ─── Navigation ─── */
@@ -298,14 +327,8 @@
         border-right: none;
         border-top: 1px solid var(--sidebar-border);
         overflow: visible;
-        background: rgba(255, 255, 255, 0.85);
-        backdrop-filter: blur(16px);
-    }
-
-    @media (prefers-color-scheme: dark) {
-        .premium-sidebar {
-            background: rgba(15, 23, 42, 0.9);
-        }
+        background: color-mix(in srgb, var(--bg) 85%, transparent);
+        backdrop-filter: blur(24px);
     }
 
     .sidebar-glass-glow,

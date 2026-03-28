@@ -1,11 +1,16 @@
 import { useState, useEffect, useRef } from 'react';
+import { Bell } from 'lucide-react';
 import { notificationApi } from '../../../api/notifications';
 import { useAuth } from '../../../context/AuthContext';
 import { useSocket } from '../../../context/SocketContext';
 import { useSound } from '../../../hooks/useSound';
 import './NotificationBell.css';
 
-export default function NotificationBell() {
+/**
+ * @param {Function} onNavigate - Called with a section string (e.g. 'messages', 'appointments')
+ *                                when user clicks a notification. Optional.
+ */
+export default function NotificationBell({ onNavigate }) {
     const { token } = useAuth();
     const socket = useSocket();
     const [notifications, setNotifications] = useState([]);
@@ -14,13 +19,14 @@ export default function NotificationBell() {
     const { play } = useSound();
     const prevUnreadCount = useRef(0);
 
-    const unreadCount = notifications.filter(n => !n.isRead).length;
+    const unreadCount = notifications.filter(n => !n.isRead && n.type !== 'NEW_MESSAGE').length;
 
     const fetchNotifications = async () => {
         if (!token) return;
         try {
             const data = await notificationApi.getMy(token);
-            setNotifications(data);
+            // Filter out messages from the bell
+            setNotifications(data.filter(n => n.type !== 'NEW_MESSAGE'));
         } catch (err) {
             console.error('Failed to fetch notifications:', err);
         }
@@ -31,6 +37,7 @@ export default function NotificationBell() {
 
         if (socket) {
             const handleNewNotification = (newNotif) => {
+                if (newNotif.type === 'NEW_MESSAGE') return; // Ignore messages in the bell
                 setNotifications(prev => [newNotif, ...prev]);
             };
 
@@ -60,19 +67,37 @@ export default function NotificationBell() {
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
 
-    const handleMarkAsRead = async (id) => {
-        try {
-            await notificationApi.markAsRead(id, token);
-            setNotifications(prev => prev.filter(n => n.id !== id));
-        } catch (err) {
-            console.error(err);
+    /** Derive the dashboard section from the notification type */
+    const getSectionFromNotif = (notif) => {
+        if (notif.type === 'NEW_MESSAGE') return 'messages';
+        if (notif.type.startsWith('BOOKING_') || notif.type === 'APPOINTMENT_REMINDER') return 'bookings';
+        if (notif.type === 'NEW_REVIEW') return 'reviews';
+        return null;
+    };
+
+    const handleNotifClick = async (notif) => {
+        // Mark as read
+        if (!notif.isRead) {
+            try {
+                await notificationApi.markAsRead(notif.id, token);
+                setNotifications(prev => prev.map(n => n.id === notif.id ? { ...n, isRead: true } : n));
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        // Navigate to the relevant section
+        const section = getSectionFromNotif(notif);
+        if (section && onNavigate) {
+            onNavigate(section);
+            setShowDropdown(false);
         }
     };
 
     const handleMarkAllAsRead = async () => {
         try {
             await notificationApi.markAllAsRead(token);
-            setNotifications([]);
+            setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
         } catch (err) {
             console.error(err);
         }
@@ -85,7 +110,7 @@ export default function NotificationBell() {
                 onClick={() => setShowDropdown(!showDropdown)}
                 aria-label="Notifications"
             >
-                <span className="bell-icon">🔔</span>
+                <Bell size={20} strokeWidth={2} className="bell-icon" />
                 {unreadCount > 0 && <span className="bell-badge">{unreadCount}</span>}
             </button>
 
@@ -107,12 +132,12 @@ export default function NotificationBell() {
                             notifications.map(n => (
                                 <div
                                     key={n.id}
-                                    className={`notif-item ${!n.isRead ? 'notif-item--unread' : ''}`}
-                                    onClick={() => !n.isRead && handleMarkAsRead(n.id)}
+                                    className={`notif-item ${!n.isRead ? 'notif-item--unread' : ''} ${getSectionFromNotif(n) ? 'notif-item--clickable' : ''}`}
+                                    onClick={() => handleNotifClick(n)}
                                 >
                                     <div className="notif-item-top">
                                         <span className="notif-type-tag" data-type={n.type}>
-                                            {n.type.replace('BOOKING_', '').toLowerCase()}
+                                            {n.type.replace('BOOKING_', '').replace('NEW_', '').toLowerCase()}
                                         </span>
                                         <span className="notif-time">
                                             {new Date(n.createdAt).toLocaleDateString()}

@@ -17,6 +17,9 @@ import ThemeToggle from '../../components/ui/ThemeToggle/ThemeToggle';
 import MessagesTab from '../../components/dashboard/MessagesTab/MessagesTab';
 import Sidebar from '../../components/ui/Sidebar/Sidebar';
 import * as Icons from 'lucide-react';
+import { IndianRupee, TrendingUp, Hourglass, CheckCircle2, CalendarDays, Star, Clock, Calendar, XCircle, CheckCircle, UserRound, Settings, Sparkles, PartyPopper, MessageCircle } from 'lucide-react';
+import MessageModal from '../../components/modals/MessageModal/MessageModal';
+import { reviewApi } from '../../api/reviews';
 import './ProviderDashboard.css';
 
 // Earnings are calculated dynamically below
@@ -24,7 +27,7 @@ import './ProviderDashboard.css';
 const TIME_SLOTS = ['09:00', '09:30', '10:00', '10:30', '11:00', '11:30', '14:00', '14:30', '15:00', '15:30', '16:00', '16:30', '17:00'];
 
 const STATUS_VARIANT = { confirmed: 'success', pending: 'warning', completed: 'default', cancelled: 'danger' };
-const STATUS_LABEL = { confirmed: '✅ Confirmed', pending: '⏳ Pending', completed: '☑️ Done', cancelled: '❌ Cancelled' };
+const STATUS_LABEL = { confirmed: 'Confirmed', pending: 'Pending', completed: 'Done', cancelled: 'Cancelled' };
 
 /* ─── Sidebar ────────────────────────────────────── */
 
@@ -80,7 +83,7 @@ function EarningsChart({ data }) {
 }
 
 /* ─── Booking Row ────────────────────────────────── */
-function BookingRow({ booking, onAccept, onDecline, onComplete, index = 0 }) {
+function BookingRow({ booking, onAccept, onDecline, onComplete, onMessage, index = 0 }) {
     return (
         <motion.div
             className={`booking-row booking-row--${booking.status}`}
@@ -96,12 +99,27 @@ function BookingRow({ booking, onAccept, onDecline, onComplete, index = 0 }) {
                 </div>
             </div>
             <div className="booking-row__datetime">
-                <span>📅 {booking.date}</span>
-                <span>⏰ {booking.time} · {booking.duration}min</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <Calendar size={14} className="icon-muted" /> {booking.date}
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <Clock size={14} className="icon-muted" /> {booking.time} · {booking.duration}min
+                </div>
             </div>
             <span className="booking-row__price">₹{booking.price}</span>
-            <Badge variant={STATUS_VARIANT[booking.status]}>{STATUS_LABEL[booking.status]}</Badge>
+            <Badge variant={STATUS_VARIANT[booking.status]}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    {booking.status === 'confirmed' && <CheckCircle2 size={12} />}
+                    {booking.status === 'pending' && <Hourglass size={12} />}
+                    {booking.status === 'completed' && <CheckCircle size={12} />}
+                    {booking.status === 'cancelled' && <XCircle size={12} />}
+                    {STATUS_LABEL[booking.status]}
+                </div>
+            </Badge>
             <div className="booking-row__actions">
+                <Button variant="ghost" size="sm" onClick={() => onMessage(booking.clientId)} title="Message Client">
+                    <MessageCircle size={16} />
+                </Button>
                 {booking.status === 'pending' && (
                     <>
                         <Button variant="primary" size="sm" onClick={() => onAccept(booking.id)}>Accept</Button>
@@ -319,7 +337,11 @@ function ServicesTab({ onUpdate, initialServices }) {
                     <h2>Manage Services</h2>
                 </div>
                 <Card variant="default" padding="lg" style={{ textAlign: 'center' }}>
-                    <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>⚙️</div>
+                    <div style={{ marginBottom: '1.5rem', display: 'flex', justifyContent: 'center' }}>
+                        <div style={{ padding: '1.5rem', background: 'rgba(var(--primary-rgb), 0.1)', borderRadius: '50%', color: 'var(--primary)' }}>
+                            <Settings size={40} />
+                        </div>
+                    </div>
                     <h3 style={{ marginBottom: '0.5rem' }}>Profile Setup Required</h3>
                     <p style={{ color: 'var(--text-light)', marginBottom: '1.5rem' }}>
                         You need to set up your professional profile (Specialty, Location, etc.) before you can add services.
@@ -412,6 +434,9 @@ function ServicesTab({ onUpdate, initialServices }) {
             <div className="services-list grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '1.5rem' }}>
                 {services.length === 0 ? (
                     <Card variant="default" padding="lg" style={{ textAlign: 'center', gridColumn: '1 / -1' }}>
+                        <div style={{ marginBottom: '1rem', display: 'flex', justifyContent: 'center', color: 'var(--primary)', opacity: 0.6 }}>
+                            <Sparkles size={32} />
+                        </div>
                         <p className="empty-hint">You haven't added any services yet. Clients won't be able to book you until you add at least one.</p>
                     </Card>
                 ) : (
@@ -500,6 +525,60 @@ function AnalyticsTab({ bookings }) {
                     ))}
                 </div>
             </Card>
+        </div>
+    );
+}
+
+/* ─── Reviews Tab ────────────────────────────────── */
+function ReviewsTab({ reviews }) {
+    if (reviews.length === 0) {
+        return (
+            <div className="reviews-tab">
+                <div className="dashboard__header">
+                    <div><h1>Client Reviews</h1><p>Feedback from your clients.</p></div>
+                </div>
+                <Card variant="default" padding="lg" style={{ textAlign: 'center' }}>
+                    <div style={{ marginBottom: '1.5rem', display: 'flex', justifyContent: 'center', color: '#ffb800' }}>
+                        <Star size={40} />
+                    </div>
+                    <h3>No reviews yet</h3>
+                    <p style={{ color: 'var(--text-light)' }}>Reviews will appear here once your clients start leaving feedback.</p>
+                </Card>
+            </div>
+        );
+    }
+
+    return (
+        <div className="reviews-tab">
+            <div className="dashboard__header">
+                <div><h1>Client Reviews</h1><p>See what your customers are saying.</p></div>
+            </div>
+            <div className="reviews-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))', gap: '1.5rem' }}>
+                {reviews.map((r, idx) => (
+                    <Card key={r.id || idx} variant="default" padding="md" animate delay={idx * 0.1}>
+                        <div className="review-header" style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem' }}>
+                            <div>
+                                <h4 style={{ margin: 0 }}>{r.appointment?.client?.name || 'Anonymous Client'}</h4>
+                                <div style={{ display: 'flex', gap: '2px', marginTop: '4px' }}>
+                                    {[1, 2, 3, 4, 5].map(s => (
+                                        <Star key={s} size={14} fill={s <= r.rating ? "#ffb800" : "none"} stroke={s <= r.rating ? "#ffb800" : "#ccc"} />
+                                    ))}
+                                </div>
+                            </div>
+                            <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                                {new Date(r.appointment?.date).toLocaleDateString()}
+                            </span>
+                        </div>
+                        <p style={{ margin: 0, fontSize: '0.95rem', lineHeight: 1.5, color: 'var(--text-light)' }}>
+                            {r.comment || "No comment provided."}
+                        </p>
+                        <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid var(--border)', fontSize: '0.85rem' }}>
+                            <span style={{ color: 'var(--text-muted)' }}>Service: </span>
+                            <span style={{ fontWeight: 600 }}>{r.appointment?.service?.name || "General Service"}</span>
+                        </div>
+                    </Card>
+                ))}
+            </div>
         </div>
     );
 }
@@ -617,18 +696,29 @@ export default function ProviderDashboard() {
     const { user, token, logout } = useAuth();
     const [section, setSection] = useState('overview');
     const [bookings, setBookings] = useState([]);
+    const [reviews, setReviews] = useState([]);
     const [bookFilter, setBookFilter] = useState('all');
     const [syncTick, setSyncTick] = useState(0);
     const [fullProfile, setFullProfile] = useState(null);
     const [hasVisitedBookings, setHasVisitedBookings] = useState(false);
     const [unreadMessages, setUnreadMessages] = useState(0);
+    const [messageTarget, setMessageTarget] = useState(null);
     const [loading, setLoading] = useState(true);
     const myConnection = useSocket();
 
     useEffect(() => {
         if (section === 'bookings') setHasVisitedBookings(true);
         if (section === 'messages') setUnreadMessages(0);
+        if (section === 'reviews') {
+            // we could have a review badge here if needed
+        }
     }, [section]);
+
+    const handleNotifNavigate = (targetSection) => {
+        setSection(targetSection);
+        if (targetSection === 'messages') setUnreadMessages(0);
+        if (targetSection === 'bookings') setHasVisitedBookings(true);
+    };
 
     // Listen for live socket events to instantly badge and refresh bookings/messages
     useEffect(() => {
@@ -673,6 +763,7 @@ export default function ProviderDashboard() {
         appointmentApi.getMy(token).then(data => {
             setBookings(data.map(b => ({
                 id: b.id,
+                clientId: b.client?.userId,
                 client: b.client?.name || 'Client',
                 service: b.service?.name || 'Service',
                 date: new Date(b.date).toLocaleDateString(),
@@ -681,13 +772,16 @@ export default function ProviderDashboard() {
                 duration: b.service?.duration || 30,
                 price: b.service?.price || 0,
                 status: b.status.toLowerCase(),
-                clientAvatar: '👤'
+                clientAvatar: <UserRound size={20} className="icon-muted" />
             })));
         }).catch(err => console.error(err));
 
         // Also fetch full profile to ensure services/settings are in sync
         providerApi.getById(user.id).then(data => {
             setFullProfile(data.providerProfile);
+            if (data.providerProfile?.id) {
+                reviewApi.getProviderReviews(data.providerProfile.id).then(setReviews);
+            }
         }).catch(err => console.error(err))
             .finally(() => setLoading(false));
     }, [token, syncTick, user.id]);
@@ -704,6 +798,13 @@ export default function ProviderDashboard() {
     const accept = id => handleAction(id, 'confirmed');
     const decline = id => handleAction(id, 'cancelled');
     const complete = id => handleAction(id, 'completed');
+
+    const handleMessage = (booking) => {
+        setMessageTarget({
+            id: booking.clientId,
+            name: booking.client
+        });
+    };
 
     const totalEarnings = bookings.filter(b => b.status === 'completed').reduce((s, b) => s + b.price, 0);
     const pendingEarnings = bookings.filter(b => b.status === 'pending').reduce((s, b) => s + b.price, 0);
@@ -755,6 +856,7 @@ export default function ProviderDashboard() {
                     { id: 'overview', icon: 'LayoutDashboard', label: 'Overview' },
                     { id: 'bookings', icon: 'Calendar', label: 'Bookings', badgeCount: badgeCount },
                     { id: 'messages', icon: 'MessageSquare', label: 'Messages', badgeCount: unreadMessages },
+                    { id: 'reviews', icon: 'Star', label: 'Reviews' },
                     { id: 'services', icon: 'Briefcase', label: 'Services' },
                     { id: 'schedule', icon: 'Clock', label: 'My Schedule' },
                     { id: 'earnings', icon: 'CreditCard', label: 'Earnings' },
@@ -848,17 +950,17 @@ export default function ProviderDashboard() {
                                             </div>
                                             <div className="header-actions">
                                                 <ThemeToggle />
-                                                <NotificationBell />
+                                                <NotificationBell onNavigate={handleNotifNavigate} />
                                                 <Button variant="primary" onClick={() => navigate(`/provider/${user.id}`)}>View Public Profile</Button>
                                             </div>
                                         </header>
                                         {/* KPI row */}
                                         <div className="stats-grid">
                                             {[
-                                                { label: 'Total Revenue', value: `₹${totalEarnings.toLocaleString()}`, icon: '💰', color: 'hsl(142, 70%, 40%)' },
-                                                { label: 'Upcoming', value: `₹${confirmedEarnings.toLocaleString()}`, icon: '📈', color: 'var(--primary)' },
-                                                { label: 'Requests', value: pendingCount, icon: '⏳', color: 'hsl(38, 80%, 45%)' },
-                                                { label: 'Confirmed', value: confirmedCount, icon: '✅', color: 'hsl(142, 70%, 40%)' },
+                                                { label: 'Total Revenue', value: `₹${totalEarnings.toLocaleString()}`, icon: <IndianRupee size={22} />, color: 'hsl(142, 70%, 40%)' },
+                                                { label: 'Upcoming', value: `₹${confirmedEarnings.toLocaleString()}`, icon: <TrendingUp size={22} />, color: 'var(--primary)' },
+                                                { label: 'Requests', value: pendingCount, icon: <Hourglass size={22} />, color: 'hsl(38, 80%, 45%)' },
+                                                { label: 'Confirmed', value: confirmedCount, icon: <CheckCircle2 size={22} />, color: 'hsl(142, 70%, 40%)' },
                                             ].map((s, i) => (
                                                 <Card key={s.label} variant="default" className="stat-card" style={{ '--stat-color': s.color }} animate delay={i * 0.1}>
                                                     <div className="stat-card__icon">{s.icon}</div>
@@ -887,9 +989,16 @@ export default function ProviderDashboard() {
                                             </div>
                                             <div className="bookings-table">
                                                 {bookings.filter(b => b.status === 'pending').length === 0
-                                                    ? <p className="empty-hint">No pending requests 🎉</p>
+                                                    ? (
+                                                        <div style={{ textAlign: 'center', padding: '3rem 1rem' }}>
+                                                            <div style={{ marginBottom: '1rem', color: 'var(--success)', opacity: 0.8 }}>
+                                                                <PartyPopper size={40} style={{ margin: '0 auto' }} />
+                                                            </div>
+                                                            <p className="empty-hint">No pending requests at the moment.</p>
+                                                        </div>
+                                                    )
                                                     : bookings.filter(b => b.status === 'pending').map((b, i) => (
-                                                        <BookingRow key={b.id} booking={b} index={i} onAccept={accept} onDecline={decline} onComplete={complete} />
+                                                        <BookingRow key={b.id} booking={b} index={i} onAccept={accept} onDecline={decline} onComplete={complete} onMessage={() => handleMessage(b)} />
                                                     ))
                                                 }
                                             </div>
@@ -905,7 +1014,7 @@ export default function ProviderDashboard() {
                                                 {bookings.filter(b => b.status === 'confirmed' && b.date === new Date().toLocaleDateString()).length === 0
                                                     ? <p className="empty-hint">No appointments for today.</p>
                                                     : bookings.filter(b => b.status === 'confirmed' && b.date === new Date().toLocaleDateString()).map((b, i) => (
-                                                        <BookingRow key={b.id} booking={b} index={i} onAccept={accept} onDecline={decline} onComplete={complete} />
+                                                        <BookingRow key={b.id} booking={b} index={i} onAccept={accept} onDecline={decline} onComplete={complete} onMessage={() => handleMessage(b)} />
                                                     ))
                                                 }
                                             </div>
@@ -953,7 +1062,7 @@ export default function ProviderDashboard() {
                                             <div><h1>All Bookings</h1><p>Manage incoming and past appointments.</p></div>
                                             <div className="header-actions">
                                                 <ThemeToggle />
-                                                <NotificationBell />
+                                                <NotificationBell onNavigate={handleNotifNavigate} />
                                             </div>
                                         </div>
                                         <div className="filter-bar">
@@ -972,7 +1081,7 @@ export default function ProviderDashboard() {
                                             {filtered.length === 0
                                                 ? <p className="empty-hint">No bookings here.</p>
                                                 : filtered.map((b, i) => (
-                                                    <BookingRow key={b.id} booking={b} index={i} onAccept={accept} onDecline={decline} onComplete={complete} />
+                                                    <BookingRow key={b.id} booking={b} index={i} onAccept={accept} onDecline={decline} onComplete={complete} onMessage={() => handleMessage(b)} />
                                                 ))
                                             }
                                         </div>
@@ -986,7 +1095,7 @@ export default function ProviderDashboard() {
                                             <div><h1>Messages</h1><p>Chat with your clients.</p></div>
                                             <div className="header-actions">
                                                 <ThemeToggle />
-                                                <NotificationBell />
+                                                <NotificationBell onNavigate={handleNotifNavigate} />
                                             </div>
                                         </div>
                                         <MessagesTab />
@@ -1000,7 +1109,7 @@ export default function ProviderDashboard() {
                                             <div><h1>My Schedule</h1><p>Set your working days, time slots, and block dates.</p></div>
                                             <div className="header-actions">
                                                 <ThemeToggle />
-                                                <NotificationBell />
+                                                <NotificationBell onNavigate={handleNotifNavigate} />
                                             </div>
                                         </div>
                                         <ScheduleTab user={user} token={token} onUpdate={() => setSyncTick(t => t + 1)} />
@@ -1014,14 +1123,14 @@ export default function ProviderDashboard() {
                                             <div><h1>Earnings</h1><p>Track your revenue over time.</p></div>
                                             <div className="header-actions">
                                                 <ThemeToggle />
-                                                <NotificationBell />
+                                                <NotificationBell onNavigate={handleNotifNavigate} />
                                             </div>
                                         </div>
                                         <div className="stats-grid" style={{ gridTemplateColumns: 'repeat(3, 1fr)' }}>
                                             {[
-                                                { label: 'Total Earnings', value: `₹${totalEarnings.toLocaleString()}`, icon: '💰' },
-                                                { label: 'This Week', value: `₹${weeklyEarnings.toLocaleString()}`, icon: '📅' },
-                                                { label: 'Pending Payout', value: `₹${pendingEarnings.toLocaleString()}`, icon: '⏳' },
+                                                { label: 'Total Earnings', value: `₹${totalEarnings.toLocaleString()}`, icon: <IndianRupee size={22} /> },
+                                                { label: 'This Week', value: `₹${weeklyEarnings.toLocaleString()}`, icon: <CalendarDays size={22} /> },
+                                                { label: 'Pending Payout', value: `₹${pendingEarnings.toLocaleString()}`, icon: <Hourglass size={22} /> },
                                             ].map((s, i) => (
                                                 <Card key={s.label} variant="default" className="stat-card" style={{ '--stat-color': 'var(--primary)' }} animate delay={i * 0.1}>
                                                     <div className="stat-card__icon">{s.icon}</div>
@@ -1061,6 +1170,13 @@ export default function ProviderDashboard() {
                                     </div>
                                 )}
 
+                                {/* ── Reviews ── */}
+                                {section === 'reviews' && (
+                                    <div className="dashboard__content animate-fade-in">
+                                        <ReviewsTab reviews={reviews} />
+                                    </div>
+                                )}
+
                                 {/* ── Analytics ── */}
                                 {section === 'analytics' && (
                                     <div className="dashboard__content animate-fade-in">
@@ -1068,7 +1184,7 @@ export default function ProviderDashboard() {
                                             <div><h1>Analytics</h1><p>Insights about your practice performance.</p></div>
                                             <div className="header-actions">
                                                 <ThemeToggle />
-                                                <NotificationBell />
+                                                <NotificationBell onNavigate={handleNotifNavigate} />
                                             </div>
                                         </div>
                                         <AnalyticsTab bookings={bookings} />
@@ -1094,6 +1210,16 @@ export default function ProviderDashboard() {
                             </>
                         )}
                     </>
+                )}
+                {messageTarget && (
+                    <MessageModal
+                        provider={messageTarget}
+                        onClose={() => setMessageTarget(null)}
+                        onSuccess={() => {
+                            toast.success('Message sent! You can follow up in the Messages tab.');
+                            setSyncTick(t => t + 1);
+                        }}
+                    />
                 )}
             </main>
         </div>

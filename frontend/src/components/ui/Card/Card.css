@@ -1,9 +1,9 @@
-/* ─── Card ─────────────────────────────────────── */
+/* ─── Premium Card ─────────────────────────────────────── */
 .card {
     border-radius: var(--radius-xl);
     background: var(--bg);
     overflow: hidden;
-    transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+    transition: all var(--transition-normal);
 }
 
 /* Padding variants */
@@ -27,12 +27,13 @@
 .card--default {
     background: var(--bg);
     border: 1px solid var(--border);
+    box-shadow: var(--shadow-sm);
 }
 
 .card--elevated {
     background: var(--bg);
-    border: none;
-    box-shadow: var(--shadow-md);
+    border: 1px solid var(--border-glass);
+    box-shadow: var(--shadow-lg);
 }
 
 .card--bordered {
@@ -41,39 +42,48 @@
 }
 
 .card--glass {
-    background: rgba(255, 255, 255, 0.6);
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
-    border: 1px solid rgba(255, 255, 255, 0.4);
-    box-shadow: var(--shadow-md);
+    background: rgba(255, 255, 255, 0.7);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.06);
 }
 
 @media (prefers-color-scheme: dark) {
     .card--glass {
-        background: rgba(15, 23, 42, 0.6);
-        border-color: rgba(255, 255, 255, 0.08);
+        background: rgba(24, 24, 27, 0.6);
+        border-color: var(--border-glass);
+        box-shadow: 0 16px 40px rgba(0, 0, 0, 0.4);
     }
 }
 
-/* Hover lift */
+/* Hover lift - Premium feel */
 .card--hover:hover {
-    transform: translateY(-4px);
-    box-shadow: var(--shadow-lg);
+    transform: translateY(-6px);
+    box-shadow: 0 20px 40px -8px rgba(0, 0, 0, 0.12);
+    border-color: var(--border-glass);
+}
+
+@media (prefers-color-scheme: dark) {
+    .card--hover:hover {
+        box-shadow: 0 20px 40px -8px rgba(0, 0, 0, 0.5);
+    }
 }
 
 /* Sub-components */
 .card__header {
-    padding: var(--space-4) var(--space-6);
+    padding: var(--space-5) var(--space-6);
     border-bottom: 1px solid var(--border);
-    font-weight: 600;
+    font-weight: 700;
     color: var(--text-bold);
     font-family: var(--font-display);
+    letter-spacing: -0.01em;
 }
 
 .card__body {
-    padding: var(--space-4) var(--space-6);
+    padding: var(--space-5) var(--space-6);
     color: var(--text);
-    line-height: 1.6;
+    line-height: 1.7;
 }
 
 .card__footer {
@@ -81,5 +91,6 @@
     border-top: 1px solid var(--border);
     display: flex;
     align-items: center;
-    gap: var(--space-3);
+    background: var(--bg-subtle);
+    gap: var(--space-4);
 }

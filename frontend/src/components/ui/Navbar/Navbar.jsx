@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import './Navbar.css';
 
 /**
@@ -28,13 +29,23 @@ const Navbar = ({
                 {/* Desktop links */}
                 <nav className="navbar__links" role="navigation" aria-label="Main navigation">
                     {links.map((link) => (
-                        <a
-                            key={link.href}
-                            href={link.href}
-                            className={`navbar__link ${link.active ? 'navbar__link--active' : ''}`}
-                        >
-                            {link.label}
-                        </a>
+                        link.href?.startsWith('#') ? (
+                            <a
+                                key={link.href}
+                                href={link.href}
+                                className={`navbar__link ${link.active ? 'navbar__link--active' : ''}`}
+                            >
+                                {link.label}
+                            </a>
+                        ) : (
+                            <Link
+                                key={link.to || link.href}
+                                to={link.to || link.href}
+                                className={`navbar__link ${link.active ? 'navbar__link--active' : ''}`}
+                            >
+                                {link.label}
+                            </Link>
+                        )
                     ))}
                 </nav>
 
@@ -62,14 +73,25 @@ const Navbar = ({
             <div className={`navbar__mobile-menu ${mobileOpen ? 'navbar__mobile-menu--open' : ''}`} aria-hidden={!mobileOpen}>
                 <nav>
                     {links.map((link) => (
-                        <a
-                            key={link.href}
-                            href={link.href}
-                            className={`navbar__mobile-link ${link.active ? 'navbar__mobile-link--active' : ''}`}
-                            onClick={() => setMobileOpen(false)}
-                        >
-                            {link.label}
-                        </a>
+                        link.href?.startsWith('#') ? (
+                            <a
+                                key={link.href}
+                                href={link.href}
+                                className={`navbar__mobile-link ${link.active ? 'navbar__mobile-link--active' : ''}`}
+                                onClick={() => setMobileOpen(false)}
+                            >
+                                {link.label}
+                            </a>
+                        ) : (
+                            <Link
+                                key={link.to || link.href}
+                                to={link.to || link.href}
+                                className={`navbar__mobile-link ${link.active ? 'navbar__mobile-link--active' : ''}`}
+                                onClick={() => setMobileOpen(false)}
+                            >
+                                {link.label}
+                            </Link>
+                        )
                     ))}
                 </nav>
                 {actions && <div className="navbar__mobile-actions">{actions}</div>}

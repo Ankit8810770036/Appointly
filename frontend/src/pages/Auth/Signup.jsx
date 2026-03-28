@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { User, Mail, Lock, Phone, MapPin } from 'lucide-react';
 import { useNavigate, Link, useSearchParams, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import Button from '../../components/ui/Button/Button';
@@ -37,6 +38,16 @@ export default function Signup() {
     });
     const [loading, setLoading] = useState(false);
     const [errors, setErrors] = useState({});
+    const [showRedirectMessage, setShowRedirectMessage] = useState(!!from);
+
+    useEffect(() => {
+        if (showRedirectMessage) {
+            const timer = setTimeout(() => {
+                setShowRedirectMessage(false);
+            }, 5000);
+            return () => clearTimeout(timer);
+        }
+    }, [showRedirectMessage]);
 
     const set = (field) => (e) => {
         const val = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
@@ -147,7 +158,7 @@ export default function Signup() {
                 >
                     <div className="auth-form-header">
                         <h1>{step === 1 ? 'Create account' : 'Provider details'}</h1>
-                        {from && step === 1 && (
+                        {showRedirectMessage && step === 1 && (
                             <div className="auth-info-alert" style={{
                                 background: 'rgba(37, 99, 235, 0.1)',
                                 color: 'var(--primary)',
@@ -156,9 +167,10 @@ export default function Signup() {
                                 fontSize: 'var(--fs-sm)',
                                 marginBottom: 'var(--space-4)',
                                 border: '1px solid rgba(37, 99, 235, 0.2)',
-                                fontWeight: '500'
+                                fontWeight: '500',
+                                animation: 'fadeIn 0.3s ease-out'
                             }}>
-                                📋 Create an account to view profiles and book appointments.
+                                🔒 Please sign in or create an account to view this professional's full profile.
                             </div>
                         )}
                         <p>Already have one? <Link to="/login" className="auth-link" state={{ from: location.state?.from }}>Sign in →</Link></p>
@@ -197,15 +209,15 @@ export default function Signup() {
 
                     {step === 1 ? (
                         <form className="auth-form" onSubmit={handleNext} noValidate>
-                            <Input label="Full name" placeholder="Enter your full name" value={form.fullName} onChange={set('fullName')} leftIcon={<span>👤</span>} error={errors.fullName} required />
-                            <Input label="Email address" type="email" placeholder="Enter your email address" value={form.email} onChange={set('email')} leftIcon={<span>✉️</span>} error={errors.email} required />
-                            <Input label="Password" type="password" placeholder="Enter your password" value={form.password} onChange={set('password')} leftIcon={<span>🔒</span>} error={errors.password} required hint="At least 8 characters" />
-                            <Input label="Confirm password" type="password" placeholder="Enter your confirm password" value={form.confirmPassword} onChange={set('confirmPassword')} leftIcon={<span>🔒</span>} error={errors.confirmPassword} required />
+                            <Input label="Full name" placeholder="Enter your full name" value={form.fullName} onChange={set('fullName')} leftIcon={<User size={16} />} error={errors.fullName} required />
+                            <Input label="Email address" type="email" placeholder="Enter your email address" value={form.email} onChange={set('email')} leftIcon={<Mail size={16} />} error={errors.email} required />
+                            <Input label="Password" type="password" placeholder="Enter your password" value={form.password} onChange={set('password')} leftIcon={<Lock size={16} />} error={errors.password} showPasswordToggle={true} required hint="At least 8 characters" />
+                            <Input label="Confirm password" type="password" placeholder="Enter your confirm password" value={form.confirmPassword} onChange={set('confirmPassword')} leftIcon={<Lock size={16} />} error={errors.confirmPassword} showPasswordToggle={true} required />
 
                             {form.role === 'client' && (
                                 <div className="auth-row">
-                                    <Input label="Phone number" type="tel" placeholder="+91 98765 43210" value={form.phone} onChange={set('phone')} leftIcon={<span>📞</span>} error={errors.phone} required />
-                                    <Input label="Your Address" type="text" placeholder="Koramangala, Bengaluru" value={form.location} onChange={set('location')} leftIcon={<span>📍</span>} error={errors.location} required />
+                                    <Input label="Phone number" type="tel" placeholder="+91 98765 43210" value={form.phone} onChange={set('phone')} leftIcon={<Phone size={16} />} error={errors.phone} required />
+                                    <Input label="Your Address" type="text" placeholder="Koramangala, Bengaluru" value={form.location} onChange={set('location')} leftIcon={<MapPin size={16} />} error={errors.location} required />
                                 </div>
                             )}
 
@@ -232,8 +244,8 @@ export default function Signup() {
                         </form>
                     ) : (
                         <form className="auth-form" onSubmit={handleFormSubmit} noValidate>
-                            <Input label="Phone number" type="tel" placeholder="+91 98765 43210" value={form.phone} onChange={set('phone')} leftIcon={<span>📞</span>} error={errors.phone} required />
-                            <Input label="Business Location" type="text" placeholder="Koramangala, Bengaluru" value={form.location} onChange={set('location')} leftIcon={<span>📍</span>} error={errors.location} required />
+                            <Input label="Phone number" type="tel" placeholder="+91 98765 43210" value={form.phone} onChange={set('phone')} leftIcon={<Phone size={16} />} error={errors.phone} required />
+                            <Input label="Business Location" type="text" placeholder="Koramangala, Bengaluru" value={form.location} onChange={set('location')} leftIcon={<MapPin size={16} />} error={errors.location} required />
 
                             <div className="auth-field-group">
                                 <label className="input-label">Your specialty *</label>

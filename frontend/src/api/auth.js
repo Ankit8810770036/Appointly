@@ -83,10 +83,10 @@ export const authApi = {
         });
     },
 
-    resetPassword: async (token, password) => {
-        return request(`/auth/reset-password/${token}`, {
+    resetPassword: async (email, otp, password) => {
+        return request('/auth/reset-password', {
             method: 'POST',
-            body: JSON.stringify({ password }),
+            body: JSON.stringify({ email, otp, password }),
         });
     },
 };

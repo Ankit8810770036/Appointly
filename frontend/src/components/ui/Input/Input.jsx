@@ -1,3 +1,5 @@
+import { useState } from 'react';
+import { Eye, EyeOff } from 'lucide-react';
 import './Input.css';
 
 /**
@@ -20,10 +22,15 @@ const Input = ({
     leftIcon,
     rightIcon,
     disabled = false,
+    showPasswordToggle = false,
     id,
     className = '',
     ...props
 }) => {
+    const [showPassword, setShowPassword] = useState(false);
+    const isPasswordType = type === 'password';
+    const inputType = isPasswordType && showPasswordToggle && showPassword ? 'text' : type;
+
     const inputId = id || label?.toLowerCase().replace(/\s+/g, '-');
 
     return (
@@ -41,18 +48,29 @@ const Input = ({
                 )}
                 <input
                     id={inputId}
-                    type={type}
+                    type={inputType}
                     placeholder={placeholder}
                     disabled={disabled}
-                    className={`input-field ${leftIcon ? 'input-field--has-left-icon' : ''} ${rightIcon ? 'input-field--has-right-icon' : ''}`}
+                    className={`input-field ${leftIcon ? 'input-field--has-left-icon' : ''} ${rightIcon || (isPasswordType && showPasswordToggle) ? 'input-field--has-right-icon' : ''}`}
                     aria-invalid={!!error}
                     aria-describedby={error ? `${inputId}-error` : hint ? `${inputId}-hint` : undefined}
                     {...props}
                 />
-                {rightIcon && (
-                    <span className="input-icon input-icon--right" aria-hidden="true">
-                        {rightIcon}
-                    </span>
+                {isPasswordType && showPasswordToggle ? (
+                    <button
+                        type="button"
+                        className="input-icon input-icon--right input-password-toggle"
+                        onClick={() => setShowPassword(!showPassword)}
+                        aria-label={showPassword ? 'Hide password' : 'Show password'}
+                    >
+                        {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                    </button>
+                ) : (
+                    rightIcon && (
+                        <span className="input-icon input-icon--right" aria-hidden="true">
+                            {rightIcon}
+                        </span>
+                    )
                 )}
             </div>
             {error && (

@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { motion } from 'framer-motion';
+import { Search, MapPin, User, Tag } from 'lucide-react';
 import Button from '../../components/ui/Button/Button';
 import Card from '../../components/ui/Card/Card';
 import Badge from '../../components/ui/Badge/Badge';
@@ -33,8 +34,10 @@ function useCounter(target, duration = 2000, start = false) {
 /* ── Data ── */
 const NAV_LINKS = [
     { label: 'Home', href: '#', active: true },
+    { label: 'How it works', href: '#how-it-works' },
     { label: 'Services', href: '#services' },
-    { label: 'Providers', href: '#providers' },
+    { label: 'Providers', href: '#providers-list' },
+    { label: 'About', to: '/about' },
 ];
 
 const SERVICES = [
@@ -61,7 +64,7 @@ const TESTIMONIALS = [
 /* ── Component ── */
 export default function Home() {
     const { user, logout, isAuthenticated } = useAuth();
-    const [search, setSearch] = useState({ service: '', location: '' });
+    const [search, setSearch] = useState({ service: '', location: '', name: '', maxPrice: '' });
     const [providers, setProviders] = useState([]);
     const [filteredProviders, setFilteredProviders] = useState([]);
     const [loadingProviders, setLoadingProviders] = useState(true);
@@ -71,6 +74,7 @@ export default function Home() {
     const [reviewSuccess, setReviewSuccess] = useState(false);
     const navigate = useNavigate();
     const statsRef = useRef(null);
+    const providerScrollRef = useRef(null);
     const [statsVisible, setStatsVisible] = useState(false);
     const [stats, setStats] = useState({ providersCount: 0, bookingsCompleted: 0, citiesCount: 0 });
 
@@ -123,8 +127,10 @@ export default function Home() {
         try {
             const keyword = keywordOverride !== undefined ? keywordOverride : search.service;
             const loc = locOverride !== undefined ? locOverride : search.location;
+            const name = search.name;
+            const price = search.maxPrice;
 
-            const data = await providerApi.getAll(keyword, '', loc);
+            const data = await providerApi.getAll(keyword, '', loc, '', name, price);
             setFilteredProviders(data);
 
             // Scroll to providers list
@@ -232,10 +238,10 @@ export default function Home() {
                         transition={{ duration: 0.6, delay: 0.3 }}
                     >
                         <div className="hero__search-field">
-                            <span className="hero__search-icon">🔍</span>
+                            <Search size={18} className="hero__search-icon-svg" />
                             <input
                                 type="text"
-                                placeholder="What service are you looking for?"
+                                placeholder="Service"
                                 value={search.service}
                                 onChange={(e) => setSearch({ ...search, service: e.target.value })}
                                 onKeyDown={handleKeyDown}
@@ -244,7 +250,7 @@ export default function Home() {
                         </div>
                         <div className="hero__search-divider" />
                         <div className="hero__search-field">
-                            <span className="hero__search-icon">📍</span>
+                            <MapPin size={18} className="hero__search-icon-svg" />
                             <input
                                 type="text"
                                 placeholder="Location"
@@ -254,7 +260,35 @@ export default function Home() {
                                 className="hero__search-input"
                             />
                         </div>
-                        <Button variant="primary" size="lg" className="hero__search-btn" onClick={() => handleSearch()}>
+                        <div className="hero__search-divider" />
+                        <div className="hero__search-field">
+                            <User size={18} className="hero__search-icon-svg" />
+                            <input
+                                type="text"
+                                placeholder="Provider Name"
+                                value={search.name}
+                                onChange={(e) => setSearch({ ...search, name: e.target.value })}
+                                onKeyDown={handleKeyDown}
+                                className="hero__search-input"
+                            />
+                        </div>
+                        <div className="hero__search-divider" />
+                        <div className="hero__search-field">
+                            <Tag size={18} className="hero__search-icon-svg" />
+                            <input
+                                type="number"
+                                placeholder="Max Price (₹)"
+                                value={search.maxPrice}
+                                onChange={(e) => setSearch({ ...search, maxPrice: e.target.value })}
+                                onKeyDown={handleKeyDown}
+                                className="hero__search-input"
+                            />
+                        </div>
+                        <Button
+                            variant="primary"
+                            className="hero__search-btn"
+                            onClick={() => handleSearch()}
+                        >
                             Search
                         </Button>
                     </motion.div>
@@ -296,68 +330,66 @@ export default function Home() {
                     <p className="section__sub">Click on any provider to view their profile and book an appointment.</p>
                 </div>
                 {loadingProviders ? (
-                    <div className="services-grid">
-                        {Array(6).fill(0).map((_, i) => (
-                            <Card key={i} variant="default" className="service-card">
-                                <Skeleton variant="circle" width="48px" height="48px" style={{ marginBottom: '1rem' }} />
-                                <Skeleton variant="text" width="80%" height="1.5rem" style={{ marginBottom: '0.5rem' }} />
-                                <Skeleton variant="text" width="60%" height="1rem" style={{ marginBottom: '1rem' }} />
-                                <Skeleton variant="text" width="90%" height="1.2rem" />
-                            </Card>
-                        ))}
+                    <div className="providers-scroll-container">
+                        <div className="providers-scroll-inner">
+                            {Array(6).fill(0).map((_, i) => (
+                                <Card key={i} variant="default" className="provider-card skeleton-card">
+                                    <Skeleton variant="circle" width="48px" height="48px" style={{ marginBottom: '1rem' }} />
+                                    <Skeleton variant="text" width="80%" height="1.5rem" style={{ marginBottom: '0.5rem' }} />
+                                    <Skeleton variant="text" width="60%" height="1rem" style={{ marginBottom: '1rem' }} />
+                                    <Skeleton variant="text" width="90%" height="1.2rem" />
+                                </Card>
+                            ))}
+                        </div>
                     </div>
                 ) : filteredProviders.length === 0 ? (
                     <p style={{ textAlign: 'center', color: 'var(--text-light)', padding: '2rem' }}>No providers found. Try a different search.</p>
                 ) : (
-                    <div className="services-grid">
-                        {filteredProviders.map(p => (
-                            <Card
-                                key={p.id}
-                                variant="default"
-                                hover
-                                className="service-card"
-                                style={{ cursor: 'pointer' }}
-                                onClick={() => navigate(`/provider/${p.id}`)}
-                            >
-                                <div className="service-card__icon">🧑‍⚕️</div>
-                                <h3 className="service-card__title">{p.name}</h3>
-                                <p className="service-card__desc">{p.providerProfile?.specialty || 'Professional'}</p>
-                                {p.providerProfile?.location && (
-                                    <p style={{ fontSize: '0.8rem', color: 'var(--text-light)', marginTop: '0.25rem' }}>
-                                        📍 {p.providerProfile.location}
-                                    </p>
-                                )}
-                                <div className="service-card__footer">
-                                    <div className="service-card__rating">
-                                        <span className="star-icon">⭐</span>
-                                        <span className="rating-val">{p.providerProfile?.rating ?? 4.5}</span>
-                                    </div>
-                                    {p.providerProfile?.services?.length > 0 && (
-                                        <div className="service-card__price-badge">
-                                            <span className="price-label">From</span>
-                                            <span className="price-amount">₹{Math.min(...p.providerProfile.services.map(s => s.price))}</span>
+                    <div className="providers-scroll-container" ref={providerScrollRef}>
+                        <div className="providers-scroll-inner">
+                            {filteredProviders.map(p => (
+                                <Card
+                                    key={p.id}
+                                    variant="default"
+                                    className="provider-card"
+                                    style={{ cursor: 'pointer' }}
+                                    onClick={() => navigate(`/provider/${p.id}`)}
+                                >
+                                    <div className="provider-card__cover">
+                                        <div className="provider-card__avatar">
+                                            {p.name.charAt(0).toUpperCase()}
                                         </div>
-                                    )}
-                                </div>
-                            </Card>
-                        ))}
+                                        <div className="provider-card__badge-wrapper">
+                                            <Badge variant="success" style={{ padding: '0.2rem 0.5rem', fontSize: '0.7rem' }}>✓ Verified</Badge>
+                                        </div>
+                                    </div>
+                                    <div className="provider-card__body">
+                                        <h3 className="provider-card__name">{p.name}</h3>
+                                        <p className="provider-card__specialty">{p.providerProfile?.specialty || 'Professional'}</p>
+
+                                        <div className="provider-card__meta">
+                                            {p.providerProfile?.location && (
+                                                <span className="provider-meta-item">📍 {p.providerProfile.location}</span>
+                                            )}
+                                            <span className="provider-meta-item">⭐ {p.providerProfile?.rating ?? 4.9}</span>
+                                        </div>
+                                    </div>
+                                    <div className="provider-card__footer">
+                                        <Button variant="outline" size="sm" style={{ padding: '0.4rem 1rem' }}>Book</Button>
+                                        {p.providerProfile?.services?.length > 0 && (
+                                            <div className="provider-price">
+                                                <span className="provider-price-label">From</span>
+                                                <span className="provider-price-value">₹{Math.min(...p.providerProfile.services.map(s => s.price))}</span>
+                                            </div>
+                                        )}
+                                    </div>
+                                </Card>
+                            ))}
+                        </div>
                     </div>
                 )}
             </section>
 
-            {/* ── Stats ── */}
-            <section className="stats" ref={statsRef}>
-                {[
-                    { value: providersCount, suffix: '', label: 'Verified Providers' },
-                    { value: bookingsCount, suffix: '', label: 'Bookings Completed' },
-                    { value: citiesCount, suffix: '+', label: 'Cities Covered' },
-                ].map((stat) => (
-                    <div key={stat.label} className="stat-item">
-                        <span className="stat-value">{stat.value.toLocaleString()}{stat.suffix}</span>
-                        <span className="stat-label">{stat.label}</span>
-                    </div>
-                ))}
-            </section>
 
             {/* ── How It Works ── */}
             <section className="section" id="how-it-works">
@@ -537,6 +569,22 @@ export default function Home() {
                 </div>
             </section>
 
+            {/* ── About Us ── */}
+            <section className="section" id="about">
+                <div className="section__header">
+                    <Badge variant="primary">Our Mission</Badge>
+                    <h2 className="section__title">About Our Company</h2>
+                    <p className="section__sub" style={{ maxWidth: '800px', lineHeight: '1.8' }}>
+                        At Appointly, we believe that accessing quality services should be effortless.
+                        Founded with a vision to connect talented professionals with people who need them,
+                        we have built a platform that simplifies scheduling, builds trust through transparent reviews,
+                        and empowers local businesses to thrive in the digital age.
+                        Whether you are looking for a quick haircut, a reliable plumber, or a long-term business consultant,
+                        we are here to make that connection happen instantly.
+                    </p>
+                </div>
+            </section>
+
             {/* ── Provider CTA ── */}
             <section className="cta-banner" id="providers">
                 <div className="cta-banner__bg" aria-hidden="true" />
@@ -575,7 +623,7 @@ export default function Home() {
                         {
                             heading: 'Company',
                             links: [
-                                { label: 'About', href: '#providers-list' },
+                                { label: 'About', href: '#about' },
                                 { label: 'Feedback', href: '#feedback' },
                                 { label: 'Join Us', href: '#providers' }
                             ]

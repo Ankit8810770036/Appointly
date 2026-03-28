@@ -12,8 +12,10 @@ async function request(endpoint, options = {}) {
 }
 
 export const providerApi = {
-    getAll: (search = '', specialty = '', location = '', date = '') =>
-        request(`/providers?search=${search}&specialty=${specialty}&location=${location}&date=${date}`),
+    getAll: (search = '', specialty = '', location = '', date = '', name = '', maxPrice = '') => {
+        const params = new URLSearchParams({ search, specialty, location, date, name, maxPrice });
+        return request(`/providers?${params.toString()}`);
+    },
     getById: (id) => request(`/providers/${id}`),
     addService: (payload, token) => request('/providers/services', { method: 'POST', body: JSON.stringify(payload), headers: { Authorization: `Bearer ${token}` } }),
     deleteService: (id, token) => request(`/providers/services/${id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } }),

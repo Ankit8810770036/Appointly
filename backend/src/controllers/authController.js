@@ -184,12 +184,12 @@ export const forgotPassword = async (req, res) => {
             return res.status(200).json({ message: 'If this email is registered, a password reset link has been sent.' });
         }
 
-        // Generate reset token
-        const resetToken = crypto.randomBytes(32).toString('hex');
-        const hashedToken = crypto.createHash('sha256').update(resetToken).digest('hex');
+        // Generate 6-digit OTP
+        const otp = Math.floor(100000 + Math.random() * 900000).toString();
+        const hashedToken = crypto.createHash('sha256').update(otp).digest('hex');
 
-        // Set expiry (1 hour)
-        const expiry = new Date(Date.now() + 60 * 60 * 1000);
+        // Expiry (2 minutes)
+        const expiry = new Date(Date.now() + 2 * 60 * 1000);
 
         await prisma.user.update({
             where: { id: user.id },
@@ -199,12 +199,9 @@ export const forgotPassword = async (req, res) => {
             }
         });
 
-        // Create reset URL
-        const resetUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/reset-password/${resetToken}`;
-
         try {
-            await sendPasswordResetEmail(user, resetUrl);
-            res.json({ message: 'Password reset link sent to your email' });
+            await sendPasswordResetEmail(user, otp);
+            res.json({ message: 'OTP sent to your email' });
         } catch (err) {
             // Clean up if email fails
             await prisma.user.update({
@@ -222,21 +219,21 @@ export const forgotPassword = async (req, res) => {
     }
 };
 
-// @desc    Reset password using token
-// @route   POST /api/auth/reset-password/:token
+// @route   POST /api/auth/reset-password
 // @access  Public
 export const resetPassword = async (req, res) => {
     try {
-        const { password } = req.body;
+        const { email, otp, password } = req.body;
 
         if (!password || password.length < 8) {
             return res.status(400).json({ message: 'Password must be at least 8 characters' });
         }
 
-        const hashedToken = crypto.createHash('sha256').update(req.params.token).digest('hex');
+        const hashedToken = crypto.createHash('sha256').update(otp).digest('hex');
 
         const user = await prisma.user.findFirst({
             where: {
+                email,
                 resetPasswordToken: hashedToken,
                 resetPasswordExpires: { gt: new Date() }
             }

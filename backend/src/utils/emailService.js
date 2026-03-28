@@ -117,18 +117,17 @@ export const sendServiceCompletionEmail = async (appointment) => {
     return sendGenericEmailJS({ to_name: appointment.client.name, to_email: appointment.client.email, subject, html_message: html });
 };
 
-export const sendPasswordResetEmail = async (user, resetUrl) => {
-    const subject = 'Password Reset Request - Appointly';
+export const sendPasswordResetEmail = async (user, otp) => {
+    const subject = 'Your Password Reset OTP - Appointly';
     const html = `
-        <div style="font-family: sans-serif; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #eee; border-radius: 10px;">
+        <div style="font-family: sans-serif; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #eee; border-radius: 10px; text-align: center;">
             <h2 style="color: #4f46e5;">Password Reset Request</h2>
             <p>Hi ${user.name},</p>
-            <p>You requested to reset your password. Please click the button below to set a new one. This link will expire in 1 hour.</p>
-            <div style="margin: 30px 0;">
-                <a href="${resetUrl}" style="background-color: #4f46e5; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; font-weight: bold;">Reset Password</a>
+            <p>You requested to reset your password. Use the code below to set a new one. This code will expire in <strong>2 minutes</strong>.</p>
+            <div style="margin: 30px 0; background: #f3f4f6; padding: 20px; border-radius: 8px; font-size: 32px; font-weight: bold; letter-spacing: 8px; color: #1f2937;">
+                ${otp}
             </div>
             <p style="color: #666; font-size: 14px;">If you didn't request this, you can safely ignore this email.</p>
-            <p style="color: #999; font-size: 12px; margin-top: 20px;">Or copy and paste this link: ${resetUrl}</p>
         </div>
     `;
     return sendGenericEmailJS({ to_name: user.name, to_email: user.email, subject, html_message: html });

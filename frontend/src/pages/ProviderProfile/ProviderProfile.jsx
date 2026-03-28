@@ -676,19 +676,21 @@ export default function ProviderProfile() {
                                         >
                                             Book Appointment
                                         </Button>
-                                        <Button
-                                            variant="outline"
-                                            className="message-cta"
-                                            onClick={() => {
-                                                if (!token) {
-                                                    toast.error('Please login to message the provider.');
-                                                    return;
-                                                }
-                                                setShowMsgModal(true);
-                                            }}
-                                        >
-                                            💬 Message Provider
-                                        </Button>
+                                        {!isOwnProfile && (
+                                            <Button
+                                                variant="outline"
+                                                className="message-cta"
+                                                onClick={() => {
+                                                    if (!token) {
+                                                        toast.error('Please login to message the provider.');
+                                                        return;
+                                                    }
+                                                    setShowMsgModal(true);
+                                                }}
+                                            >
+                                                💬 Message Provider
+                                            </Button>
+                                        )}
                                     </div>
                                 )}
 

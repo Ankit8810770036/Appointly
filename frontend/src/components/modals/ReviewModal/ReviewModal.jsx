@@ -14,10 +14,9 @@ export default function ReviewModal({ appointment, onClose, onSubmit }) {
         setSubmitting(true);
         try {
             await onSubmit({ appointmentId: appointment.id, rating, comment });
-            toast.success('Review submitted successfully!');
             onClose();
         } catch (err) {
-            toast.error(err.message);
+            // Error is already handled by onSubmit or can be caught here if needed
         } finally {
             setSubmitting(false);
         }

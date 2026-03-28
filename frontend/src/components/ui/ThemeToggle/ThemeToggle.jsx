@@ -16,13 +16,17 @@ const ThemeToggle = () => {
             <AnimatePresence mode="wait" initial={false}>
                 <motion.div
                     key={theme}
-                    initial={{ y: -20, opacity: 0, rotate: -90 }}
-                    animate={{ y: 0, opacity: 1, rotate: 0 }}
-                    exit={{ y: 20, opacity: 0, rotate: 90 }}
-                    transition={{ duration: 0.2 }}
+                    initial={{ y: -20, opacity: 0, rotate: -90, scale: 0.5 }}
+                    animate={{ y: 0, opacity: 1, rotate: 0, scale: 1 }}
+                    exit={{ y: 20, opacity: 0, rotate: 90, scale: 0.5 }}
+                    transition={{ type: "spring", stiffness: 300, damping: 20 }}
                     className="theme-toggle__icon"
                 >
-                    {theme === 'light' ? <Sun size={20} /> : <Moon size={20} />}
+                    {theme === 'light' ? (
+                        <Sun size={20} fill="currentColor" className="sun-icon" />
+                    ) : (
+                        <Moon size={20} fill="currentColor" className="moon-icon" />
+                    )}
                 </motion.div>
             </AnimatePresence>
         </button>

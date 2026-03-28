@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
+import { CalendarDays, Clock, MapPin, CheckCircle2, XCircle, MessageCircle, Stethoscope, Star, Heart, Inbox, UserRound, Sparkles, UserCircle } from 'lucide-react';
 import Button from '../../components/ui/Button/Button';
 import Badge from '../../components/ui/Badge/Badge';
 import Card from '../../components/ui/Card/Card';
@@ -19,6 +20,7 @@ import { useSocket } from '../../context/SocketContext';
 import NotificationBell from '../../components/ui/NotificationBell/NotificationBell';
 import MessagesTab from '../../components/dashboard/MessagesTab/MessagesTab';
 import Sidebar from '../../components/ui/Sidebar/Sidebar';
+import MessageModal from '../../components/modals/MessageModal/MessageModal';
 import './ClientDashboard.css';
 
 
@@ -41,14 +43,14 @@ const STATUS_VARIANT = {
 
 /* ─── Sub-components ─────────────────────────────── */
 
-function AppointmentCard({ appt, onCancel, onRebook, onReview, index = 0 }) {
+function AppointmentCard({ appt, onCancel, onRebook, onReview, onMessage, index = 0 }) {
     const [showCancel, setShowCancel] = useState(false);
     const isPast = appt.status !== 'upcoming';
 
     return (
         <Card variant="default" className={`appt-card appt-card--${appt.status}`} animate delay={index * 0.05}>
             <div className="appt-card__main">
-                <div className="appt-avatar">{appt.avatar}</div>
+                <div className="appt-avatar"><Stethoscope size={24} strokeWidth={1.5} /></div>
                 <div className="appt-info">
                     <div className="appt-info__top">
                         <div>
@@ -59,15 +61,15 @@ function AppointmentCard({ appt, onCancel, onRebook, onReview, index = 0 }) {
                     </div>
                     <div className="appt-service">{appt.service}</div>
                     <div className="appt-meta">
-                        <span>📅 {appt.date}</span>
-                        <span>⏰ {appt.time}</span>
-                        <span>⏱ {appt.duration} min</span>
-                        <span>📍 {appt.location}</span>
+                        <span><CalendarDays size={13} /> {appt.date}</span>
+                        <span><Clock size={13} /> {appt.time}</span>
+                        <span><Clock size={13} /> {appt.duration} min</span>
+                        <span><MapPin size={13} /> {appt.location}</span>
                         <span className="appt-price">₹{appt.price}</span>
                     </div>
                     {appt.review && (
                         <div className="appt-rating">
-                            Your rating: {'⭐'.repeat(appt.review.rating)}
+                            Your rating: {Array.from({ length: appt.review.rating }, (_, i) => <Star key={i} size={14} fill="currentColor" />)}
                         </div>
                     )}
                 </div>
@@ -76,6 +78,9 @@ function AppointmentCard({ appt, onCancel, onRebook, onReview, index = 0 }) {
             <div className="appt-card__actions">
                 {(appt.status === 'pending' || appt.status === 'confirmed') && (
                     <>
+                        <Button variant="ghost" size="sm" onClick={() => onMessage(appt.providerId)} title="Message Provider">
+                            <MessageCircle size={16} />
+                        </Button>
                         <Button variant="outline" size="sm" onClick={() => setShowCancel(true)}>Cancel</Button>
                         <Button variant="primary" size="sm" onClick={() => onRebook(appt)}>Provider Profile</Button>
                     </>
@@ -139,6 +144,7 @@ export default function ClientDashboard() {
 
     const [activeSection, setActiveSection] = useState('overview');
     const [filter, setFilter] = useState('all');
+    const [messageTarget, setMessageTarget] = useState(null);
 
     // Dynamic data state
     const [appointments, setAppointments] = useState([]);
@@ -155,6 +161,14 @@ export default function ClientDashboard() {
         if (activeSection === 'messages') setUnreadMessages(0);
         if (activeSection === 'appointments') setUnreadAppointments(0);
     }, [activeSection]);
+
+    // Called by NotificationBell when user clicks a notification
+    const handleNotifNavigate = (section) => {
+        const mappedSection = section === 'bookings' ? 'appointments' : section;
+        setActiveSection(mappedSection);
+        if (mappedSection === 'messages') setUnreadMessages(0);
+        if (mappedSection === 'appointments') setUnreadAppointments(0);
+    };
 
     useEffect(() => {
         if (!socket) return;
@@ -216,7 +230,7 @@ export default function ClientDashboard() {
                         price: appt.service?.price || 0,
                         status: appt.status.toLowerCase(),
                         review: appt.review,
-                        avatar: '🧑‍⚕️',
+                        avatar: <UserCircle size={24} className="icon-muted" />,
                         location: appt.provider?.location || 'Not specified',
                     };
                 });
@@ -229,7 +243,7 @@ export default function ClientDashboard() {
                     name: f.providerProfile.user.name,
                     specialty: f.providerProfile.specialty,
                     rating: f.providerProfile.rating || 4.5,
-                    avatar: '🧑‍⚕️',
+                    avatar: <UserCircle size={24} className="icon-muted" />,
                     location: f.providerProfile.location || 'Not specified',
                     price: f.providerProfile.services?.[0]?.price || 0
                 }));
@@ -247,7 +261,9 @@ export default function ClientDashboard() {
 
     const filtered = filter === 'all'
         ? appointments
-        : appointments.filter(a => a.status === filter);
+        : filter === 'upcoming'
+            ? appointments.filter(a => a.status === 'pending' || a.status === 'confirmed')
+            : appointments.filter(a => a.status === filter);
 
     const counts = {
         all: appointments.length,
@@ -268,6 +284,13 @@ export default function ClientDashboard() {
     };
 
     const handleRebook = (appt) => navigate(`/provider/${appt.providerId}`);
+
+    const handleMessage = (appt) => {
+        setMessageTarget({
+            id: appt.providerId,
+            name: appt.providerName || appt.provider
+        });
+    };
 
     const handleReviewSubmit = async (payload) => {
         try {
@@ -348,17 +371,17 @@ export default function ClientDashboard() {
     const displayUser = {
         name: user?.name || 'Client',
         email: user?.email || '',
-        avatar: '👨🏻',
+        avatar: <UserRound size={20} />,
         memberSince
     };
 
     // Calculate quick stats with dynamic counts
     const dynamicStats = [
-        { label: 'Total Bookings', value: counts.all, icon: '📅', color: 'var(--primary)' },
-        { label: 'Upcoming', value: counts.upcoming, icon: '⏰', color: 'hsl(38, 80%, 45%)' },
-        { label: 'Completed', value: counts.completed, icon: '✅', color: 'hsl(142, 70%, 40%)' },
-        { label: 'Cancelled', value: counts.cancelled, icon: '❌', color: 'hsl(0, 75%, 55%)' },
-        { label: 'Messages', value: 'New', icon: '💬', color: 'var(--accent)', onClick: () => setActiveSection('messages') },
+        { label: 'Total Bookings', value: counts.all, icon: <CalendarDays size={22} />, color: 'var(--primary)' },
+        { label: 'Upcoming', value: counts.upcoming, icon: <Clock size={22} />, color: 'hsl(38, 80%, 45%)' },
+        { label: 'Completed', value: counts.completed, icon: <CheckCircle2 size={22} />, color: 'hsl(142, 70%, 40%)' },
+        { label: 'Cancelled', value: counts.cancelled, icon: <XCircle size={22} />, color: 'hsl(0, 75%, 55%)' },
+        { label: 'Messages', value: 'New', icon: <MessageCircle size={22} />, color: 'var(--accent)', onClick: () => setActiveSection('messages') },
     ];
 
     return (
@@ -386,12 +409,14 @@ export default function ClientDashboard() {
                     <div className="dashboard__content animate-fade-in">
                         <div className="dashboard__header">
                             <div>
-                                <h1>Good evening, {displayUser.name.split(' ')[0]} 👋</h1>
+                                <h1 style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                    Good evening, {displayUser.name.split(' ')[0]} <Sparkles size={24} className="text-primary" />
+                                </h1>
                                 <p>Here's a summary of your appointments.</p>
                             </div>
                             <div className="header-actions">
                                 <ThemeToggle />
-                                <NotificationBell />
+                                <NotificationBell onNavigate={handleNotifNavigate} />
                                 <Button variant="primary" onClick={() => navigate('/')}>+ New Booking</Button>
                             </div>
                         </div>
@@ -424,7 +449,7 @@ export default function ClientDashboard() {
                                 {appointments.filter(a => a.status === 'pending' || a.status === 'confirmed').length === 0
                                     ? <EmptyState onBook={() => navigate('/')} />
                                     : appointments.filter(a => a.status === 'pending' || a.status === 'confirmed').map(a => (
-                                        <AppointmentCard key={a.id} appt={a} onCancel={handleCancel} onRebook={handleRebook} onReview={setReviewingAppointment} />
+                                        <AppointmentCard key={a.id} appt={a} onCancel={handleCancel} onRebook={handleRebook} onReview={setReviewingAppointment} onMessage={() => handleMessage(a)} />
                                     ))
                                 }
                             </div>
@@ -437,7 +462,7 @@ export default function ClientDashboard() {
                             </div>
                             <div className="appointments-list">
                                 {appointments.filter(a => a.status === 'completed' || a.status === 'cancelled').slice(0, 3).map(a => (
-                                    <AppointmentCard key={a.id} appt={a} onCancel={handleCancel} onRebook={handleRebook} onReview={setReviewingAppointment} />
+                                    <AppointmentCard key={a.id} appt={a} onCancel={handleCancel} onRebook={handleRebook} onReview={setReviewingAppointment} onMessage={() => handleMessage(a)} />
                                 ))}
                             </div>
                         </div>
@@ -454,7 +479,7 @@ export default function ClientDashboard() {
                             </div>
                             <div className="header-actions">
                                 <ThemeToggle />
-                                <NotificationBell />
+                                <NotificationBell onNavigate={handleNotifNavigate} />
                                 <Button variant="primary" onClick={() => navigate('/')}>+ New Booking</Button>
                             </div>
                         </div>
@@ -465,7 +490,7 @@ export default function ClientDashboard() {
                             {filtered.length === 0
                                 ? <EmptyState onBook={() => navigate('/')} />
                                 : filtered.map((a, i) => (
-                                    <AppointmentCard key={a.id} appt={a} index={i} onCancel={handleCancel} onRebook={handleRebook} onReview={setReviewingAppointment} />
+                                    <AppointmentCard key={a.id} appt={a} index={i} onCancel={handleCancel} onRebook={handleRebook} onReview={setReviewingAppointment} onMessage={() => handleMessage(a)} />
                                 ))
                             }
                         </div>
@@ -482,7 +507,7 @@ export default function ClientDashboard() {
                             </div>
                             <div className="header-actions">
                                 <ThemeToggle />
-                                <NotificationBell />
+                                <NotificationBell onNavigate={handleNotifNavigate} />
                             </div>
                         </div>
                         <MessagesTab />
@@ -496,13 +521,13 @@ export default function ClientDashboard() {
                             <div><h1>Favourites</h1><p>Providers you've saved.</p></div>
                             <div className="header-actions">
                                 <ThemeToggle />
-                                <NotificationBell />
+                                <NotificationBell onNavigate={handleNotifNavigate} />
                             </div>
                         </div>
                         <div className="favourites-grid">
                             {favorites.length === 0 ? (
                                 <div className="empty-state" style={{ gridColumn: '1 / -1' }}>
-                                    <div className="empty-state__icon">❤️</div>
+                                    <div className="empty-state__icon"><Heart size={40} strokeWidth={1.5} /></div>
                                     <h3>No favourites yet</h3>
                                     <p>Browse providers and click the heart icon to save them here.</p>
                                     <Button variant="primary" onClick={() => navigate('/')}>Browse Services</Button>
@@ -510,10 +535,10 @@ export default function ClientDashboard() {
                             ) : (
                                 favorites.map(p => (
                                     <Card key={p.id} variant="default" hover className="fav-card">
-                                        <div className="fav-avatar">{p.avatar}</div>
+                                        <div className="fav-avatar"><Stethoscope size={24} strokeWidth={1.5} /></div>
                                         <div className="fav-name">{p.name}</div>
                                         <div className="fav-specialty">{p.specialty}</div>
-                                        <div className="fav-meta">⭐ {p.rating} · from ₹{p.price}</div>
+                                        <div className="fav-meta"><Star size={14} fill="currentColor" /> {p.rating} · from ₹{p.price}</div>
                                         <Button variant="primary" size="sm" onClick={() => handleRebook(p)} className="fav-btn">Book Again</Button>
                                     </Card>
                                 ))
@@ -532,6 +557,17 @@ export default function ClientDashboard() {
                         appointment={reviewingAppointment}
                         onClose={() => setReviewingAppointment(null)}
                         onSubmit={handleReviewSubmit}
+                    />
+                )}
+
+                {messageTarget && (
+                    <MessageModal
+                        provider={messageTarget}
+                        onClose={() => setMessageTarget(null)}
+                        onSuccess={() => {
+                            toast.success('Message sent! You can follow up in the Messages tab.');
+                            setSyncTick(t => t + 1);
+                        }}
                     />
                 )}
             </main>
@@ -640,7 +676,7 @@ function ClientSettingsTab({ displayUser }) {
 function EmptyState({ onBook }) {
     return (
         <div className="empty-state">
-            <div className="empty-state__icon">📭</div>
+            <div className="empty-state__icon"><Inbox size={40} strokeWidth={1.5} /></div>
             <h3>No appointments here</h3>
             <p>Book your first appointment with one of our verified professionals.</p>
             <Button variant="primary" onClick={onBook}>Browse Services</Button>

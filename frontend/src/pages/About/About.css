@@ -1,0 +1,232 @@
+.about-page {
+    min-height: 100vh;
+    background: var(--bg);
+}
+
+.about-container {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 0 var(--space-8);
+}
+
+/* ── Hero ── */
+.about-hero {
+    position: relative;
+    padding: var(--space-24) 0;
+    text-align: center;
+    overflow: hidden;
+}
+
+.hero-mesh {
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: radial-gradient(circle at 50% 50%, rgba(var(--primary-h), var(--primary-s), var(--primary-l), 0.12), transparent 50%);
+    z-index: 0;
+    pointer-events: none;
+}
+
+.about-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--primary-faint);
+    color: var(--primary);
+    padding: 6px 14px;
+    border-radius: var(--radius-full);
+    font-size: var(--fs-xs);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: var(--space-4);
+    border: 1px solid rgba(var(--primary-h), var(--primary-s), var(--primary-l), 0.2);
+}
+
+.about-title {
+    font-size: clamp(2.5rem, 5vw, 3.5rem);
+    font-weight: 800;
+    color: var(--text-bold);
+    margin-bottom: var(--space-6);
+    line-height: 1.1;
+    letter-spacing: -0.04em;
+}
+
+.about-subtitle {
+    font-size: var(--fs-lg);
+    color: var(--text);
+    max-width: 700px;
+    margin: 0 auto;
+    line-height: 1.7;
+    opacity: 0.9;
+}
+
+/* ── Sections ── */
+.about-section {
+    padding: var(--space-16) 0;
+}
+
+.about-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: var(--space-8);
+}
+
+.about-card {
+    padding: var(--space-10);
+    border-radius: var(--radius-xl);
+    text-align: left;
+    height: 100%;
+}
+
+.card-icon {
+    width: 54px;
+    height: 54px;
+    background: var(--bg);
+    border-radius: var(--radius-md);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: var(--space-6);
+    box-shadow: var(--shadow-sm);
+    border: 1px solid var(--border-glass);
+}
+
+.about-card h3 {
+    font-size: var(--fs-xl);
+    margin-bottom: var(--space-3);
+}
+
+.about-card p {
+    color: var(--text);
+    line-height: 1.6;
+    opacity: 0.8;
+}
+
+/* ── Team ── */
+.team-section {
+    background: rgba(var(--primary-h), var(--primary-s), var(--primary-l), 0.02);
+}
+
+.section-header {
+    text-align: center;
+    margin-bottom: var(--space-16);
+}
+
+.section-title {
+    font-size: var(--fs-3xl);
+    margin-bottom: var(--space-4);
+}
+
+.section-sub {
+    color: var(--text-muted);
+}
+
+.team-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: var(--space-8);
+}
+
+.team-card {
+    padding: var(--space-8);
+    text-align: center;
+    border-radius: var(--radius-xl);
+}
+
+.member-avatar {
+    width: 80px;
+    height: 80px;
+    background: var(--bg);
+    margin: 0 auto var(--space-6);
+    font-size: 2.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.05);
+    border: 3px solid var(--bg-subtle);
+}
+
+.member-name {
+    margin-bottom: 4px;
+}
+
+.member-role {
+    font-size: var(--fs-sm);
+    color: var(--primary);
+    font-weight: 700;
+    margin-bottom: var(--space-4);
+}
+
+.member-bio {
+    font-size: var(--fs-sm);
+    color: var(--text);
+    opacity: 0.7;
+    margin-bottom: var(--space-6);
+    line-height: 1.6;
+}
+
+.member-socials {
+    display: flex;
+    justify-content: center;
+    gap: 16px;
+    color: var(--text-muted);
+}
+
+/* ── CTA ── */
+.about-cta {
+    padding: var(--space-20) 0;
+}
+
+.cta-card {
+    padding: var(--space-16);
+    border-radius: var(--radius-2xl);
+    text-align: center;
+    background: linear-gradient(135deg, var(--grad-surface), rgba(var(--primary-rgb), 0.05));
+    border: 1px solid var(--border-glass);
+}
+
+.cta-card h2 {
+    font-size: var(--fs-3xl);
+    margin-bottom: var(--space-4);
+}
+
+.cta-card p {
+    font-size: var(--fs-lg);
+    margin-bottom: var(--space-10);
+}
+
+.cta-actions {
+    display: flex;
+    justify-content: center;
+    gap: var(--space-4);
+    flex-wrap: wrap;
+}
+
+.simple-footer {
+    padding: var(--space-12) 0;
+    border-top: 1px solid var(--border-glass);
+    text-align: center;
+    color: var(--text-muted);
+    font-size: var(--fs-sm);
+}
+
+@media (max-width: 768px) {
+    .about-container {
+        padding: 0 var(--space-4);
+    }
+
+    .about-hero {
+        padding: var(--space-16) 0;
+    }
+
+    .about-title {
+        font-size: var(--fs-3xl);
+    }
+
+    .cta-actions {
+        flex-direction: column;
+    }
+}
