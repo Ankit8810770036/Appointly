@@ -1,5 +1,7 @@
 import jwt from 'jsonwebtoken';
+import fs from 'fs';
 import prisma from '../prisma.js';
+import { validateFileSignature } from '../middleware/uploadMiddleware.js';
 
 // Haversine distance formula in kilometers
 function calculateDistanceKm(lat1, lon1, lat2, lon2) {
@@ -506,21 +508,30 @@ export const uploadVerificationDocument = async (req, res) => {
             return res.status(400).json({ message: 'Please upload a file' });
         }
 
+        // Validate binary magic numbers on disk
+        const isValidSignature = validateFileSignature(req.file.path);
+        if (!isValidSignature) {
+            if (fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
+            return res.status(400).json({ message: 'Invalid or corrupted file format. Only authentic JPEG, PNG, and PDF files are allowed.' });
+        }
+
         const profile = await prisma.providerProfile.findUnique({
             where: { userId: req.user.id }
         });
 
         if (!profile) {
+            if (fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
             return res.status(404).json({ message: 'Provider profile not found' });
         }
 
-        // Delete old document if it exists (Optional improvement)
-        /*
-        if (profile.verificationDocument) {
-            const oldPath = path.join(process.cwd(), profile.verificationDocument);
-            if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
+        // Clean up previous verification document if exists
+        if (profile.verificationDocument && fs.existsSync(profile.verificationDocument)) {
+            try {
+                fs.unlinkSync(profile.verificationDocument);
+            } catch (unlinkErr) {
+                console.warn('[uploadVerificationDocument] Could not remove old document:', unlinkErr.message);
+            }
         }
-        */
 
         const updatedProfile = await prisma.providerProfile.update({
             where: { id: profile.id },

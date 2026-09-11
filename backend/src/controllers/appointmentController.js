@@ -29,98 +29,111 @@ export const createAppointment = async (req, res) => {
         } = req.body;
         const appointmentDate = new Date(date);
 
-        // 1. Check if the provider actually exists and get their userId
-        const provider = await prisma.providerProfile.findUnique({
-            where: { id: providerId },
-            include: { user: true }
-        });
-
-        if (!provider) {
-            return res.status(404).json({ message: 'Provider not found' });
+        if (isNaN(appointmentDate.getTime())) {
+            return res.status(400).json({ message: 'Invalid appointment date format' });
         }
 
-        // 2. Prevent self-booking (Provider cannot book themselves)
-        if (provider.userId === req.user.id) {
-            return res.status(400).json({ message: 'You cannot book an appointment with yourself' });
-        }
-
-        // 3. Prevent Double Booking (Race condition check)
-        const existingAppointment = await prisma.appointment.findFirst({
-            where: {
-                providerId,
-                date: appointmentDate,
-                status: {
-                    in: ['PENDING', 'CONFIRMED', 'COMPLETED']
-                }
-            }
-        });
-
-        if (existingAppointment) {
-            return res.status(400).json({ message: 'This time slot is already booked. Please choose another time.' });
-        }
-
-        // 4. Resolve Address Snapshot
-        let resolvedAddressId = addressId || null;
-        let resolvedServiceAddress = null;
-        let resolvedLat = latitude ? parseFloat(latitude) : null;
-        let resolvedLng = longitude ? parseFloat(longitude) : null;
-
-        if (addressId) {
-            const savedAddr = await prisma.address.findUnique({
-                where: { id: addressId }
+        // Execute inside an atomic transaction to guarantee concurrency safety
+        const appointment = await prisma.$transaction(async (tx) => {
+            // 1. Check if the provider actually exists and get their userId
+            const provider = await tx.providerProfile.findUnique({
+                where: { id: providerId },
+                include: { user: true }
             });
-            if (savedAddr) {
-                resolvedServiceAddress = [savedAddr.streetAddress, savedAddr.city, savedAddr.state, savedAddr.zipCode, savedAddr.country].filter(Boolean).join(', ');
-                if (!resolvedLat && savedAddr.latitude) resolvedLat = savedAddr.latitude;
-                if (!resolvedLng && savedAddr.longitude) resolvedLng = savedAddr.longitude;
+
+            if (!provider) {
+                const err = new Error('Provider not found');
+                err.statusCode = 404;
+                throw err;
             }
-        } else if (streetAddress || city) {
-            resolvedServiceAddress = [streetAddress, city, state, zipCode, country].filter(Boolean).join(', ');
-            if (saveAddress && streetAddress && city) {
-                try {
-                    const newSaved = await prisma.address.create({
-                        data: {
-                            userId: req.user.id,
-                            label: addressLabel || 'Home',
-                            streetAddress: streetAddress.trim(),
-                            city: city.trim(),
-                            state: state ? state.trim() : null,
-                            zipCode: zipCode ? zipCode.trim() : null,
-                            country: country ? country.trim() : 'India',
-                            latitude: resolvedLat,
-                            longitude: resolvedLng
-                        }
-                    });
-                    resolvedAddressId = newSaved.id;
-                } catch (addrErr) {
-                    console.error('[appointmentController] Failed to auto-save address:', addrErr);
+
+            // 2. Prevent self-booking
+            if (provider.userId === req.user.id) {
+                const err = new Error('You cannot book an appointment with yourself');
+                err.statusCode = 400;
+                throw err;
+            }
+
+            // 3. Prevent Double Booking (Atomic check inside transaction)
+            const existingAppointment = await tx.appointment.findFirst({
+                where: {
+                    providerId,
+                    date: appointmentDate,
+                    status: {
+                        in: ['PENDING', 'CONFIRMED', 'COMPLETED']
+                    }
+                }
+            });
+
+            if (existingAppointment) {
+                const err = new Error('This time slot is already booked. Please choose another time.');
+                err.statusCode = 400;
+                throw err;
+            }
+
+            // 4. Resolve Address Snapshot
+            let resolvedAddressId = addressId || null;
+            let resolvedServiceAddress = null;
+            let resolvedLat = latitude ? parseFloat(latitude) : null;
+            let resolvedLng = longitude ? parseFloat(longitude) : null;
+
+            if (addressId) {
+                const savedAddr = await tx.address.findUnique({
+                    where: { id: addressId }
+                });
+                if (savedAddr) {
+                    resolvedServiceAddress = [savedAddr.streetAddress, savedAddr.city, savedAddr.state, savedAddr.zipCode, savedAddr.country].filter(Boolean).join(', ');
+                    if (!resolvedLat && savedAddr.latitude) resolvedLat = savedAddr.latitude;
+                    if (!resolvedLng && savedAddr.longitude) resolvedLng = savedAddr.longitude;
+                }
+            } else if (streetAddress || city) {
+                resolvedServiceAddress = [streetAddress, city, state, zipCode, country].filter(Boolean).join(', ');
+                if (saveAddress && streetAddress && city) {
+                    try {
+                        const newSaved = await tx.address.create({
+                            data: {
+                                userId: req.user.id,
+                                label: addressLabel || 'Home',
+                                streetAddress: streetAddress.trim(),
+                                city: city.trim(),
+                                state: state ? state.trim() : null,
+                                zipCode: zipCode ? zipCode.trim() : null,
+                                country: country ? country.trim() : 'India',
+                                latitude: resolvedLat,
+                                longitude: resolvedLng
+                            }
+                        });
+                        resolvedAddressId = newSaved.id;
+                    } catch (addrErr) {
+                        console.error('[appointmentController] Failed to auto-save address:', addrErr);
+                    }
                 }
             }
-        }
 
-        const appointment = await prisma.appointment.create({
-            data: {
-                clientId: req.user.id,
-                providerId,
-                serviceId,
-                date: appointmentDate,
-                note,
-                addressId: resolvedAddressId,
-                serviceAddress: resolvedServiceAddress,
-                latitude: resolvedLat,
-                longitude: resolvedLng
-            },
-            include: {
-                address: true,
-                client: { select: { name: true, email: true } },
-                provider: {
-                    include: { user: true }
+            return await tx.appointment.create({
+                data: {
+                    clientId: req.user.id,
+                    providerId,
+                    serviceId,
+                    date: appointmentDate,
+                    note: note ? note.trim() : null,
+                    addressId: resolvedAddressId,
+                    serviceAddress: resolvedServiceAddress,
+                    latitude: resolvedLat,
+                    longitude: resolvedLng
                 },
-                service: true
-            }
+                include: {
+                    address: true,
+                    client: { select: { name: true, email: true } },
+                    provider: {
+                        include: { user: true }
+                    },
+                    service: true
+                }
+            });
         });
 
-        // Create Notification for Provider
+        // Create Notification for Provider (Post-transaction)
         await createNotification({
             userId: appointment.provider.userId,
             type: 'BOOKING_REQUESTED',
@@ -134,8 +147,8 @@ export const createAppointment = async (req, res) => {
 
         res.status(201).json(appointment);
     } catch (error) {
-        console.error(error);
-        res.status(500).json({ message: 'Server Error' });
+        console.error('[createAppointment Error]:', error);
+        res.status(error.statusCode || 500).json({ message: error.message || 'Server Error' });
     }
 };
 
