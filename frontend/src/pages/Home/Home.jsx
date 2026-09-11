@@ -9,7 +9,7 @@ import ThemeToggle from '../../components/ui/ThemeToggle/ThemeToggle';
 import LocationPromptModal from '../../components/modals/LocationPromptModal/LocationPromptModal';
 import ReviewCard from '../../components/ui/ReviewCard/ReviewCard';
 import { AnimatePresence } from 'framer-motion';
-import { MapPin, X } from 'lucide-react';
+import { MapPin, X, Globe } from 'lucide-react';
 import Skeleton from '../../components/ui/Skeleton/Skeleton';
 import './Home.css';
 

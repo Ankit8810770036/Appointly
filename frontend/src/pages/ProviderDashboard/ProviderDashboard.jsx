@@ -20,7 +20,8 @@ import {
     IndianRupee, TrendingUp, Hourglass as HourglassIcon, CheckCircle2, CalendarDays,
     Star, Clock, Calendar, XCircle, CheckCircle, UserRound,
     Settings, Sparkles, PartyPopper, MessageCircle,
-    CloudUpload, ShieldAlert, FileText, Upload, Trash2, Zap, MapPin
+    CloudUpload, ShieldAlert, FileText, Upload, Trash2, Zap, MapPin,
+    Edit3, User, Mail, Phone, Globe, Shield, ShieldCheck
 } from 'lucide-react';
 import MessageModal from '../../components/modals/MessageModal/MessageModal';
 import MapDirectionsModal from '../../components/modals/MapDirectionsModal/MapDirectionsModal';
@@ -817,13 +818,13 @@ function SettingsTab() {
                             )}
                         </div>
                         <div className="pcd-settings-profile-start-date">
-                            <Icons.Calendar size={14} className="pcd-settings-cal-icon" />
+                            <Calendar size={14} className="pcd-settings-cal-icon" />
                             <span>Start date: {memberSinceStr}</span>
                         </div>
                     </div>
                 </div>
                 <button className="pcd-settings-edit-btn" onClick={() => setIsEditing(!isEditing)}>
-                    <Icons.Edit3 size={15} />
+                    <Edit3 size={15} />
                     <span>{isEditing ? 'View details' : 'Edit profile'}</span>
                 </button>
             </div>
@@ -834,7 +835,7 @@ function SettingsTab() {
                     <h3>Professional details</h3>
                     {!isEditing && (
                         <button className="pcd-settings-details-inline-edit" onClick={() => setIsEditing(true)}>
-                            <Icons.Edit3 size={14} /> Edit
+                            <Edit3 size={14} /> Edit
                         </button>
                     )}
                 </div>
@@ -958,7 +959,7 @@ function SettingsTab() {
                     <div className="pcd-settings-details-grid">
                         <div className="pcd-settings-details-item">
                             <div className="pcd-settings-item-icon-box">
-                                <Icons.User size={18} />
+                                <User size={18} />
                             </div>
                             <div className="pcd-settings-details-info">
                                 <span className="pcd-settings-details-label">FULL NAME</span>
@@ -968,7 +969,7 @@ function SettingsTab() {
 
                         <div className="pcd-settings-details-item">
                             <div className="pcd-settings-item-icon-box">
-                                <Icons.Mail size={18} />
+                                <Mail size={18} />
                             </div>
                             <div className="pcd-settings-details-info">
                                 <span className="pcd-settings-details-label">EMAIL</span>
@@ -980,7 +981,7 @@ function SettingsTab() {
 
                         <div className="pcd-settings-details-item">
                             <div className="pcd-settings-item-icon-box">
-                                <Icons.Star size={18} />
+                                <Star size={18} />
                             </div>
                             <div className="pcd-settings-details-info">
                                 <span className="pcd-settings-details-label">SPECIALTY</span>
@@ -990,7 +991,7 @@ function SettingsTab() {
 
                         <div className="pcd-settings-details-item">
                             <div className="pcd-settings-item-icon-box">
-                                <Icons.Phone size={18} />
+                                <Phone size={18} />
                             </div>
                             <div className="pcd-settings-details-info">
                                 <span className="pcd-settings-details-label">NUMBER</span>
@@ -1002,7 +1003,7 @@ function SettingsTab() {
 
                         <div className="pcd-settings-details-item">
                             <div className="pcd-settings-item-icon-box">
-                                <Icons.FileText size={18} />
+                                <FileText size={18} />
                             </div>
                             <div className="pcd-settings-details-info">
                                 <span className="pcd-settings-details-label">ABOUT / BIO</span>
@@ -1012,7 +1013,7 @@ function SettingsTab() {
 
                         <div className="pcd-settings-details-item">
                             <div className="pcd-settings-item-icon-box">
-                                <Icons.Globe size={18} />
+                                <Globe size={18} />
                             </div>
                             <div className="pcd-settings-details-info">
                                 <span className="pcd-settings-details-label">CITY / STATE</span>
@@ -1022,7 +1023,7 @@ function SettingsTab() {
 
                         <div className="pcd-settings-details-item">
                             <div className="pcd-settings-item-icon-box">
-                                <Icons.MapPin size={18} />
+                                <MapPin size={18} />
                             </div>
                             <div className="pcd-settings-details-info">
                                 <span className="pcd-settings-details-label">OFFICE ADDRESS</span>
@@ -1032,7 +1033,7 @@ function SettingsTab() {
 
                         <div className="pcd-settings-details-item">
                             <div className="pcd-settings-item-icon-box">
-                                <Icons.Clock size={18} />
+                                <Clock size={18} />
                             </div>
                             <div className="pcd-settings-details-info">
                                 <span className="pcd-settings-details-label">POSTAL CODE</span>
@@ -1047,7 +1048,7 @@ function SettingsTab() {
             <div className="pcd-settings-verify-card">
                 <div className="pcd-settings-verify-left">
                     <div className="pcd-settings-verify-icon-wrap">
-                        <Icons.Shield size={20} />
+                        <Shield size={20} />
                     </div>
                     <div className="pcd-settings-verify-text">
                         <h4>Professional verification</h4>
@@ -1069,7 +1070,7 @@ function SettingsTab() {
                             style={{ display: 'none' }}
                         />
                         <label htmlFor="cert-upload-banner" className="pcd-settings-cert-btn">
-                            <Icons.Upload size={15} />
+                            <Upload size={15} />
                             <span>{file ? file.name : 'Select file'}</span>
                         </label>
                         {file && (
@@ -1173,7 +1174,7 @@ export default function ProviderDashboard() {
                 status: b.status.toLowerCase(),
                 note: b.note,
                 notes: b.note,
-                clientAvatar: <Icons.UserRound size={20} className="icon-muted" />,
+                clientAvatar: <UserRound size={20} className="icon-muted" />,
                 latitude: b.latitude || b.client?.latitude,
                 longitude: b.longitude || b.client?.longitude,
                 location: b.serviceAddress || (b.address ? [b.address.streetAddress, b.address.city].filter(Boolean).join(', ') : null) || b.client?.location || [b.client?.streetAddress, b.client?.city].filter(Boolean).join(', ') || 'Client Location',
@@ -1598,7 +1599,7 @@ export default function ProviderDashboard() {
                                         <div className="my-bookings-footer-security">
                                             <div className="my-bookings-footer-line" />
                                             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                                <Icons.ShieldCheck size={16} color="#64748b" />
+                                                <ShieldCheck size={16} color="#64748b" />
                                                 <span>All consultations are secure and confidential</span>
                                             </div>
                                             <div className="my-bookings-footer-line" />
