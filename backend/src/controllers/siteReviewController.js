@@ -1,4 +1,5 @@
 import prisma from '../prisma.js';
+import { deleteCache } from '../utils/redis.js';
 
 // @desc    Create a new site review
 // @route   POST /api/site-reviews
@@ -28,6 +29,9 @@ export const createSiteReview = async (req, res) => {
                 userId: userId || null
             }
         });
+
+        // Invalidate public site-reviews cache
+        deleteCache('cache:/api/public/site-reviews*').catch(() => {});
 
         res.status(201).json(review);
     } catch (error) {

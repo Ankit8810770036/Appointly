@@ -2,6 +2,7 @@ import jwt from 'jsonwebtoken';
 import fs from 'fs';
 import prisma from '../prisma.js';
 import { validateFileSignature } from '../middleware/uploadMiddleware.js';
+import { deleteCache } from '../utils/redis.js';
 
 // Haversine distance formula in kilometers
 function calculateDistanceKm(lat1, lon1, lat2, lon2) {
@@ -304,6 +305,10 @@ export const addService = async (req, res) => {
             }
         });
 
+        // Invalidate provider listings & stats caches
+        deleteCache('cache:/api/providers*').catch(() => {});
+        deleteCache('cache:/api/public/stats*').catch(() => {});
+
         res.status(201).json(service);
     } catch (error) {
         console.error(error);
@@ -349,6 +354,10 @@ export const deleteService = async (req, res) => {
         await prisma.service.delete({
             where: { id: serviceId }
         });
+
+        // Invalidate provider listings & stats caches
+        deleteCache('cache:/api/providers*').catch(() => {});
+        deleteCache('cache:/api/public/stats*').catch(() => {});
 
         res.json({ message: 'Service removed' });
     } catch (error) {
@@ -491,6 +500,9 @@ export const updateProviderProfile = async (req, res) => {
                 }
             }
         });
+
+        // Invalidate provider profile & listings cache
+        deleteCache(`cache:/api/providers*`).catch(() => {});
 
         res.json(updatedUser);
     } catch (error) {

@@ -2,11 +2,12 @@ import express from 'express';
 import { getProviders, getProviderById, addService, deleteService, updateProviderProfile, getEarningsStats, uploadVerificationDocument } from '../controllers/providerController.js';
 import { protect, requireRole } from '../middleware/authMiddleware.js';
 import { upload } from '../middleware/uploadMiddleware.js';
+import { cacheResponse } from '../middleware/cacheMiddleware.js';
 
 const router = express.Router();
 
 router.route('/')
-    .get(getProviders);
+    .get(cacheResponse(120), getProviders);
 
 router.get('/earnings', protect, requireRole('PROVIDER', 'ADMIN'), getEarningsStats);
 
@@ -22,6 +23,6 @@ router.route('/services/:id')
     .delete(protect, requireRole('PROVIDER', 'ADMIN'), deleteService);
 
 router.route('/:id')
-    .get(getProviderById);
+    .get(cacheResponse(120), getProviderById);
 
 export default router;
