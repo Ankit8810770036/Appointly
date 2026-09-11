@@ -15,8 +15,8 @@ export const SocketProvider = ({ children }) => {
 
         if (user && token) {
             // Ensure socketUrl points to the root, not /api
-            const rawUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-            const socketUrl = rawUrl.replace('/api', '');
+            const rawUrl = import.meta.env.VITE_API_URL;
+            const socketUrl = rawUrl ? rawUrl.replace('/api', '') : (import.meta.env.PROD ? '/' : 'http://localhost:5000');
 
             newSocket = io(socketUrl, {
                 transports: ['websocket', 'polling'],

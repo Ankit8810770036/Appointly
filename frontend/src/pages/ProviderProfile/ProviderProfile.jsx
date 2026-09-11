@@ -20,7 +20,9 @@ import ReviewCard from '../../components/ui/ReviewCard/ReviewCard';
 import { FileText, ArrowLeft, Video, Clock, DollarSign, Calendar as CalIcon, ChevronLeft, ChevronRight, MapPin, Phone, ExternalLink, Home, Briefcase, Navigation, Plus, Check, Compass, Sparkles } from 'lucide-react';
 import './ProviderProfile.css';
 
-const API_ROOT = (import.meta.env.VITE_API_URL || 'http://localhost:5000/api').replace('/api', '');
+const API_ROOT = import.meta.env.VITE_API_URL 
+    ? import.meta.env.VITE_API_URL.replace('/api', '') 
+    : (import.meta.env.PROD ? '' : 'http://localhost:5000');
 
 /* ─── Helpers ─── */
 const pad = (n) => String(n).padStart(2, '0');
