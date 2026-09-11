@@ -5,8 +5,9 @@ import Navbar from '../../components/ui/Navbar/Navbar';
 import Button from '../../components/ui/Button/Button';
 import ThemeToggle from '../../components/ui/ThemeToggle/ThemeToggle';
 import { useAuth } from '../../context/AuthContext';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { toast } from '../../utils/toast';
+import { request } from '../../api/apiClient';
 import './Contact.css';
 
 const Contact = () => {
@@ -24,12 +25,18 @@ const Contact = () => {
         e.preventDefault();
         setIsSubmitting(true);
 
-        // Simulate API call
-        await new Promise(resolve => setTimeout(resolve, 1500));
-
-        toast.success("Message sent successfully! We'll get back to you soon.");
-        setFormState({ ...formState, subject: '', message: '' });
-        setIsSubmitting(false);
+        try {
+            const res = await request('/public/contact', {
+                method: 'POST',
+                body: formState
+            });
+            toast.success(res?.message || "Message sent successfully! We'll get back to you soon.");
+            setFormState({ ...formState, subject: '', message: '' });
+        } catch (err) {
+            toast.error(err.message || "Failed to send message. Please try again.");
+        } finally {
+            setIsSubmitting(false);
+        }
     };
 
     const NAV_LINKS = [
@@ -221,8 +228,8 @@ const Contact = () => {
                         <span className="home-logo">Appointly</span>
                         <p>© 2026 Appointly. All rights reserved.</p>
                         <div className="footer-links">
-                            <a href="/terms">Terms</a>
-                            <a href="/privacy">Privacy</a>
+                            <Link to="/terms">Terms</Link>
+                            <Link to="/privacy">Privacy</Link>
                         </div>
                     </div>
                 </div>

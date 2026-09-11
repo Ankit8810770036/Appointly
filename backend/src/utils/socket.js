@@ -7,10 +7,21 @@ let io;
 const onlineUsers = new Map();
 
 export const initSocket = (server) => {
+    const allowedOrigins = process.env.FRONTEND_URL
+        ? process.env.FRONTEND_URL.split(',').map(url => url.trim().replace(/\/$/, ''))
+        : ['http://localhost:5173', 'http://localhost:3000', 'http://127.0.0.1:5173'];
+
     io = new Server(server, {
         cors: {
-            origin: process.env.FRONTEND_URL || 'http://localhost:5173',
-            methods: ['GET', 'POST']
+            origin: (origin, callback) => {
+                if (!origin) return callback(null, true);
+                if (allowedOrigins.includes(origin) || allowedOrigins.includes('*')) {
+                    return callback(null, true);
+                }
+                return callback(null, true);
+            },
+            methods: ['GET', 'POST'],
+            credentials: true
         }
     });
 

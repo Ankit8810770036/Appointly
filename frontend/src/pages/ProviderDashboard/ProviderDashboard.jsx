@@ -16,7 +16,6 @@ import NotificationBell from '../../components/ui/NotificationBell/NotificationB
 import ThemeToggle from '../../components/ui/ThemeToggle/ThemeToggle';
 import MessagesTab from '../../components/dashboard/MessagesTab/MessagesTab';
 import Sidebar from '../../components/ui/Sidebar/Sidebar';
-import * as Icons from 'lucide-react';
 import {
     IndianRupee, TrendingUp, Hourglass as HourglassIcon, CheckCircle2, CalendarDays,
     Star, Clock, Calendar, XCircle, CheckCircle, UserRound,

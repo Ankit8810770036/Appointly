@@ -10,9 +10,11 @@ export const sendMessage = async (req, res) => {
         const { receiverId, content } = req.body;
         const senderId = req.user.id;
 
-        if (!receiverId || !content) {
-            return res.status(400).json({ message: 'Receiver and content are required' });
+        if (!receiverId || !content || typeof content !== 'string' || !content.trim()) {
+            return res.status(400).json({ message: 'Receiver and a valid message content are required' });
         }
+
+        const sanitizedContent = content.trim().substring(0, 2000);
 
         if (receiverId === senderId) {
             return res.status(400).json({ message: 'You cannot send a message to yourself' });
@@ -26,7 +28,7 @@ export const sendMessage = async (req, res) => {
             data: {
                 senderId,
                 receiverId,
-                content,
+                content: sanitizedContent,
                 status: initialStatus,
                 deliveredAt
             },

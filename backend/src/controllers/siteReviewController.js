@@ -8,15 +8,23 @@ export const createSiteReview = async (req, res) => {
         const { name, rating, comment } = req.body;
         const userId = req.user?.id; // From protect middleware if present
 
-        if (!rating || !comment) {
-            return res.status(400).json({ message: 'Rating and comment are required' });
+        const parsedRating = parseInt(rating, 10);
+        if (isNaN(parsedRating) || parsedRating < 1 || parsedRating > 5) {
+            return res.status(400).json({ message: 'Rating must be an integer between 1 and 5' });
+        }
+
+        const sanitizedName = typeof name === 'string' ? name.trim().substring(0, 100) : (req.user?.name || 'Anonymous');
+        const sanitizedComment = typeof comment === 'string' ? comment.trim().substring(0, 1000) : '';
+
+        if (!sanitizedComment) {
+            return res.status(400).json({ message: 'A comment is required' });
         }
 
         const review = await prisma.siteReview.create({
             data: {
-                name: name || req.user?.name || 'Anonymous',
-                rating: parseInt(rating),
-                comment,
+                name: sanitizedName,
+                rating: parsedRating,
+                comment: sanitizedComment,
                 userId: userId || null
             }
         });

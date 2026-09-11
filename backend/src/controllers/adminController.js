@@ -191,7 +191,21 @@ export const deleteUser = async (req, res) => {
                 await tx.appointment.deleteMany({ where: { id: { in: clientApptIds } } });
             }
 
-            // 7. Finally delete the user
+            // 7. Unlink any appointments referencing this user's saved addresses, then delete addresses
+            const userAddresses = await tx.address.findMany({
+                where: { userId: id },
+                select: { id: true }
+            });
+            const addressIds = userAddresses.map(a => a.id);
+            if (addressIds.length > 0) {
+                await tx.appointment.updateMany({
+                    where: { addressId: { in: addressIds } },
+                    data: { addressId: null }
+                });
+                await tx.address.deleteMany({ where: { id: { in: addressIds } } });
+            }
+
+            // 8. Finally delete the user
             await tx.user.delete({ where: { id } });
         });
 

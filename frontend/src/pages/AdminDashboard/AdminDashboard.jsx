@@ -242,7 +242,7 @@ const AdminDashboard = () => {
                                                     variant="danger"
                                                     size="xs"
                                                     onClick={() => handleDeleteUser(u.id)}
-                                                    disabled={u.email === user.email || processingId === u.id}
+                                                    disabled={u.email === user?.email || processingId === u.id}
                                                 >
                                                     Delete
                                                 </Button>

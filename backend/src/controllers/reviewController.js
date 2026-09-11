@@ -36,12 +36,20 @@ export const createReview = async (req, res) => {
             return res.status(400).json({ message: 'This appointment has already been reviewed' });
         }
 
-        // 4. Create Review
+        // 4. Validate rating
+        const parsedRating = parseInt(rating, 10);
+        if (isNaN(parsedRating) || parsedRating < 1 || parsedRating > 5) {
+            return res.status(400).json({ message: 'Rating must be an integer between 1 and 5' });
+        }
+
+        const sanitizedComment = typeof comment === 'string' ? comment.trim().substring(0, 1000) : '';
+
+        // 5. Create Review
         const review = await prisma.review.create({
             data: {
                 appointmentId,
-                rating: parseInt(rating),
-                comment
+                rating: parsedRating,
+                comment: sanitizedComment
             }
         });
 

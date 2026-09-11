@@ -1,8 +1,19 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import * as Icons from 'lucide-react';
-import { Sparkles } from 'lucide-react';
+import {
+    Sparkles, LayoutDashboard, Calendar, MessageSquare,
+    Star, Briefcase, Clock, CreditCard, Settings,
+    User, PlayCircle, LogOut, Home, Heart, Search,
+    CheckCircle, UserRound
+} from 'lucide-react';
 import './Sidebar.css';
+
+const ICON_MAP = {
+    Sparkles, LayoutDashboard, Calendar, MessageSquare,
+    Star, Briefcase, Clock, CreditCard, Settings,
+    User, PlayCircle, LogOut, Home, Heart, Search,
+    CheckCircle, UserRound
+};
 
 /**
  * Premium Sidebar Component
@@ -23,8 +34,9 @@ const Sidebar = ({
     logoText = 'Appointly'
 }) => {
 
-    const renderIcon = (iconName) => {
-        const IconComponent = Icons[iconName];
+    const renderIcon = (icon) => {
+        if (React.isValidElement(icon)) return icon;
+        const IconComponent = ICON_MAP[icon];
         return IconComponent ? <IconComponent size={20} /> : null;
     };
 
@@ -61,7 +73,7 @@ const Sidebar = ({
                     <p className="profile-email">{user.email}</p>
                 </div>
                 <div className="profile-action-icon">
-                    <Icons.Settings size={14} />
+                    <Settings size={14} />
                 </div>
             </div>
 

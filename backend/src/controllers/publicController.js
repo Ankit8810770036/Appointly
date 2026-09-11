@@ -69,4 +69,34 @@ export const getSiteReviews = async (req, res) => {
         console.error('Error fetching site reviews:', error);
         res.status(500).json({ message: 'Internal Server Error' });
     }
+// @desc    Submit a contact support inquiry
+// @route   POST /api/public/contact
+// @access  Public
+export const submitContactMessage = async (req, res) => {
+    try {
+        const { name, email, subject, message } = req.body;
+
+        if (!name || !email || !subject || !message) {
+            return res.status(400).json({ message: 'Please provide name, email, subject, and message.' });
+        }
+
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(email)) {
+            return res.status(400).json({ message: 'Please provide a valid email address.' });
+        }
+
+        if (message.trim().length < 10) {
+            return res.status(400).json({ message: 'Message should be at least 10 characters long.' });
+        }
+
+        console.log(`[Contact Inquiry Received] From: ${name} <${email}> | Subject: ${subject}`);
+
+        res.status(200).json({
+            success: true,
+            message: "Message sent successfully! Our support team will get back to you soon."
+        });
+    } catch (error) {
+        console.error('Error handling contact submission:', error);
+        res.status(500).json({ message: 'Internal Server Error' });
+    }
 };

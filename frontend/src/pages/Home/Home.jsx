@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, lazy, Suspense } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { toast } from '../../utils/toast';
 import { useAuth } from '../../context/AuthContext';
 import { useLanguage } from '../../context/LanguageContext';
@@ -898,14 +898,14 @@ export default function Home() {
                             <h4>Company</h4>
                             <a href="#about">About us</a>
                             <a href="#feedback">Feedback</a>
-                            <a href="/contact">Contact</a>
+                            <Link to="/contact">Contact</Link>
                         </div>
 
                         <div className="footer-col">
                             <h4>Support</h4>
-                            <a href="/contact">Help center</a>
-                            <a href="/terms">Terms</a>
-                            <a href="/privacy">Privacy</a>
+                            <Link to="/contact">Help center</Link>
+                            <Link to="/terms">Terms</Link>
+                            <Link to="/privacy">Privacy</Link>
                         </div>
                     </div>
 

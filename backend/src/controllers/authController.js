@@ -371,11 +371,15 @@ export const resetPassword = async (req, res) => {
         const { email, otp, password } = req.body;
         const normalizedEmail = email?.toLowerCase().trim();
 
+        if (!normalizedEmail || !otp || typeof otp !== 'string') {
+            return res.status(400).json({ message: 'Email and a valid OTP code are required' });
+        }
+
         if (!password || password.length < 8) {
             return res.status(400).json({ message: 'Password must be at least 8 characters' });
         }
 
-        const hashedToken = crypto.createHash('sha256').update(otp).digest('hex');
+        const hashedToken = crypto.createHash('sha256').update(otp.trim()).digest('hex');
 
         const user = await prisma.user.findFirst({
             where: {
@@ -456,7 +460,11 @@ export const requestOTP = async (req, res) => {
 export const verifyOTP = async (req, res) => {
     try {
         const { type, otp } = req.body;
-        const hashedToken = crypto.createHash('sha256').update(otp).digest('hex');
+        if (!otp || typeof otp !== 'string' || !type) {
+            return res.status(400).json({ message: 'Type and a valid OTP code are required' });
+        }
+
+        const hashedToken = crypto.createHash('sha256').update(otp.trim()).digest('hex');
 
         const user = await prisma.user.findFirst({
             where: {
@@ -539,12 +547,12 @@ export const sendSignupOTP = async (req, res) => {
 export const verifySignupOTP = async (req, res) => {
     try {
         const { identifier, type, otp } = req.body;
-        if (!identifier || !otp) {
-            return res.status(400).json({ message: 'Identifier and OTP are required' });
+        if (!identifier || !otp || typeof otp !== 'string') {
+            return res.status(400).json({ message: 'Identifier and valid OTP string are required' });
         }
 
         const normalizedIdentifier = type === 'EMAIL' ? identifier.toLowerCase().trim() : identifier.trim();
-        const hashedOtp = crypto.createHash('sha256').update(otp).digest('hex');
+        const hashedOtp = crypto.createHash('sha256').update(otp.trim()).digest('hex');
 
         const record = await prisma.signupOtp.findUnique({
             where: { identifier_type: { identifier: normalizedIdentifier, type } }
