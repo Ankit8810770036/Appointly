@@ -69,6 +69,8 @@ export const getSiteReviews = async (req, res) => {
         console.error('Error fetching site reviews:', error);
         res.status(500).json({ message: 'Internal Server Error' });
     }
+};
+
 // @desc    Submit a contact support inquiry
 // @route   POST /api/public/contact
 // @access  Public
