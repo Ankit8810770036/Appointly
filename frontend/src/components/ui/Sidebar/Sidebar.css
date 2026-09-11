@@ -1,26 +1,24 @@
-/* ─── Premium Sidebar Styles ─────────────────────── */
+/* ─── Editorial Directory Sidebar Styles ─────────────────────── */
 
 .premium-sidebar {
-    --sidebar-bg: color-mix(in srgb, var(--bg) 85%, transparent);
-    --sidebar-border: var(--border-glass);
-    --sidebar-glow: hsla(var(--primary-h), var(--primary-s), var(--primary-l), 0.1);
-    --nav-item-h: 46px;
-    --nav-item-gap: 8px;
-    --nav-padding: 0 16px;
-    --nav-radius: 12px;
+    --sidebar-bg: var(--panel, #171B22);
+    --sidebar-border: var(--line, #272B34);
+    --sidebar-glow: transparent;
+    --nav-item-h: 44px;
+    --nav-item-gap: 6px;
+    --nav-padding: 0 14px;
+    --nav-radius: var(--radius, 6px);
 
     position: sticky;
     top: 0;
     left: 0;
     height: 100vh;
-    width: 270px;
+    width: 260px;
     background: var(--sidebar-bg);
-    backdrop-filter: blur(24px);
-    -webkit-backdrop-filter: blur(24px);
     border-right: 1px solid var(--sidebar-border);
     display: flex;
     flex-direction: column;
-    padding: 32px 18px;
+    padding: 28px 16px;
     box-sizing: border-box;
     z-index: 1000;
     transition: width 0.3s ease;
@@ -28,74 +26,51 @@
     overflow-x: hidden;
 }
 
-:root.dark .premium-sidebar {
-    --sidebar-glow: hsla(var(--primary-h), var(--primary-s), var(--primary-l), 0.2);
-}
-
 .sidebar-glass-glow {
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 300px;
-    background: radial-gradient(circle at 0% 0%, var(--sidebar-glow), transparent 70%);
-    pointer-events: none;
-    z-index: -1;
+    display: none;
 }
 
 /* ─── Brand/Logo ─── */
 .sidebar-brand {
-    margin-bottom: 40px;
-    padding: 0 12px;
+    margin-bottom: 32px;
+    padding: 0 8px;
 }
 
 .sidebar-logo {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 10px;
     text-decoration: none;
 }
 
 .logo-icon {
-    font-size: 24px;
-    filter: drop-shadow(0 0 10px var(--primary));
+    font-size: 20px;
 }
 
 .logo-text {
-    font-family: var(--font-display);
-    font-size: 22px;
-    font-weight: 800;
-    letter-spacing: -0.04em;
-    background: linear-gradient(135deg, var(--primary), var(--accent));
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
+    font-family: var(--font-serif, 'Fraunces', serif);
+    font-size: 20px;
+    font-weight: 600;
+    color: var(--paper, #F4F1E8);
 }
 
-/* ─── Profile ─── */
 /* ─── Profile Card ─── */
 .sidebar-profile {
     position: relative;
-    background: var(--grad-surface);
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
-    border: 1px solid var(--border-glass);
-    border-radius: var(--radius-lg);
-    padding: 18px 14px;
+    background: var(--panel-2, #1D222B);
+    border: 1px solid var(--line, #272B34);
+    border-radius: var(--radius, 6px);
+    padding: 14px 12px;
     display: flex;
     align-items: center;
     gap: 12px;
     margin-bottom: 24px;
     cursor: pointer;
-    transition: all var(--transition-bounce);
-    box-shadow: var(--shadow-sm);
+    transition: border-color 0.15s ease;
 }
 
 .sidebar-profile:hover {
-    transform: translateY(-3px) scale(1.02);
-    box-shadow: var(--shadow-md);
-    border-color: var(--primary);
-    background: hsla(var(--primary-h), var(--primary-s), var(--primary-l), 0.05);
+    border-color: #3d4250;
 }
 
 .profile-avatar-wrapper {
@@ -104,44 +79,32 @@
 }
 
 .profile-avatar {
-    width: 44px;
-    height: 44px;
-    border-radius: var(--radius-full);
-    background: var(--grad-primary);
+    width: 38px;
+    height: 38px;
+    border-radius: var(--radius, 6px);
+    background: var(--panel, #171B22);
     display: flex;
     align-items: center;
     justify-content: center;
     position: relative;
     z-index: 2;
-    border: 2px solid var(--bg);
+    border: 1px solid var(--line, #272B34);
     overflow: hidden;
 }
 
 .avatar-glow {
-    position: absolute;
-    inset: -3px;
-    background: var(--grad-primary);
-    border-radius: inherit;
-    z-index: 1;
-    opacity: 0.5;
-    filter: blur(6px);
-    transition: opacity 0.3s ease;
-}
-
-.sidebar-profile:hover .avatar-glow {
-    opacity: 0.8;
-    filter: blur(8px);
+    display: none;
 }
 
 .avatar-emoji {
-    font-size: 20px;
+    font-size: 18px;
 }
 
 .avatar-placeholder {
-    color: white;
-    font-weight: 800;
-    font-size: 18px;
-    font-family: var(--font-display);
+    color: var(--paper, #F4F1E8);
+    font-weight: 600;
+    font-size: 16px;
+    font-family: var(--font-serif, 'Fraunces', serif);
 }
 
 .profile-info {
@@ -150,10 +113,10 @@
 }
 
 .profile-name {
-    font-family: var(--font-display);
-    font-weight: 700;
+    font-family: var(--font-sans);
+    font-weight: 600;
     font-size: 14px;
-    color: var(--text-bold);
+    color: var(--paper, #F4F1E8);
     margin: 0;
     line-height: 1.2;
     white-space: nowrap;
@@ -164,7 +127,7 @@
 .profile-email {
     font-size: 11px;
     font-weight: 500;
-    color: var(--text-muted);
+    color: var(--muted, #8D897D);
     margin-top: 2px;
     white-space: nowrap;
     overflow: hidden;
@@ -172,15 +135,13 @@
 }
 
 .profile-action-icon {
-    color: var(--text-muted);
-    opacity: 0.4;
-    transition: all 0.2s ease;
+    color: var(--muted, #8D897D);
+    opacity: 0.6;
+    transition: color 0.15s ease;
 }
 
 .sidebar-profile:hover .profile-action-icon {
-    opacity: 1;
-    color: var(--primary);
-    transform: rotate(15deg);
+    color: var(--amber, #E2892F);
 }
 
 /* ─── Navigation ─── */
@@ -188,17 +149,16 @@
     flex: 1;
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 4px;
 }
 
 .nav-section-label {
     font-size: 11px;
-    font-weight: 700;
+    font-weight: 600;
     text-transform: uppercase;
-    letter-spacing: 0.1em;
-    color: var(--text-muted);
-    margin: 12px 0 8px 16px;
-    opacity: 0.7;
+    letter-spacing: 0.08em;
+    color: var(--muted, #8D897D);
+    margin: 12px 0 6px 12px;
 }
 
 .nav-item {
@@ -208,39 +168,38 @@
     height: var(--nav-item-h);
     padding: var(--nav-padding);
     border-radius: var(--nav-radius);
-    border: none;
+    border: 1px solid transparent;
     background: transparent;
-    color: var(--text);
+    color: var(--paper-dim, #C9C6BC);
     font-family: var(--font-sans);
-    font-size: 14.5px;
+    font-size: 14px;
     font-weight: 500;
     cursor: pointer;
     text-align: left;
     text-decoration: none;
-    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
     position: relative;
     width: 100%;
     box-sizing: border-box;
 }
 
 .nav-item:hover {
-    background: rgba(var(--primary-h), var(--primary-s), var(--primary-l), 0.05);
-    color: var(--primary);
-    padding-left: 20px;
+    background: var(--panel-2, #1D222B);
+    color: var(--paper, #F4F1E8);
 }
 
 .nav-item.active {
-    background: var(--primary-faint);
-    color: var(--primary);
-    font-weight: 700;
+    background: var(--amber-dim, #3A2B18);
+    border-color: rgba(226, 137, 47, 0.4);
+    color: var(--amber, #E2892F);
+    font-weight: 600;
 }
 
 .nav-icon {
     display: flex;
     align-items: center;
     justify-content: center;
-    opacity: 0.7;
-    transition: opacity 0.2s ease;
+    opacity: 0.8;
 }
 
 .nav-item.active .nav-icon,
@@ -249,48 +208,40 @@
 }
 
 .active-pill {
-    position: absolute;
-    left: 4px;
-    top: 12px;
-    bottom: 12px;
-    width: 4px;
-    background: var(--primary);
-    border-radius: 4px;
-    box-shadow: 0 0 10px rgba(var(--primary-h), var(--primary-s), var(--primary-l), 0.5);
+    display: none;
 }
 
 .nav-badge {
     margin-left: auto;
-    background: var(--danger);
-    color: white;
+    background: var(--amber, #E2892F);
+    color: #1a1204;
     font-size: 11px;
-    font-weight: 800;
-    padding: 2px 8px;
+    font-weight: 700;
+    padding: 2px 7px;
     border-radius: 10px;
-    box-shadow: 0 2px 8px rgba(239, 68, 68, 0.3);
 }
 
 /* ─── Footer ─── */
 .sidebar-footer {
     border-top: 1px solid var(--sidebar-border);
-    padding-top: 20px;
-    margin-top: 20px;
+    padding-top: 16px;
+    margin-top: 16px;
     display: flex;
     flex-direction: column;
     gap: 4px;
 }
 
 .footer-item {
-    color: var(--text-muted);
+    color: var(--muted, #8D897D);
 }
 
 .sidebar__nav-item--logout {
-    color: var(--danger);
+    color: #ef4444;
 }
 
 .sidebar__nav-item--logout:hover {
-    background: hsla(0, 85%, 60%, 0.08);
-    color: var(--danger);
+    background: rgba(239, 68, 68, 0.12);
+    color: #ef4444;
 }
 
 /* Custom Scrollbar */
@@ -304,11 +255,7 @@
 
 .premium-sidebar::-webkit-scrollbar-thumb {
     background: var(--sidebar-border);
-    border-radius: 10px;
-}
-
-.premium-sidebar::-webkit-scrollbar-thumb:hover {
-    background: var(--text-muted);
+    border-radius: 4px;
 }
 
 /* ─── Responsive ─── */
@@ -320,15 +267,14 @@
         left: 0;
         right: 0;
         width: 100%;
-        height: 64px;
+        height: 60px;
         flex-direction: row;
         padding: 0 12px;
         align-items: center;
         border-right: none;
         border-top: 1px solid var(--sidebar-border);
         overflow: visible;
-        background: color-mix(in srgb, var(--bg) 85%, transparent);
-        backdrop-filter: blur(24px);
+        background: var(--panel, #171B22);
     }
 
     .sidebar-glass-glow,
@@ -348,42 +294,28 @@
     .nav-item {
         flex-direction: column;
         height: auto;
-        gap: 4px;
-        padding: 8px 4px;
+        gap: 2px;
+        padding: 6px 4px;
         font-size: 10px;
-        border-radius: 8px;
+        border-radius: 4px;
         align-items: center;
         justify-content: center;
-        min-width: 60px;
-    }
-
-    .nav-item:hover {
-        padding-left: 4px;
-        background: transparent;
+        min-width: 50px;
     }
 
     .nav-icon {
-        font-size: 18px;
+        font-size: 16px;
     }
 
     .nav-label {
-        font-weight: 600;
-    }
-
-    .active-pill {
-        left: 50%;
-        transform: translateX(-50%);
-        bottom: 2px;
-        top: auto;
-        width: 12px;
-        height: 3px;
+        font-weight: 500;
     }
 
     .nav-badge {
         position: absolute;
-        top: 4px;
-        right: 8px;
+        top: 2px;
+        right: 4px;
         margin-left: 0;
-        padding: 1px 5px;
+        padding: 1px 4px;
     }
 }

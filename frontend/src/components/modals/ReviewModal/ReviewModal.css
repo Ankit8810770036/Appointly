@@ -1,92 +1,277 @@
-.review-modal {
-    max-width: 480px;
-}
+/* ─── Review Modal Styling (Appointly Theme) ─────────────────────────── */
 
-.review-target {
-    background: var(--bg-subtle);
-    padding: var(--space-4);
-    border-radius: var(--radius-lg);
-    margin-bottom: var(--space-6);
-}
-
-.review-provider-info {
-    display: flex;
-    align-items: center;
-    gap: var(--space-3);
-    margin-bottom: var(--space-2);
-}
-
-.review-avatar {
-    font-size: 1.5rem;
-    width: 40px;
-    height: 40px;
-    background: var(--bg);
-    border-radius: 50%;
+.review-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(14, 17, 22, 0.78);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
     display: flex;
     align-items: center;
     justify-content: center;
-    border: 1px solid var(--border);
+    z-index: 99999;
+    padding: 1.25rem;
+    box-sizing: border-box;
+    font-family: var(--font-sans, 'Inter', -apple-system, sans-serif);
 }
 
-.review-provider-name {
+.review-modal-card {
+    background: var(--panel, #171B22);
+    color: var(--paper, #F4F1E8);
+    width: 100%;
+    max-width: 490px;
+    border-radius: var(--radius-xl, 14px);
+    border: 1px solid var(--line, #272B34);
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.65), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+    padding: 1.75rem;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+    position: relative;
+}
+
+/* Header */
+.review-modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.review-modal-header-left {
+    display: flex;
+    align-items: center;
+    gap: 0.85rem;
+}
+
+.review-header-icon-badge {
+    width: 38px;
+    height: 38px;
+    border-radius: 10px;
+    background: var(--amber-dim, rgba(226, 137, 47, 0.15));
+    border: 1px solid rgba(226, 137, 47, 0.3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--amber, #E2892F);
+    flex-shrink: 0;
+}
+
+.review-modal-title {
+    font-size: 1.15rem;
+    font-weight: 700;
+    margin: 0;
+    color: var(--paper, #F4F1E8);
+    letter-spacing: -0.02em;
+    font-family: var(--font-sans, 'Inter', sans-serif);
+}
+
+.review-modal-subtitle {
+    font-size: 0.82rem;
+    color: var(--muted, #8B949E);
+    margin: 2px 0 0 0;
+}
+
+.review-modal-close {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    background: var(--panel-2, #1D222B);
+    border: 1px solid var(--line, #272B34);
+    color: var(--muted, #8B949E);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.review-modal-close:hover {
+    background: #2D333F;
+    color: var(--paper, #F4F1E8);
+    border-color: #3D4452;
+}
+
+/* Appointment Target Details Box */
+.review-appointment-target {
+    background: var(--panel-2, #1D222B);
+    border: 1px solid var(--line, #272B34);
+    border-radius: 12px;
+    padding: 1rem 1.15rem;
+    display: grid;
+    grid-template-columns: auto 1fr;
+    grid-template-rows: auto auto;
+    column-gap: 0.9rem;
+    row-gap: 0.4rem;
+    align-items: center;
+}
+
+.review-avatar-ring {
+    grid-row: 1 / span 2;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--amber, #E2892F) 0%, #B86E20 100%);
+    color: #10141A;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.4);
+}
+
+.review-target-info {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+}
+
+.review-target-provider {
+    font-size: 0.98rem;
     font-weight: 600;
-    color: var(--text-bold);
+    color: var(--paper, #F4F1E8);
+    margin: 0;
 }
 
-.review-service-name {
-    font-size: var(--fs-sm);
-    color: var(--text-light);
+.review-target-service {
+    font-size: 0.82rem;
+    color: var(--amber, #E2892F);
+    font-weight: 500;
 }
 
-.review-date {
-    font-size: var(--fs-xs);
-    color: var(--text-muted);
+.review-target-meta {
+    grid-column: 2;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 0.76rem;
+    color: var(--muted, #8B949E);
 }
 
+/* Form Styles */
 .review-form {
     display: flex;
     flex-direction: column;
-    gap: var(--space-6);
+    gap: 1.25rem;
 }
 
-.rating-selector {
+/* Star Rating Block */
+.rating-selector-block {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: var(--space-3);
+    padding: 1.1rem 1rem 0.85rem;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px dashed var(--line, #272B34);
+    border-radius: 12px;
+    gap: 0.65rem;
 }
 
-.rating-selector label {
-    font-size: var(--fs-sm);
+.rating-block-label {
+    font-size: 0.85rem;
     font-weight: 600;
-    color: var(--text-bold);
+    color: var(--paper, #F4F1E8);
+    letter-spacing: -0.01em;
 }
 
-.stars {
+.req-asterisk {
+    color: var(--amber, #E2892F);
+}
+
+.rating-stars-row {
     display: flex;
-    gap: var(--space-2);
+    align-items: center;
+    gap: 10px;
 }
 
-.star-btn {
-    background: none;
+.review-star-btn {
+    background: transparent;
     border: none;
-    font-size: 2rem;
-    color: var(--border);
+    padding: 4px;
     cursor: pointer;
-    transition: all var(--transition-fast);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1);
+    outline: none;
+    border-radius: 6px;
 }
 
-.star-btn:hover {
-    transform: scale(1.2);
+.review-star-btn:hover {
+    transform: scale(1.22);
 }
 
-.star-btn--active {
-    color: #ffb800;
-    text-shadow: 0 0 10px rgba(255, 184, 0, 0.3);
+.review-star-btn--filled {
+    filter: drop-shadow(0 0 8px rgba(245, 158, 11, 0.45));
 }
 
-.rating-desc {
-    font-size: var(--fs-sm);
-    font-weight: 500;
-    color: var(--primary);
+.rating-feedback-badge {
+    font-size: 0.84rem;
+    font-weight: 600;
+    min-height: 20px;
+    transition: color 0.15s ease;
+    letter-spacing: -0.01em;
+}
+
+/* Input Group */
+.review-input-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.review-input-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.review-input-header label {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--paper, #F4F1E8);
+}
+
+.review-char-count {
+    font-size: 0.74rem;
+    color: var(--muted, #8B949E);
+}
+
+.review-textarea {
+    width: 100%;
+    background: var(--panel-2, #1D222B);
+    border: 1px solid var(--line, #272B34);
+    border-radius: 8px;
+    padding: 10px 12px;
+    color: var(--paper, #F4F1E8);
+    font-family: inherit;
+    font-size: 0.88rem;
+    resize: vertical;
+    box-sizing: border-box;
+    transition: all 0.15s ease;
+    line-height: 1.45;
+}
+
+.review-textarea:focus {
+    outline: none;
+    border-color: var(--amber, #E2892F);
+    box-shadow: 0 0 0 3px rgba(226, 137, 47, 0.15);
+}
+
+.review-textarea::placeholder {
+    color: var(--muted, #6E7681);
+}
+
+/* Footer Actions */
+.review-modal-footer {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 10px;
+    padding-top: 0.75rem;
+    border-top: 1px solid var(--line, #272B34);
 }

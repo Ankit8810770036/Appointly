@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { toast } from 'sonner';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Star, X, UserRound, Sparkles, Calendar, CheckCircle2 } from 'lucide-react';
 import Button from '../../ui/Button/Button';
 import './ReviewModal.css';
 
@@ -9,81 +10,140 @@ export default function ReviewModal({ appointment, onClose, onSubmit }) {
     const [comment, setComment] = useState('');
     const [submitting, setSubmitting] = useState(false);
 
+    if (!appointment) return null;
+
     const handleSubmit = async (e) => {
         e.preventDefault();
+        if (rating === 0) return;
         setSubmitting(true);
         try {
             await onSubmit({ appointmentId: appointment.id, rating, comment });
             onClose();
-        } catch (err) {
-            // Error is already handled by onSubmit or can be caught here if needed
+        } catch {
+            // Error is handled by parent / toast
         } finally {
             setSubmitting(false);
         }
     };
 
-    return (
-        <div className="modal-overlay" onClick={onClose}>
-            <div className="modal-content review-modal" onClick={e => e.stopPropagation()}>
-                <div className="modal-header">
-                    <h2>Rate your experience</h2>
-                    <button className="modal-close" onClick={onClose}>&times;</button>
-                </div>
+    const activeRating = hoverRating || rating;
 
-                <div className="review-target">
-                    <div className="review-provider-info">
-                        <span className="review-avatar">🧑‍💼</span>
+    const RATING_FEEDBACK = {
+        5: { label: 'Exceptional Experience! 🌟', color: '#f59e0b' },
+        4: { label: 'Very Good & Professional 👍', color: '#10b981' },
+        3: { label: 'Average Consultation 😐', color: '#94a3b8' },
+        2: { label: 'Below Expectations 👎', color: '#f97316' },
+        1: { label: 'Unsatisfactory Service 😠', color: '#ef4444' }
+    };
+
+    return (
+        <div className="review-modal-overlay" onClick={onClose} role="dialog" aria-modal="true">
+            <motion.div
+                className="review-modal-card"
+                onClick={e => e.stopPropagation()}
+                initial={{ opacity: 0, scale: 0.93, y: 16 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95, y: 10 }}
+                transition={{ duration: 0.22, ease: 'easeOut' }}
+            >
+                {/* Header */}
+                <div className="review-modal-header">
+                    <div className="review-modal-header-left">
+                        <div className="review-header-icon-badge">
+                            <Sparkles size={18} />
+                        </div>
                         <div>
-                            <div className="review-provider-name">{appointment.providerName}</div>
-                            <div className="review-service-name">{appointment.serviceName}</div>
+                            <h3 className="review-modal-title">Rate Your Experience</h3>
+                            <p className="review-modal-subtitle">Your feedback helps improve service quality</p>
                         </div>
                     </div>
-                    <div className="review-date">Completed on {appointment.date}</div>
+                    <button className="review-modal-close" onClick={onClose} aria-label="Close">
+                        <X size={18} />
+                    </button>
+                </div>
+
+                {/* Provider & Appointment Target Card */}
+                <div className="review-appointment-target">
+                    <div className="review-avatar-ring">
+                        <UserRound size={20} />
+                    </div>
+                    <div className="review-target-info">
+                        <h4 className="review-target-provider">{appointment.providerName || appointment.provider || 'Provider'}</h4>
+                        <span className="review-target-service">{appointment.serviceName || appointment.service || 'Consultation Service'}</span>
+                    </div>
+                    <div className="review-target-meta">
+                        <Calendar size={13} />
+                        <span>Completed on {appointment.date}</span>
+                    </div>
                 </div>
 
                 <form onSubmit={handleSubmit} className="review-form">
-                    <div className="rating-selector">
-                        <label>Your Rating <span className="req">*</span></label>
-                        <div className="stars" onMouseLeave={() => setHoverRating(0)}>
-                            {[1, 2, 3, 4, 5].map(s => (
-                                <button
-                                    key={s}
-                                    type="button"
-                                    className={`star-btn ${(hoverRating || rating) >= s ? 'star-btn--active' : ''}`}
-                                    onClick={() => setRating(s)}
-                                    onMouseEnter={() => setHoverRating(s)}
-                                >
-                                    ★
-                                </button>
-                            ))}
+                    {/* Star Rating Selector */}
+                    <div className="rating-selector-block">
+                        <span className="rating-block-label">Your Rating <span className="req-asterisk">*</span></span>
+                        
+                        <div className="rating-stars-row" onMouseLeave={() => setHoverRating(0)}>
+                            {[1, 2, 3, 4, 5].map(s => {
+                                const isFilled = activeRating >= s;
+                                return (
+                                    <button
+                                        key={s}
+                                        type="button"
+                                        className={`review-star-btn ${isFilled ? 'review-star-btn--filled' : ''}`}
+                                        onClick={() => setRating(s)}
+                                        onMouseEnter={() => setHoverRating(s)}
+                                        aria-label={`Rate ${s} star${s > 1 ? 's' : ''}`}
+                                    >
+                                        <Star
+                                            size={32}
+                                            fill={isFilled ? 'var(--amber, #f59e0b)' : 'transparent'}
+                                            stroke={isFilled ? 'var(--amber, #f59e0b)' : 'rgba(255, 255, 255, 0.25)'}
+                                            strokeWidth={1.75}
+                                        />
+                                    </button>
+                                );
+                            })}
                         </div>
-                        <span className="rating-desc">
-                            {(hoverRating || rating) === 5 && 'Amazing! 🌟'}
-                            {(hoverRating || rating) === 4 && 'Very Good! 👍'}
-                            {(hoverRating || rating) === 3 && 'Average 😐'}
-                            {(hoverRating || rating) === 2 && 'Poor 👎'}
-                            {(hoverRating || rating) === 1 && 'Terrible 😠'}
-                            {!(hoverRating || rating) && 'Select a rating to continue'}
-                        </span>
+
+                        <div className="rating-feedback-badge" style={{ color: activeRating ? RATING_FEEDBACK[activeRating]?.color : 'var(--muted)' }}>
+                            {activeRating ? RATING_FEEDBACK[activeRating]?.label : 'Select a rating to continue'}
+                        </div>
                     </div>
 
-                    <div className="settings-field">
-                        <label>Your Feedback (Optional)</label>
+                    {/* Feedback Textarea */}
+                    <div className="review-input-group">
+                        <div className="review-input-header">
+                            <label htmlFor="review-comment">Your Feedback (Optional)</label>
+                            <span className="review-char-count">{comment.length} / 500</span>
+                        </div>
                         <textarea
-                            className="auth-textarea"
-                            rows={4}
-                            placeholder="Share your experience to help others..."
+                            id="review-comment"
+                            className="review-textarea"
+                            rows={3}
+                            maxLength={500}
+                            placeholder="Share specific details about punctuality, service quality, or communication..."
                             value={comment}
                             onChange={e => setComment(e.target.value)}
                         />
                     </div>
 
-                    <div className="modal-footer">
-                        <Button variant="ghost" type="button" onClick={onClose} disabled={submitting}>Cancel</Button>
-                        <Button variant="primary" type="submit" loading={submitting} disabled={rating === 0}>Submit Review</Button>
+                    {/* Modal Footer Actions */}
+                    <div className="review-modal-footer">
+                        <Button variant="ghost" type="button" onClick={onClose} disabled={submitting}>
+                            Cancel
+                        </Button>
+                        <Button
+                            variant="primary"
+                            type="submit"
+                            loading={submitting}
+                            disabled={rating === 0 || submitting}
+                            style={{ minWidth: '150px' }}
+                        >
+                            Submit Review
+                        </Button>
                     </div>
                 </form>
-            </div>
+            </motion.div>
         </div>
     );
 }

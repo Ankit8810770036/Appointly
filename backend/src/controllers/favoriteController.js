@@ -52,7 +52,8 @@ export const getMyFavorites = async (req, res) => {
                     include: {
                         user: {
                             select: { name: true, email: true }
-                        }
+                        },
+                        services: true
                     }
                 }
             }

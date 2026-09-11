@@ -17,10 +17,10 @@ const scheduleReminders = () => {
             const dayAfterTomorrow = new Date(tomorrow);
             dayAfterTomorrow.setDate(dayAfterTomorrow.getDate() + 1);
 
-            // Find all UPCOMING appointments scheduled for tomorrow
+            // Find all confirmed appointments scheduled for tomorrow
             const appointments = await prisma.appointment.findMany({
                 where: {
-                    status: 'UPCOMING',
+                    status: 'CONFIRMED',
                     date: {
                         gte: tomorrow,
                         lt: dayAfterTomorrow

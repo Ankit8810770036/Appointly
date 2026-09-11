@@ -24,7 +24,34 @@ export const protect = async (req, res, next) => {
 
         next();
     } catch (error) {
+        if (error.name === 'TokenExpiredError') {
+            return res.status(401).json({ message: 'jwt expired' });
+        }
         console.error(error);
         return res.status(401).json({ message: 'Not authorized, token failed' });
     }
 };
+
+/**
+ * Middleware to enforce Role-Based Access Control (RBAC)
+ * @param  {...string} allowedRoles Roles allowed to access the route (e.g. 'CLIENT', 'PROVIDER', 'ADMIN')
+ */
+export const requireRole = (...allowedRoles) => {
+    return (req, res, next) => {
+        if (!req.user) {
+            return res.status(401).json({ message: 'Not authenticated' });
+        }
+
+        const userRole = req.user.role ? req.user.role.toUpperCase() : '';
+        const uppercaseAllowed = allowedRoles.map(r => r.toUpperCase());
+
+        if (!uppercaseAllowed.includes(userRole)) {
+            return res.status(403).json({
+                message: `Access denied. Requires one of the following roles: ${allowedRoles.join(', ')}`
+            });
+        }
+
+        next();
+    };
+};
+

@@ -1,11 +1,16 @@
 import express from 'express';
-import { createAppointment, getMyAppointments, updateAppointmentStatus, getProviderSlots } from '../controllers/appointmentController.js';
-import { protect } from '../middleware/authMiddleware.js';
+import {
+    createAppointment,
+    getMyAppointments,
+    updateAppointmentStatus,
+    getProviderSlots
+} from '../controllers/appointmentController.js';
+import { protect, requireRole } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
 
 router.route('/')
-    .post(protect, createAppointment)
+    .post(protect, requireRole('CLIENT'), createAppointment)
     .get(protect, getMyAppointments);
 
 router.route('/:id/status')
@@ -15,3 +20,4 @@ router.route('/provider/:providerId/slots')
     .get(getProviderSlots);
 
 export default router;
+

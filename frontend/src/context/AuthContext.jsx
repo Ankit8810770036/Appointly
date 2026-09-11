@@ -13,7 +13,7 @@ export function AuthProvider({ children }) {
     });
     const [token, setToken] = useState(() => localStorage.getItem('abs_token') || sessionStorage.getItem('abs_token') || null);
 
-    const login = useCallback((userData, authToken, persist = true) => {
+    const login = useCallback((userData, authToken, refreshToken = null, persist = true) => {
         setUser(userData);
         setToken(authToken);
 
@@ -22,9 +22,13 @@ export function AuthProvider({ children }) {
 
         storage.setItem('abs_user', JSON.stringify(userData));
         storage.setItem('abs_token', authToken);
+        if (refreshToken) {
+            storage.setItem('abs_refreshToken', refreshToken);
+        }
 
         other.removeItem('abs_user');
         other.removeItem('abs_token');
+        other.removeItem('abs_refreshToken');
     }, []);
 
     const logout = useCallback(() => {
@@ -32,8 +36,10 @@ export function AuthProvider({ children }) {
         setToken(null);
         localStorage.removeItem('abs_user');
         localStorage.removeItem('abs_token');
+        localStorage.removeItem('abs_refreshToken');
         sessionStorage.removeItem('abs_user');
         sessionStorage.removeItem('abs_token');
+        sessionStorage.removeItem('abs_refreshToken');
     }, []);
 
     return (
@@ -43,8 +49,8 @@ export function AuthProvider({ children }) {
     );
 }
 
-export function useAuth() {
+export const useAuth = () => {
     const ctx = useContext(AuthContext);
     if (!ctx) throw new Error('useAuth must be used within AuthProvider');
     return ctx;
-}
+};

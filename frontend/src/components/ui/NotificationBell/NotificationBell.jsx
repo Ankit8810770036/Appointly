@@ -21,19 +21,17 @@ export default function NotificationBell({ onNavigate }) {
 
     const unreadCount = notifications.filter(n => !n.isRead && n.type !== 'NEW_MESSAGE').length;
 
-    const fetchNotifications = async () => {
-        if (!token) return;
-        try {
-            const data = await notificationApi.getMy(token);
-            // Filter out messages from the bell
-            setNotifications(data.filter(n => n.type !== 'NEW_MESSAGE'));
-        } catch (err) {
-            console.error('Failed to fetch notifications:', err);
-        }
-    };
-
     useEffect(() => {
-        fetchNotifications();
+        let isCancelled = false;
+        if (token) {
+            notificationApi.getMy(token).then(data => {
+                if (!isCancelled) {
+                    setNotifications(data.filter(n => n.type !== 'NEW_MESSAGE'));
+                }
+            }).catch(err => {
+                console.error('Failed to fetch notifications:', err);
+            });
+        }
 
         if (socket) {
             const handleNewNotification = (newNotif) => {
@@ -44,9 +42,14 @@ export default function NotificationBell({ onNavigate }) {
             socket.on('new_notification', handleNewNotification);
 
             return () => {
+                isCancelled = true;
                 socket.off('new_notification', handleNewNotification);
             };
         }
+
+        return () => {
+            isCancelled = true;
+        };
     }, [token, socket]);
 
     // Play sound when new notifications arrive

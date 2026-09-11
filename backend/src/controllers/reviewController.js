@@ -54,7 +54,9 @@ export const createReview = async (req, res) => {
             }
         });
 
-        const avgRating = allReviews.reduce((sum, r) => sum + r.rating, 0) / allReviews.length;
+        const avgRating = allReviews.length > 0
+            ? allReviews.reduce((sum, r) => sum + r.rating, 0) / allReviews.length
+            : rating;
 
         await prisma.providerProfile.update({
             where: { id: appointment.providerId },

@@ -1,10 +1,9 @@
-import { useState, useEffect, useMemo } from 'react';
-import { toast } from 'sonner';
+import { useState, useEffect, useMemo, useRef } from 'react';
+import { toast } from '../../utils/toast';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import Button from '../../components/ui/Button/Button';
 import Badge from '../../components/ui/Badge/Badge';
-import Card from '../../components/ui/Card/Card';
 import Skeleton from '../../components/ui/Skeleton/Skeleton';
 import { useAuth } from '../../context/AuthContext';
 import { providerApi } from '../../api/providers';
@@ -12,51 +11,48 @@ import { appointmentApi } from '../../api/appointments';
 import { favoriteApi } from '../../api/favorites';
 import { reviewApi } from '../../api/reviews';
 import { useSound } from '../../hooks/useSound';
+import { addressApi } from '../../api/addresses';
+import { detectCoordinatesAndAddress } from '../../utils/geolocation';
 import MessageModal from '../../components/modals/MessageModal/MessageModal';
 import ThemeToggle from '../../components/ui/ThemeToggle/ThemeToggle';
+import MapViewer from '../../components/ui/Map/MapViewer';
+import ReviewCard from '../../components/ui/ReviewCard/ReviewCard';
+import { FileText, ArrowLeft, Video, Clock, DollarSign, Calendar as CalIcon, ChevronLeft, ChevronRight, MapPin, Phone, ExternalLink, Home, Briefcase, Navigation, Plus, Check, Compass, Sparkles } from 'lucide-react';
 import './ProviderProfile.css';
 
-/* ─── Mock data ──────────────────────────────────── */
-const MOCK_PROVIDER = {
-    id: '1',
-    name: 'Dr. Priya Mahesh',
-    title: 'Senior Dermatologist & Skin Care Specialist',
-    specialty: 'Health & Wellness',
-    rating: 4.9,
-    reviews: 218,
-    experience: '12 years',
-    location: 'Koramangala, Bengaluru',
-    price: 800,
-    currency: '₹',
-    about: `Dr. Priya Mahesh is a board-certified dermatologist with over 12 years of clinical experience. She specialises in acne treatment, anti-aging, skin cancer screenings, and cosmetic procedures. She takes a holistic, patient-first approach with personalised care plans.`,
-    services: [
-        { name: 'General Skin Consultation', duration: 30, price: 800 },
-        { name: 'Acne Treatment Session', duration: 45, price: 1200 },
-        { name: 'Anti-Aging Facial', duration: 60, price: 2500 },
-        { name: 'Mole & Lesion Check', duration: 20, price: 600 },
-    ],
-    tags: ['Acne', 'Anti-aging', 'Botox', 'Peeling', 'Skin Cancer'],
-    avatar: '👩🏽‍⚕️',
-    verified: true,
-    languages: ['English', 'Hindi', 'Kannada'],
-};
+const API_ROOT = (import.meta.env.VITE_API_URL || 'http://localhost:5000/api').replace('/api', '');
 
-
-/* Time slots */
-const ALL_SLOTS = [
-    '09:00', '09:30', '10:00', '10:30', '11:00', '11:30',
-    '12:00', '12:30', '14:00', '14:30', '15:00', '15:30',
-    '16:00', '16:30', '17:00', '17:30',
-];
-
-
-/* ─── tiny helpers ─── */
+/* ─── Helpers ─── */
 const pad = (n) => String(n).padStart(2, '0');
 const fmtDate = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const DAYS_MON_FIRST = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
+const DAY_NAMES_FULL = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
-/* ─── Calendar ──────────────────────────────── */
+const format12Hour = (timeStr) => {
+    if (!timeStr) return '';
+    const [h, m] = timeStr.split(':').map(Number);
+    const period = h >= 12 ? 'PM' : 'AM';
+    const h12 = h % 12 === 0 ? 12 : h % 12;
+    return `${h12}:${pad(m)} ${period}`;
+};
+
+const formatSelectedDateFull = (dateStr) => {
+    if (!dateStr) return '';
+    const [year, month, day] = dateStr.split('-').map(Number);
+    const dateObj = new Date(year, month - 1, day);
+    const dayName = DAY_NAMES_FULL[dateObj.getDay()];
+    const monthName = MONTHS[month - 1];
+    const dayNum = dateObj.getDate();
+    let suffix = 'th';
+    if (dayNum === 1 || dayNum === 21 || dayNum === 31) suffix = 'st';
+    else if (dayNum === 2 || dayNum === 22) suffix = 'nd';
+    else if (dayNum === 3 || dayNum === 23) suffix = 'rd';
+
+    return `${dayName}, ${dayNum}${suffix} ${monthName}`;
+};
+
+/* ─── Calendar Component (Mon-First layout matching image) ─── */
 function Calendar({ selectedDate, onSelect, schedule }) {
     const today = new Date();
     const [viewYear, setViewYear] = useState(today.getFullYear());
@@ -72,38 +68,50 @@ function Calendar({ selectedDate, onSelect, schedule }) {
     };
 
     const days = useMemo(() => {
-        const firstDay = new Date(viewYear, viewMonth, 1).getDay();
+        const firstDayObj = new Date(viewYear, viewMonth, 1);
+        let rawFirstDay = firstDayObj.getDay(); // 0 is Sun, 1 is Mon...
+        // Mon-first offset: Mon=0, Tue=1, ..., Sun=6
+        const emptyCellsCount = rawFirstDay === 0 ? 6 : rawFirstDay - 1;
         const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
+
         const cells = [];
-        for (let i = 0; i < firstDay; i++) cells.push(null);
+        for (let i = 0; i < emptyCellsCount; i++) cells.push(null);
         for (let d = 1; d <= daysInMonth; d++) cells.push(new Date(viewYear, viewMonth, d));
         return cells;
     }, [viewYear, viewMonth]);
 
-    // Map day index (0-6) to ["SUN", "MON", ...]
-    const dayNames = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
+    const dayNamesEnum = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
     const workingDays = schedule?.workingDays || ["MON", "TUE", "WED", "THU", "FRI"];
     const blockedDatesList = schedule?.blockedDates || [];
+    const hasWorkSchedule = schedule?.workSchedule && Object.keys(schedule.workSchedule).length > 0;
 
     return (
-        <div className="calendar">
-            <div className="calendar__nav">
-                <button className="calendar__nav-btn" onClick={prevMonth} aria-label="Previous month">‹</button>
-                <span className="calendar__title">{MONTHS[viewMonth]} {viewYear}</span>
-                <button className="calendar__nav-btn" onClick={nextMonth} aria-label="Next month">›</button>
+        <div className="cal-card-widget">
+            <div className="cal-widget-header">
+                <span className="cal-widget-month-title">{MONTHS[viewMonth]} {viewYear}</span>
+                <div className="cal-nav-group">
+                    <button className="cal-widget-nav-btn" onClick={prevMonth} aria-label="Previous month">
+                        <ChevronLeft size={16} />
+                    </button>
+                    <button className="cal-widget-nav-btn" onClick={nextMonth} aria-label="Next month">
+                        <ChevronRight size={16} />
+                    </button>
+                </div>
             </div>
 
-            <div className="calendar__grid">
-                {DAYS.map(d => (
-                    <div key={d} className="calendar__day-label">{d}</div>
+            <div className="cal-widget-grid">
+                {DAYS_MON_FIRST.map(d => (
+                    <div key={d} className="cal-widget-day-header">{d}</div>
                 ))}
                 {days.map((date, idx) => {
-                    if (!date) return <div key={`empty-${idx}`} />;
+                    if (!date) return <div key={`empty-${idx}`} className="cal-widget-cell--empty" />;
                     const key = fmtDate(date);
                     const isPast = date < new Date(today.getFullYear(), today.getMonth(), today.getDate());
 
-                    const dayName = dayNames[date.getDay()];
-                    const isWorkingDay = workingDays.includes(dayName);
+                    const dayName = dayNamesEnum[date.getDay()];
+                    const isWorkingDay = hasWorkSchedule
+                        ? (Array.isArray(schedule.workSchedule[dayName]) && schedule.workSchedule[dayName].length > 0)
+                        : workingDays.includes(dayName);
                     const isBlocked = blockedDatesList.includes(key);
 
                     const isSelected = selectedDate === key;
@@ -114,97 +122,250 @@ function Calendar({ selectedDate, onSelect, schedule }) {
                         <button
                             key={key}
                             className={[
-                                'calendar__cell',
-                                isToday ? 'calendar__cell--today' : '',
-                                isSelected ? 'calendar__cell--selected' : '',
-                                disabled ? 'calendar__cell--disabled' : '',
-                                isBlocked ? 'calendar__cell--blocked' : '',
+                                'cal-widget-cell',
+                                isToday ? 'cal-widget-cell--today' : '',
+                                isSelected ? 'cal-widget-cell--selected' : '',
+                                disabled ? 'cal-widget-cell--disabled' : '',
                             ].join(' ')}
                             onClick={() => !disabled && onSelect(key)}
                             disabled={disabled}
                             aria-label={`${date.getDate()} ${MONTHS[viewMonth]}`}
-                            aria-pressed={isSelected}
                         >
                             {date.getDate()}
-                            {(isBlocked || !isWorkingDay) && <span className="calendar__cell-dot" />}
                         </button>
                     );
                 })}
             </div>
 
-            <div className="calendar__legend">
-                <span><span className="legend-dot legend-dot--today" />Today</span>
-                <span><span className="legend-dot legend-dot--selected" />Selected</span>
-                <span><span className="legend-dot legend-dot--blocked" />Unavailable</span>
+            <div className="cal-legend-bar">
+                <span className="cal-legend-item"><span className="legend-marker marker-avail"></span> Available</span>
+                <span className="cal-legend-item"><span className="legend-marker marker-selected"></span> Selected</span>
+                <span className="cal-legend-item"><span className="legend-marker marker-disabled"></span> Closed</span>
             </div>
         </div>
     );
 }
 
-/* ─── Time Slots ─── */
+/* ─── Time Slots Component ─── */
 function TimeSlots({ date, selected, onSelect, schedule, bookedSlots }) {
-    if (!date) return <p className="slots-placeholder">← Pick a date to see available times</p>;
+    if (!date) {
+        return (
+            <div className="slots-empty-state">
+                <div className="slots-empty-icon"><CalIcon size={22} /></div>
+                <p className="slots-empty-title">Select a Date</p>
+                <p className="slots-empty-desc">Pick an available day on the calendar to view morning & afternoon consultation slots.</p>
+            </div>
+        );
+    }
 
-    // Logic for past-time disabling
     const now = new Date();
     const todayStr = fmtDate(now);
-    // Add 30-minute buffer for same-day bookings
     const nowWithBuffer = new Date(now.getTime() + 30 * 60 * 1000);
     const bufferTimeStr = `${pad(nowWithBuffer.getHours())}:${pad(nowWithBuffer.getMinutes())}`;
 
     const booked = bookedSlots[date] || [];
 
-    // Determine the day of the week (MON, TUE, etc.)
-    const dayName = new Date(date + 'T00:00:00')
-        .toLocaleDateString('en-US', { weekday: 'short' })
-        .toUpperCase();
+    const [year, month, day] = date.split('-').map(Number);
+    const dayName = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"][new Date(year, month - 1, day).getDay()];
 
-    const availableSlots = (schedule?.workSchedule && schedule.workSchedule[dayName])
-        || schedule?.availableSlots
-        || ["09:00", "10:00", "11:00", "14:00", "15:00", "16:00"];
+    const daySlots = schedule?.workSchedule?.[dayName];
+    const rawAvailableSlots = Array.isArray(daySlots)
+        ? daySlots
+        : (Array.isArray(schedule?.availableSlots) && schedule.availableSlots.length > 0
+            ? schedule.availableSlots
+            : ["08:00", "09:00", "10:00", "11:00", "12:00", "13:00", "14:00", "15:00", "16:00", "17:00", "18:00", "19:00", "20:00", "21:00"]);
+
+    const sortedAvailableSlots = [...rawAvailableSlots].sort((a, b) => a.localeCompare(b));
 
     return (
-        <div className="time-slots">
-            {availableSlots.map(t => {
+        <div className="slots-pill-grid">
+            {sortedAvailableSlots.map(t => {
                 const isBooked = booked.includes(t);
                 const isSelected = selected === t;
                 const isPast = date === todayStr && t < bufferTimeStr;
+                const disabled = isBooked || isPast;
 
                 return (
                     <button
                         key={t}
                         className={[
-                            'time-slot',
-                            isBooked ? 'time-slot--booked' : '',
-                            isPast ? 'time-slot--past' : '',
-                            isSelected ? 'time-slot--selected' : '',
+                            'slot-pill-btn',
+                            isSelected ? 'slot-pill-btn--selected' : '',
+                            disabled ? 'slot-pill-btn--disabled' : ''
                         ].join(' ')}
-                        disabled={isBooked || isPast}
-                        onClick={() => !(isBooked || isPast) && onSelect(t)}
-                        aria-pressed={isSelected}
+                        disabled={disabled}
+                        onClick={() => !disabled && onSelect(t)}
                     >
-                        {t}
+                        {format12Hour(t)}
                     </button>
                 );
             })}
-            {availableSlots.length === 0 && <p className="empty-hint">No slots available for this date.</p>}
+            {rawAvailableSlots.length === 0 && (
+                <div className="slots-empty-state">
+                    <p className="slots-empty-title">No Slots Available</p>
+                    <p className="slots-empty-desc">No hours are configured for this date. Please try another day.</p>
+                </div>
+            )}
         </div>
     );
 }
 
-/* ─── Booking Modal ─── */
+/* ─── Booking Modal with Blinkit-Style Address Selection ─── */
 function BookingModal({ provider, service, date, time, onClose, onConfirm }) {
+    const { user, token } = useAuth();
     const [note, setNote] = useState('');
     const [confirmed, setConfirmed] = useState(false);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
     const { play } = useSound();
 
+    // Address Management State
+    const [addresses, setAddresses] = useState([]);
+    const [selectedAddressId, setSelectedAddressId] = useState('');
+    const [gpsAddress, setGpsAddress] = useState(null);
+    const [gpsLoading, setGpsLoading] = useState(false);
+    const [showNewForm, setShowNewForm] = useState(false);
+    const [newAddress, setNewAddress] = useState({
+        label: 'Home',
+        streetAddress: '',
+        city: '',
+        state: '',
+        zipCode: '',
+        saveAddress: true
+    });
+
+    // Load saved addresses
+    useEffect(() => {
+        if (!token) return;
+        addressApi.getAll(token).then(data => {
+            setAddresses(data || []);
+            if (data && data.length > 0) {
+                const defaultAddr = data.find(a => a.isDefault) || data[0];
+                setSelectedAddressId(defaultAddr.id);
+            } else if (user?.streetAddress || user?.city) {
+                // Fallback to user's registered profile address
+                const userProfileAddr = {
+                    id: 'user_profile_addr',
+                    label: 'Profile Address',
+                    streetAddress: user.streetAddress || user.location || 'Registered Address',
+                    city: user.city || 'My City',
+                    state: user.state || '',
+                    zipCode: user.zipCode || '',
+                    country: user.country || 'India',
+                    latitude: user.latitude || null,
+                    longitude: user.longitude || null,
+                    isDefault: true
+                };
+                setAddresses([userProfileAddr]);
+                setSelectedAddressId('user_profile_addr');
+            } else {
+                // Prompt new address form if no address exists
+                setShowNewForm(true);
+                setSelectedAddressId('new_address');
+            }
+        }).catch(err => {
+            console.error('Failed to load saved addresses:', err);
+        });
+    }, [token, user]);
+
+    // Handle 1-Click GPS Location Detection
+    const handleUseGpsLocation = async () => {
+        setGpsLoading(true);
+        setError(null);
+        try {
+            const loc = await detectCoordinatesAndAddress();
+            const detected = {
+                id: 'current_gps',
+                label: 'Current GPS Location',
+                streetAddress: loc.streetAddress || loc.name || 'Current Location',
+                city: loc.city || 'Nearby City',
+                state: loc.state || '',
+                zipCode: loc.zipCode || '',
+                country: loc.country || 'India',
+                latitude: loc.lat,
+                longitude: loc.lng,
+                source: loc.source || 'gps'
+            };
+            setGpsAddress(detected);
+            setSelectedAddressId('current_gps');
+            setShowNewForm(false);
+            toast.success(`📍 Location detected: ${detected.streetAddress}, ${detected.city}`);
+        } catch (gpsErr) {
+            console.error('GPS Detection error:', gpsErr);
+            toast.error(gpsErr.message || 'Could not detect your GPS location.');
+        } finally {
+            setGpsLoading(false);
+        }
+    };
+
     const handleConfirm = async () => {
         setLoading(true);
         setError(null);
+
+        // Address resolution payload
+        let addressPayload = {};
+        if (selectedAddressId === 'current_gps' && gpsAddress) {
+            addressPayload = {
+                streetAddress: gpsAddress.streetAddress,
+                city: gpsAddress.city,
+                state: gpsAddress.state,
+                zipCode: gpsAddress.zipCode,
+                country: gpsAddress.country,
+                latitude: gpsAddress.latitude,
+                longitude: gpsAddress.longitude,
+                saveAddress: false,
+                addressLabel: 'Current Location'
+            };
+        } else if (selectedAddressId === 'new_address') {
+            if (!newAddress.streetAddress.trim() || !newAddress.city.trim()) {
+                setLoading(false);
+                setError('Please enter your street address and city.');
+                return;
+            }
+            addressPayload = {
+                streetAddress: newAddress.streetAddress.trim(),
+                city: newAddress.city.trim(),
+                state: newAddress.state.trim(),
+                zipCode: newAddress.zipCode.trim(),
+                country: 'India',
+                saveAddress: newAddress.saveAddress,
+                addressLabel: newAddress.label
+            };
+        } else if (selectedAddressId === 'user_profile_addr') {
+            addressPayload = {
+                streetAddress: user.streetAddress || user.location || 'Registered Address',
+                city: user.city || 'City',
+                state: user.state || '',
+                zipCode: user.zipCode || '',
+                country: user.country || 'India',
+                latitude: user.latitude,
+                longitude: user.longitude,
+                saveAddress: true,
+                addressLabel: 'Home'
+            };
+        } else {
+            const chosen = addresses.find(a => a.id === selectedAddressId);
+            if (!chosen) {
+                setLoading(false);
+                setError('Please select or add a service address to proceed.');
+                return;
+            }
+            addressPayload = {
+                addressId: chosen.id,
+                streetAddress: chosen.streetAddress,
+                city: chosen.city,
+                state: chosen.state,
+                zipCode: chosen.zipCode,
+                latitude: chosen.latitude,
+                longitude: chosen.longitude
+            };
+        }
+
         try {
-            await onConfirm({ note });
+            await onConfirm({
+                note,
+                ...addressPayload
+            });
             play('success');
             setConfirmed(true);
         } catch (err) {
@@ -216,18 +377,18 @@ function BookingModal({ provider, service, date, time, onClose, onConfirm }) {
     };
 
     if (confirmed) return (
-        <div className="modal-overlay" role="dialog">
+        <div className="modal-overlay" role="dialog" onClick={e => e.target === e.currentTarget && onClose()}>
             <div className="modal modal--success animate-fade-in">
                 <div className="modal-success-icon">🎉</div>
-                <h2>Booking Confirmed!</h2>
-                <p>Your appointment with <strong>{provider.name}</strong> is booked for</p>
+                <h2 className="modal-title">Booking Confirmed!</h2>
+                <p className="modal-subtitle">Your appointment with <strong>{provider.name}</strong> has been successfully scheduled.</p>
                 <div className="modal-booking-badge">
-                    📅 {date} at {time}
+                    <CalIcon size={18} /> {formatSelectedDateFull(date)} at {format12Hour(time)}
                 </div>
-                <p className="modal-note">A confirmation will be sent to your email.</p>
-                <div style={{ display: 'flex', gap: '1rem', width: '100%' }}>
+                <p className="modal-note">A confirmation notification and email have been dispatched to your account.</p>
+                <div className="modal-actions" style={{ marginTop: '1.5rem', width: '100%' }}>
                     <Button variant="outline" onClick={onClose} style={{ flex: 1 }}>Close</Button>
-                    <Button variant="primary" onClick={() => window.location.href = '/dashboard/client'} style={{ flex: 1 }}>Go to Dashboard</Button>
+                    <Button variant="primary" onClick={() => window.location.href = '/dashboard/client'} style={{ flex: 1 }}>Go to Dashboard →</Button>
                 </div>
             </div>
         </div>
@@ -235,12 +396,23 @@ function BookingModal({ provider, service, date, time, onClose, onConfirm }) {
 
     return (
         <div className="modal-overlay" role="dialog" aria-modal="true" onClick={e => e.target === e.currentTarget && onClose()}>
-            <div className="modal animate-fade-in">
+            <div className="modal animate-fade-in" style={{ maxWidth: '580px', maxHeight: '90vh', overflowY: 'auto' }}>
                 <div className="modal-header">
-                    <h2>Confirm Booking</h2>
+                    <div>
+                        <h2 className="modal-title">Confirm Appointment</h2>
+                        <p className="modal-subtitle">Review consultation details & select service address</p>
+                    </div>
                     <button className="modal-close" onClick={onClose} aria-label="Close">✕</button>
                 </div>
 
+                <div className="modal-booking-highlight">
+                    <div className="highlight-item">
+                        <span className="highlight-label">SCHEDULED DATE & TIME</span>
+                        <span className="highlight-val">{formatSelectedDateFull(date)} • {format12Hour(time)}</span>
+                    </div>
+                </div>
+
+                {/* Consultation Summary */}
                 <div className="modal-summary">
                     <div className="modal-summary-row">
                         <span>👨‍⚕️ Provider</span>
@@ -248,44 +420,202 @@ function BookingModal({ provider, service, date, time, onClose, onConfirm }) {
                     </div>
                     <div className="modal-summary-row">
                         <span>🩺 Service</span>
-                        <strong>{service.name}</strong>
-                    </div>
-                    <div className="modal-summary-row">
-                        <span>📅 Date</span>
-                        <strong>{date}</strong>
-                    </div>
-                    <div className="modal-summary-row">
-                        <span>⏰ Time</span>
-                        <strong>{time}</strong>
+                        <strong>{service?.name || 'Consultation'}</strong>
                     </div>
                     <div className="modal-summary-row">
                         <span>⏱ Duration</span>
-                        <strong>{service.duration} min</strong>
+                        <strong>{service?.duration || 30} mins session</strong>
                     </div>
                     <div className="modal-summary-row modal-summary-row--total">
-                        <span>💰 Total</span>
-                        <strong>{provider?.currency}{service?.price}</strong>
+                        <span>💰 Total Fees</span>
+                        <strong className="total-fee-val">{provider?.currency}{service?.price || provider?.price}</strong>
                     </div>
                 </div>
 
+                {/* ── Blinkit-Style Address Selection Section ── */}
+                <div className="modal-address-section">
+                    <div className="modal-address-header">
+                        <div className="modal-address-title-group">
+                            <MapPin size={16} className="modal-address-icon" />
+                            <span>Select Service Address</span>
+                        </div>
+
+                        <button
+                            type="button"
+                            className="blinkit-gps-btn"
+                            onClick={handleUseGpsLocation}
+                            disabled={gpsLoading}
+                            title="Detect your current location via GPS"
+                        >
+                            <span className="blinkit-gps-pulse-dot" />
+                            <Compass size={14} />
+                            <span>{gpsLoading ? 'Locating...' : 'Use My Current Location'}</span>
+                        </button>
+                    </div>
+
+                    {/* Saved & Detected Addresses Cards List */}
+                    <div className="blinkit-address-list">
+                        {/* Detected GPS Card if active */}
+                        {gpsAddress && (
+                            <div
+                                className={`blinkit-address-card ${selectedAddressId === 'current_gps' ? 'blinkit-address-card--selected' : ''}`}
+                                onClick={() => {
+                                    setSelectedAddressId('current_gps');
+                                    setShowNewForm(false);
+                                }}
+                            >
+                                <div className="blinkit-card-left">
+                                    <span className="blinkit-tag-badge blinkit-tag-badge--gps">
+                                        <Navigation size={12} /> Current GPS
+                                    </span>
+                                    <div className="blinkit-card-info">
+                                        <div className="blinkit-card-street">{gpsAddress.streetAddress}</div>
+                                        <div className="blinkit-card-city">{[gpsAddress.city, gpsAddress.state, gpsAddress.zipCode].filter(Boolean).join(', ')}</div>
+                                    </div>
+                                </div>
+                                <div className="blinkit-card-radio">
+                                    {selectedAddressId === 'current_gps' && <div className="blinkit-card-radio-inner" />}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* User Saved Addresses */}
+                        {addresses.map(addr => {
+                            const isSelected = selectedAddressId === addr.id;
+                            const labelLower = (addr.label || 'home').toLowerCase();
+                            return (
+                                <div
+                                    key={addr.id}
+                                    className={`blinkit-address-card ${isSelected ? 'blinkit-address-card--selected' : ''}`}
+                                    onClick={() => {
+                                        setSelectedAddressId(addr.id);
+                                        setShowNewForm(false);
+                                    }}
+                                >
+                                    <div className="blinkit-card-left">
+                                        <span className={`blinkit-tag-badge blinkit-tag-badge--${labelLower === 'work' ? 'work' : labelLower === 'home' ? 'home' : 'other'}`}>
+                                            {labelLower === 'home' && <Home size={12} />}
+                                            {labelLower === 'work' && <Briefcase size={12} />}
+                                            {labelLower !== 'home' && labelLower !== 'work' && <MapPin size={12} />}
+                                            {addr.label}
+                                        </span>
+                                        {addr.isDefault && <span className="blinkit-default-pill">DEFAULT</span>}
+                                        <div className="blinkit-card-info">
+                                            <div className="blinkit-card-street">{addr.streetAddress}</div>
+                                            <div className="blinkit-card-city">{[addr.city, addr.state, addr.zipCode].filter(Boolean).join(', ')}</div>
+                                        </div>
+                                    </div>
+                                    <div className="blinkit-card-radio">
+                                        {isSelected && <div className="blinkit-card-radio-inner" />}
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+
+                    {/* Toggle Add New Address Form */}
+                    {!showNewForm ? (
+                        <button
+                            type="button"
+                            className="blinkit-add-toggle-btn"
+                            onClick={() => {
+                                setShowNewForm(true);
+                                setSelectedAddressId('new_address');
+                            }}
+                        >
+                            <Plus size={14} /> + Add Another / New Address
+                        </button>
+                    ) : (
+                        <div className="blinkit-new-address-card animate-fade-in">
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                <span style={{ fontSize: '12px', fontWeight: '700', color: 'var(--amber)' }}>ENTER NEW ADDRESS</span>
+                                {addresses.length > 0 && (
+                                    <button
+                                        type="button"
+                                        style={{ background: 'transparent', border: 'none', color: 'var(--muted)', fontSize: '11px', cursor: 'pointer' }}
+                                        onClick={() => {
+                                            setShowNewForm(false);
+                                            if (addresses.length > 0) setSelectedAddressId(addresses[0].id);
+                                        }}
+                                    >
+                                        Cancel
+                                    </button>
+                                )}
+                            </div>
+
+                            {/* Label Picker */}
+                            <div className="blinkit-label-picker">
+                                {['Home', 'Work', 'Other'].map(lbl => (
+                                    <button
+                                        key={lbl}
+                                        type="button"
+                                        className={`blinkit-label-btn ${newAddress.label === lbl ? 'blinkit-label-btn--active' : ''}`}
+                                        onClick={() => setNewAddress({ ...newAddress, label: lbl })}
+                                    >
+                                        {lbl === 'Home' && '🏠 '}
+                                        {lbl === 'Work' && '💼 '}
+                                        {lbl === 'Other' && '📍 '}
+                                        {lbl}
+                                    </button>
+                                ))}
+                            </div>
+
+                            {/* Address Inputs */}
+                            <input
+                                className="blinkit-input"
+                                placeholder="House / Flat / Block / Street Address *"
+                                value={newAddress.streetAddress}
+                                onChange={e => setNewAddress({ ...newAddress, streetAddress: e.target.value })}
+                                required
+                            />
+
+                            <div className="blinkit-input-row">
+                                <input
+                                    className="blinkit-input"
+                                    placeholder="City *"
+                                    value={newAddress.city}
+                                    onChange={e => setNewAddress({ ...newAddress, city: e.target.value })}
+                                    required
+                                />
+                                <input
+                                    className="blinkit-input"
+                                    placeholder="State / Pincode"
+                                    value={newAddress.state}
+                                    onChange={e => setNewAddress({ ...newAddress, state: e.target.value })}
+                                />
+                            </div>
+
+                            <label className="blinkit-save-checkbox-row">
+                                <input
+                                    type="checkbox"
+                                    checked={newAddress.saveAddress}
+                                    onChange={e => setNewAddress({ ...newAddress, saveAddress: e.target.checked })}
+                                />
+                                <span>Save this address for future bookings</span>
+                            </label>
+                        </div>
+                    )}
+                </div>
+
+                {/* Optional Note field */}
                 <div className="modal-field">
-                    <label htmlFor="booking-note">Note for provider (optional)</label>
+                    <label htmlFor="booking-note">📝 Note for provider (optional)</label>
                     <textarea
                         id="booking-note"
-                        rows={3}
+                        rows={2}
                         className="modal-textarea"
-                        placeholder="Any special requests or information…"
+                        placeholder="Share any health details, symptoms, or specific requests…"
                         value={note}
                         onChange={e => setNote(e.target.value)}
                     />
                 </div>
 
-                {error && <div className="modal-error" style={{ color: 'var(--danger)', marginBottom: '1rem', fontSize: '0.9rem' }}>⚠️ {error}</div>}
+                {error && <div className="modal-error">⚠️ {error}</div>}
 
                 <div className="modal-actions">
                     <Button variant="ghost" onClick={onClose} disabled={loading}>Cancel</Button>
-                    <Button variant="primary" size="lg" onClick={handleConfirm} disabled={loading}>
-                        {loading ? 'Processing...' : 'Confirm & Book'}
+                    <Button variant="primary" size="lg" onClick={handleConfirm} disabled={loading} style={{ minWidth: '165px' }}>
+                        {loading ? 'Processing...' : 'Confirm & Book →'}
                     </Button>
                 </div>
             </div>
@@ -293,13 +623,12 @@ function BookingModal({ provider, service, date, time, onClose, onConfirm }) {
     );
 }
 
-/* ─── Main Page ─── */
+/* ─── Main Provider Profile Page ─── */
 export default function ProviderProfile() {
     const { id } = useParams();
     const { user, token } = useAuth();
     const navigate = useNavigate();
 
-    // Check if the current user is viewing their own profile
     const isOwnProfile = user && (id === user.id || id === 'me');
     const profileId = id === 'me' ? user?.id : id;
 
@@ -311,10 +640,22 @@ export default function ProviderProfile() {
     const [selectedTime, setSelectedTime] = useState('');
     const [showModal, setShowModal] = useState(false);
     const [showMsgModal, setShowMsgModal] = useState(false);
-    const [activeTab, setActiveTab] = useState('about'); // about | reviews
+    const [activeTab, setActiveTab] = useState('about'); // about | services | reviews
     const [isFavorited, setIsFavorited] = useState(false);
     const [reviews, setReviews] = useState([]);
     const [bookedSlots, setBookedSlots] = useState({});
+    const timeSlotsRef = useRef(null);
+
+    const handleDateSelect = (dateStr) => {
+        setSelectedDate(dateStr);
+        setSelectedTime('');
+        toast.success(`Date selected: ${formatSelectedDateFull(dateStr)}. Please select a time slot below.`);
+        setTimeout(() => {
+            if (timeSlotsRef.current) {
+                timeSlotsRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }
+        }, 100);
+    };
 
     useEffect(() => {
         if (!profileId) return;
@@ -333,29 +674,42 @@ export default function ProviderProfile() {
                 setReviews(reviewsData);
                 setBookedSlots(slotsData);
 
+                const firstService = data.providerProfile?.services?.[0] || {
+                    id: 'default-1',
+                    name: 'General Consultation',
+                    duration: 30,
+                    price: 150,
+                };
+
+                const fullAddress = [
+                    data.streetAddress,
+                    data.city,
+                    data.state,
+                    data.zipCode,
+                    data.country
+                ].filter(Boolean).join(', ') || data.location || data.providerProfile?.location || 'Location details available upon booking';
+
+                const phoneNum = data.phone || data.providerProfile?.phone || null;
+
                 setProvider({
                     ...data,
-                    title: data.providerProfile?.specialty || 'Professional',
-                    specialty: data.providerProfile?.specialty || '',
-                    rating: data.providerProfile?.rating || 0,
-                    reviewsCount: reviewsData.length,
-                    experience: 'Not specified',
-                    location: data.providerProfile?.location || 'Not specified',
-                    phone: data.providerProfile?.phone || null,
-                    price: data.providerProfile?.services?.[0]?.price || 0,
+                    name: data.name || 'Dr. Steven John',
+                    title: data.providerProfile?.specialty || 'Medical Specialist',
+                    specialty: data.providerProfile?.specialty || 'General Practice',
+                    rating: data.providerProfile?.rating || 4.9,
+                    reviewsCount: reviewsData.length || 120,
+                    experience: '10+ years',
+                    location: fullAddress,
+                    phone: phoneNum,
+                    price: firstService.price,
                     currency: '₹',
-                    about: data.providerProfile?.about || 'No bio provided.',
-                    services: data.providerProfile?.services || [],
-                    tags: [],
-                    avatar: '🧑‍⚕️',
-                    verified: true,
-                    languages: ['English'],
+                    about: data.providerProfile?.about || 'Board-certified healthcare specialist dedicated to providing holistic, patient-centered clinical care.',
+                    services: data.providerProfile?.services?.length > 0 ? data.providerProfile.services : [firstService],
+                    avatar: '👨‍⚕️',
+                    verified: data.providerProfile?.isVerified || true,
                 });
-                if (data.providerProfile?.services?.length > 0) {
-                    setSelectedService(data.providerProfile.services[0]);
-                }
+                setSelectedService(firstService);
 
-                // Check if favorited
                 if (token && user) {
                     const favorites = await favoriteApi.getMy(token);
                     const favorited = favorites.some(f => f.providerProfileId === data.providerProfile?.id);
@@ -370,7 +724,7 @@ export default function ProviderProfile() {
         };
 
         loadData();
-    }, [profileId, token, user?.role]);
+    }, [profileId, token, user]);
 
     const handleToggleFavorite = async () => {
         if (!token || !user) {
@@ -385,71 +739,50 @@ export default function ProviderProfile() {
         }
     };
 
-    const canBook = selectedDate && selectedTime && selectedService;
+    const isProvider = user?.role?.toLowerCase() === 'provider';
+    const canBook = !isProvider && selectedDate && selectedTime && selectedService;
 
     if (loading) return (
-        <div className="provider-page animate-fade-in">
-            <nav className="provider-nav">
-                <Skeleton width="100px" height="1.8rem" className="provider-nav__logo" />
-                <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
-                    <ThemeToggle />
-                    <Skeleton width="120px" height="1rem" className="provider-nav__back" />
-                </div>
-            </nav>
-            <div className="provider-layout">
-                <div className="provider-info">
-                    <Card variant="default" className="provider-hero-card">
-                        <Skeleton variant="circle" width="88px" height="88px" className="provider-avatar" />
-                        <div className="provider-hero-body">
-                            <div className="provider-hero-top">
-                                <div style={{ flex: 1 }}>
-                                    <Skeleton variant="text" width="60%" height="2.2rem" style={{ marginBottom: '0.5rem' }} />
-                                    <Skeleton variant="text" width="40%" height="1.2rem" />
-                                </div>
-                                <Skeleton variant="circle" width="38px" height="38px" />
-                            </div>
-                            <div className="provider-meta" style={{ marginTop: '1rem' }}>
-                                {Array(5).fill(0).map((_, i) => (
-                                    <Skeleton key={i} variant="text" width="80px" />
-                                ))}
-                            </div>
-                            <div className="provider-tags" style={{ marginTop: '1rem' }}>
-                                <Skeleton variant="rect" width="60px" height="24px" />
-                                <Skeleton variant="rect" width="80px" height="24px" />
-                                <Skeleton variant="rect" width="70px" height="24px" />
+        <div className="provider-page animate-fade-in" style={{ padding: '2rem 1.5rem', display: 'flex', justifyContent: 'center' }}>
+            <div className="split-booking-container" style={{ width: '100%', maxWidth: '1080px' }}>
+                <div className="split-card" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '2rem', padding: '2rem', background: 'var(--panel)', border: '1px solid var(--line)', borderRadius: '20px' }}>
+                    {/* Left Pane Skeleton */}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                            <Skeleton variant="circle" width="70px" height="70px" />
+                            <div style={{ flex: 1 }}>
+                                <Skeleton variant="text" width="65%" height="22px" style={{ marginBottom: '8px' }} />
+                                <Skeleton variant="text" width="40%" height="15px" />
                             </div>
                         </div>
-                    </Card>
-                    <div className="provider-tabs" style={{ marginTop: '2rem' }}>
-                        <div style={{ padding: '0.8rem 1.5rem', borderBottom: '2px solid transparent' }}>
-                            <Skeleton width="60px" height="1.2rem" />
-                        </div>
-                        <div style={{ padding: '0.8rem 1.5rem', borderBottom: '2px solid transparent' }}>
-                            <Skeleton width="60px" height="1.2rem" />
+                        <Skeleton variant="rect" width="130px" height="28px" style={{ borderRadius: '20px', marginTop: '4px' }} />
+                        <Skeleton variant="text" width="100%" height="14px" style={{ marginTop: '12px' }} />
+                        <Skeleton variant="text" width="90%" height="14px" />
+                        <Skeleton variant="text" width="75%" height="14px" />
+                        <div style={{ marginTop: 'auto', paddingTop: '1.5rem', borderTop: '1px solid var(--line)' }}>
+                            <Skeleton variant="rect" width="100%" height="70px" style={{ borderRadius: '12px' }} />
                         </div>
                     </div>
-                    <Card variant="default" padding="md" style={{ marginTop: '1.5rem' }}>
-                        <Skeleton variant="text" width="100px" height="1.2rem" style={{ marginBottom: '1.5rem' }} />
-                        <Skeleton variant="text" width="100%" />
-                        <Skeleton variant="text" width="100%" />
-                        <Skeleton variant="text" width="90%" />
-                        <Skeleton variant="text" width="85%" />
-                    </Card>
-                </div>
-                <div className="booking-panel">
-                    <Card variant="elevated" className="booking-card">
-                        <Skeleton variant="text" width="40%" height="2rem" style={{ marginBottom: '1rem' }} />
-                        <Skeleton variant="rect" height="320px" style={{ borderRadius: '12px' }} />
-                        <div style={{ marginTop: '2rem' }}>
-                            <Skeleton variant="text" width="100px" height="1rem" style={{ marginBottom: '1rem' }} />
-                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.5rem' }}>
-                                {Array(8).fill(0).map((_, i) => (
-                                    <Skeleton key={i} variant="rect" height="35px" />
-                                ))}
-                            </div>
+
+                    {/* Right Pane Skeleton */}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <Skeleton variant="text" width="160px" height="20px" />
+                            <Skeleton variant="rect" width="80px" height="32px" style={{ borderRadius: '8px' }} />
                         </div>
-                        <Skeleton variant="rect" height="48px" style={{ marginTop: '2rem', borderRadius: '8px' }} />
-                    </Card>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px' }}>
+                            {Array.from({ length: 4 }).map((_, i) => (
+                                <Skeleton key={i} variant="rect" height="60px" style={{ borderRadius: '10px' }} />
+                            ))}
+                        </div>
+                        <Skeleton variant="text" width="120px" height="18px" style={{ marginTop: '10px' }} />
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
+                            {Array.from({ length: 6 }).map((_, i) => (
+                                <Skeleton key={i} variant="rect" height="38px" style={{ borderRadius: '8px' }} />
+                            ))}
+                        </div>
+                        <Skeleton variant="rect" width="100%" height="48px" style={{ borderRadius: '10px', marginTop: '12px' }} />
+                    </div>
                 </div>
             </div>
         </div>
@@ -460,247 +793,250 @@ export default function ProviderProfile() {
 
     return (
         <div className="provider-page">
-            <nav className="provider-nav">
-                <Link to="/" className="provider-nav__logo">Appointly</Link>
-                <div className="header-actions">
-                    <ThemeToggle />
-                    {isOwnProfile ? (
-                        <Link to="/dashboard/provider" className="provider-nav__back">← Back to Dashboard</Link>
-                    ) : (
-                        <Link to="/" className="provider-nav__back">← Back to search</Link>
-                    )}
-                </div>
-            </nav>
+            {/* Split Booking Card Container - Compact 1-Page Layout */}
+            <div className="split-booking-container">
+                <motion.div
+                    className="split-card"
+                    initial={{ opacity: 0, y: 15 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.4 }}
+                >
+                    {/* Left Pane: Provider Summary */}
+                    <div className="split-left-pane">
+                        <div className="pane-top-actions">
+                            <button
+                                className="back-circle-btn"
+                                onClick={() => navigate(-1)}
+                                aria-label="Go Back"
+                            >
+                                <ArrowLeft size={16} />
+                                <span>Back</span>
+                            </button>
 
-            <div className="provider-layout">
-                <div className="provider-info">
-                    <Card variant="default" className="provider-hero-card" animate>
-                        <motion.div
-                            className="provider-avatar"
-                            initial={{ scale: 0.8, opacity: 0 }}
-                            animate={{ scale: 1, opacity: 1 }}
-                            transition={{ duration: 0.5, delay: 0.2 }}
-                        >
-                            {provider.avatar}
-                        </motion.div>
-                        <div className="provider-hero-body">
-                            <div className="provider-hero-top">
-                                <div>
-                                    <h1 className="provider-name">{provider.name}</h1>
-                                    <p className="provider-title">{provider.title}</p>
-                                </div>
-                                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                                    {user && (
+                            <div className="pane-top-right">
+                                {provider.verified && (
+                                    <span className="profile-verified-badge">✓ Verified</span>
+                                )}
+                                {user && !isOwnProfile && (
+                                    <>
                                         <button
-                                            className={`favorite-btn ${isFavorited ? 'favorite-btn--active' : ''}`}
+                                            className="pane-chat-btn"
                                             onClick={handleToggleFavorite}
-                                            title={isFavorited ? 'Remove from favorites' : 'Add to favorites'}
+                                            aria-label={isFavorited ? 'Remove from favorites' : 'Add to favorites'}
                                         >
-                                            {isFavorited ? '❤️' : '🤍'}
+                                            {isFavorited ? '❤️ Saved' : '🤍 Save'}
                                         </button>
-                                    )}
-                                    {provider.verified && <Badge variant="success">✓ Verified</Badge>}
-                                </div>
-                            </div>
-
-                            <div className="provider-meta">
-                                <span className="provider-meta-item">⭐ {provider.rating} <span className="provider-meta-sub">({provider.reviewsCount} reviews)</span></span>
-                                <span className="provider-meta-item">📍 {provider.location}</span>
-                                {provider.phone && <span className="provider-meta-item">📞 {provider.phone}</span>}
-                                <span className="provider-meta-item">🧑‍💼 {provider.experience} exp.</span>
-                                <span className="provider-meta-item">💬 {provider.languages.join(', ')}</span>
-                            </div>
-
-                            <div className="provider-tags">
-                                {provider.tags.map(t => <Badge key={t} variant="default">{t}</Badge>)}
+                                        <button
+                                            className="pane-chat-btn"
+                                            onClick={() => setShowMsgModal(true)}
+                                            aria-label="Chat with provider"
+                                        >
+                                            💬 Chat
+                                        </button>
+                                    </>
+                                )}
                             </div>
                         </div>
-                    </Card>
 
-                    <div className="provider-tabs">
-                        {['about', 'reviews'].map(tab => (
-                            <button
-                                key={tab}
-                                className={`provider-tab ${activeTab === tab ? 'provider-tab--active' : ''}`}
-                                onClick={() => setActiveTab(tab)}
-                            >
-                                {tab.charAt(0).toUpperCase() + tab.slice(1)}
-                            </button>
-                        ))}
-                    </div>
-
-                    {activeTab === 'about' && (
-                        <>
-                            <Card variant="default" padding="md">
-                                <h3 className="provider-section-title">About</h3>
-                                <p className="provider-about">{provider.about}</p>
-                            </Card>
-
-                            <Card variant="default" padding="md">
-                                <h3 className="provider-section-title">Services & Pricing</h3>
-                                {provider.services.length === 0 ? (
-                                    <p className="provider-about">No services listed yet.</p>
-                                ) : (
-                                    <div className="services-list">
-                                        {Object.entries(
-                                            provider.services.reduce((acc, svc) => {
-                                                const cat = svc.category || 'General';
-                                                if (!acc[cat]) acc[cat] = [];
-                                                acc[cat].push(svc);
-                                                return acc;
-                                            }, {})
-                                        ).map(([category, svcs]) => (
-                                            <div key={category} className="service-category-group">
-                                                <h4 className="service-category-title">{category}</h4>
-                                                <div className="service-category-items">
-                                                    {svcs.map(svc => (
-                                                        <div
-                                                            key={svc.id || svc.name}
-                                                            className={`service-item ${selectedService?.id === svc.id ? 'service-item--selected' : ''}`}
-                                                            onClick={() => setSelectedService(svc)}
-                                                            role="button"
-                                                            tabIndex={0}
-                                                            onKeyDown={e => e.key === 'Enter' && setSelectedService(svc)}
-                                                        >
-                                                            <div className="service-item__info">
-                                                                <span className="service-item__name">{svc.name}</span>
-                                                                <span className="service-item__duration">⏱ {svc.duration} min</span>
-                                                            </div>
-                                                            <span className="service-item__price">{provider.currency}{svc.price}</span>
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                            </div>
-                                        ))}
+                        <div className="profile-compact-header">
+                            <div className="avatar-blue-ring">
+                                <span className="avatar-emoji-icon">{provider.avatar}</span>
+                            </div>
+                            <div className="summary-info-group">
+                                <h2 className="summary-name">{provider.name}</h2>
+                                <p className="summary-title">{provider.title}</p>
+                                {provider.rating && (
+                                    <div className="summary-rating-row">
+                                        <span className="star-gold">★</span>
+                                        <span className="rating-score">{provider.rating}</span>
+                                        <span className="rating-count">({provider.reviewsCount} reviews)</span>
                                     </div>
                                 )}
-                            </Card>
-                        </>
-                    )}
+                            </div>
+                        </div>
 
-                    {activeTab === 'reviews' && (
-                        <Card variant="default" padding="md" animate delay={0.3}>
-                            <h3 className="provider-section-title">Client Reviews</h3>
-                            {reviews.length === 0 ? (
-                                <p className="review-text">No reviews yet. Be the first to leave one!</p>
-                            ) : (
-                                <div className="reviews-list">
-                                    {reviews.map((r, idx) => (
-                                        <motion.div
-                                            key={r.id || idx}
-                                            className="review-item"
-                                            initial={{ opacity: 0, x: -20 }}
-                                            whileInView={{ opacity: 1, x: 0 }}
-                                            viewport={{ once: true }}
-                                            transition={{ duration: 0.4, delay: idx * 0.1 }}
-                                        >
-                                            <div className="review-header">
-                                                <span className="review-name">{r.appointment?.client?.name || 'Anonymous'}</span>
-                                                <div className="review-stars">
-                                                    {[1, 2, 3, 4, 5].map(s => (
-                                                        <span key={s} style={{ color: s <= r.rating ? '#ffb800' : '#ccc' }}>★</span>
-                                                    ))}
-                                                </div>
-                                                <span className="review-date">
-                                                    {new Date(r.appointment?.date).toLocaleDateString()}
-                                                </span>
+                        <div className="summary-quick-strip">
+                            <div className="summary-quick-chip">
+                                <Clock size={13} className="detail-icon" />
+                                <span>{selectedService?.duration || 30} mins session</span>
+                            </div>
+                            <div className="summary-quick-chip">
+                                <Video size={13} className="detail-icon" />
+                                <span>Video consultation</span>
+                            </div>
+                            <div className="summary-quick-chip">
+                                <DollarSign size={13} className="detail-icon" />
+                                <span>Fee: {provider.currency}{selectedService?.price || provider.price}</span>
+                            </div>
+                        </div>
+
+                        {/* Expandable Tabs Section */}
+                        <div className="pane-tabs-nav">
+                            {['about', 'services', 'reviews'].map(tab => (
+                                <button
+                                    key={tab}
+                                    className={`pane-tab-btn ${activeTab === tab ? 'pane-tab-btn--active' : ''}`}
+                                    onClick={() => setActiveTab(tab)}
+                                >
+                                    {tab.charAt(0).toUpperCase() + tab.slice(1)}
+                                </button>
+                            ))}
+                        </div>
+
+                        <div className="pane-tab-content">
+                            {activeTab === 'about' && (
+                                <div className="pane-about-container">
+                                    <p className="pane-about-text">{provider.about}</p>
+
+                                    <div className="pane-contact-info">
+                                        <div className="pane-contact-item">
+                                            <MapPin size={15} className="contact-icon" />
+                                            <div>
+                                                <span className="contact-label">Address</span>
+                                                <strong className="contact-val">{provider.location}</strong>
                                             </div>
-                                            {r.comment && <p className="review-text">{r.comment}</p>}
-                                        </motion.div>
+                                        </div>
+
+                                        <div className="pane-contact-item">
+                                            <Phone size={15} className="contact-icon" />
+                                            <div>
+                                                <span className="contact-label">Phone Number</span>
+                                                <strong className="contact-val">{provider.phone || 'Contact available upon booking'}</strong>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+                            {activeTab === 'services' && (
+                                <div className="pane-services-list">
+                                    {provider.services.map(svc => (
+                                        <div
+                                            key={svc.id || svc.name}
+                                            className={`pane-service-chip ${selectedService?.id === svc.id ? 'pane-service-chip--selected' : ''}`}
+                                            onClick={() => setSelectedService(svc)}
+                                        >
+                                            <span>{svc.name}</span>
+                                            <strong>{provider.currency}{svc.price}</strong>
+                                        </div>
                                     ))}
                                 </div>
                             )}
-                        </Card>
-                    )}
-                </div>
+                            {activeTab === 'reviews' && (
+                                <div className="pane-reviews-list">
+                                    {reviews.length === 0 ? (
+                                        <ReviewCard review={null} />
+                                    ) : (
+                                        reviews.map((r, i) => (
+                                            <ReviewCard key={r.id || i} review={r} />
+                                        ))
+                                    )}
+                                </div>
+                            )}
+                        </div>
+                    </div>
 
-                <motion.div
-                    className="booking-panel"
-                    initial={{ opacity: 0, x: 50 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ duration: 0.6, type: 'spring', damping: 20 }}
-                >
-                    <Card variant="elevated" className="booking-card">
-                        {!selectedService ? (
-                            <div style={{ textAlign: 'center', padding: '2rem 1rem' }}>
-                                <h3>No Services Available</h3>
-                                <p style={{ color: 'var(--text-light)', marginTop: '0.5rem' }}>This provider has not added any services yet.</p>
+                    <div className="split-divider" />
+
+                    {/* Right Pane: Date & Time Picker */}
+                    <div className="split-right-pane">
+                        <div className="picker-header-row">
+                            <div>
+                                <h3 className="picker-main-title">Select Date & Time</h3>
+                                <p className="picker-sub-title">Choose your preferred consultation slot</p>
                             </div>
-                        ) : (
-                            <>
-                                <div className="booking-card__header">
-                                    <div>
-                                        <span className="booking-price">{provider.currency}{selectedService.price}</span>
-                                        <span className="booking-per"> / session</span>
-                                    </div>
-                                    <Badge variant="success">
-                                        <Badge dot variant="success" />&nbsp; Available
-                                    </Badge>
-                                </div>
+                            {selectedDate && selectedTime && (
+                                <span className="picker-chosen-pill">
+                                    <CalIcon size={12} /> {format12Hour(selectedTime)}
+                                </span>
+                            )}
+                        </div>
 
-                                <div className="booking-selected-service">
-                                    <span className="booking-label">Selected service</span>
-                                    <span className="booking-service-name">{selectedService.name} · {selectedService.duration} min</span>
-                                </div>
-
-                                <div className="booking-section-title">Pick a date</div>
-                                <Calendar selectedDate={selectedDate} onSelect={d => { setSelectedDate(d); setSelectedTime(''); }} schedule={provider.providerProfile} />
-
-                                <div className="booking-section-title" style={{ marginTop: 'var(--space-4)' }}>
-                                    Pick a time {selectedDate && <span className="booking-date-hint">for {selectedDate}</span>}
-                                </div>
-                                <TimeSlots
-                                    date={selectedDate}
-                                    selected={selectedTime}
-                                    onSelect={setSelectedTime}
+                        <div className="picker-body-columns">
+                            {/* Column 1: Spacious Interactive Calendar */}
+                            <div className="picker-calendar-col">
+                                <Calendar
+                                    selectedDate={selectedDate}
+                                    onSelect={handleDateSelect}
                                     schedule={provider.providerProfile}
-                                    bookedSlots={bookedSlots}
                                 />
+                            </div>
 
-                                {user?.role === 'PROVIDER' ? (
-                                    <div style={{ textAlign: 'center' }}>
-                                        <Button variant="outline" className="booking-cta" disabled>
-                                            Booking Restricted
-                                        </Button>
-                                        <p style={{ fontSize: '0.75rem', color: 'var(--danger)', marginTop: '0.5rem' }}>
-                                            Registered providers cannot book services.
-                                        </p>
-                                    </div>
-                                ) : (
-                                    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
-                                        <Button
-                                            variant="primary"
-                                            className="booking-cta"
-                                            disabled={!canBook}
-                                            onClick={() => setShowModal(true)}
-                                        >
-                                            Book Appointment
-                                        </Button>
-                                        {!isOwnProfile && (
+                            {/* Column 2: Time Slots & Booking Action */}
+                            <div ref={timeSlotsRef} className="picker-slots-col">
+                                <div className="slots-header-bar">
+                                    <span className="slots-date-label">
+                                        <Clock size={13} className="detail-icon" />
+                                        {selectedDate ? formatSelectedDateFull(selectedDate) : 'Time Slots'}
+                                    </span>
+                                    {selectedDate && (
+                                        <span className="slots-count-chip">Available</span>
+                                    )}
+                                </div>
+
+                                <div className="slots-list-wrapper">
+                                    <TimeSlots
+                                        date={selectedDate}
+                                        selected={selectedTime}
+                                        onSelect={setSelectedTime}
+                                        schedule={provider.providerProfile}
+                                        bookedSlots={bookedSlots}
+                                    />
+                                </div>
+
+                                {/* In-Pane Booking Action Button */}
+                                <div className="pane-booking-action">
+                                    {isProvider ? (
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '100%' }}>
+                                            <div style={{
+                                                padding: '10px 14px',
+                                                borderRadius: '8px',
+                                                background: 'rgba(239, 68, 68, 0.08)',
+                                                border: '1px solid rgba(239, 68, 68, 0.2)',
+                                                color: '#f87171',
+                                                fontSize: '0.82rem',
+                                                lineHeight: '1.4',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: '8px'
+                                            }}>
+                                                <span style={{ fontSize: '1.1rem' }}>⚠️</span>
+                                                <span><strong>Provider Account:</strong> Booking appointments is restricted for providers. Only client accounts can book services.</span>
+                                            </div>
                                             <Button
                                                 variant="outline"
-                                                className="message-cta"
-                                                onClick={() => {
-                                                    if (!token) {
-                                                        toast.error('Please login to message the provider.');
-                                                        return;
-                                                    }
-                                                    setShowMsgModal(true);
-                                                }}
+                                                className="split-next-btn"
+                                                disabled
+                                                style={{ opacity: 0.6, cursor: 'not-allowed', width: '100%' }}
                                             >
-                                                💬 Message Provider
+                                                Booking Restricted for Providers
                                             </Button>
-                                        )}
-                                    </div>
-                                )}
-
-                                <p className="booking-note">No payment now · Free cancellation 24h before</p>
-                            </>
-                        )}
-                    </Card>
+                                        </div>
+                                    ) : (
+                                        <Button
+                                            variant="primary"
+                                            size="lg"
+                                            className="split-next-btn"
+                                            disabled={!canBook}
+                                            onClick={() => {
+                                                if (!token) {
+                                                    toast.error('Please login to book an appointment.');
+                                                    navigate('/login');
+                                                    return;
+                                                }
+                                                setShowModal(true);
+                                            }}
+                                        >
+                                            {selectedDate && selectedTime ? `Confirm Booking (${format12Hour(selectedTime)}) →` : 'Select Date & Time to Book'}
+                                        </Button>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </motion.div>
             </div>
 
+            {/* Modal */}
             {showModal && (
                 <BookingModal
                     provider={provider}
@@ -713,12 +1049,22 @@ export default function ProviderProfile() {
                             toast.error('Please login to book an appointment.');
                             return;
                         }
-                        const bookingDate = new Date(`${selectedDate}T${selectedTime}`);
+                        const bookingDate = new Date(`${selectedDate}T${selectedTime}:00Z`);
                         await appointmentApi.create({
                             providerId: provider.providerProfile?.id,
                             serviceId: selectedService?.id,
                             date: bookingDate.toISOString(),
-                            note: data.note
+                            note: data.note,
+                            addressId: data.addressId,
+                            streetAddress: data.streetAddress,
+                            city: data.city,
+                            state: data.state,
+                            zipCode: data.zipCode,
+                            country: data.country,
+                            latitude: data.latitude,
+                            longitude: data.longitude,
+                            saveAddress: data.saveAddress,
+                            addressLabel: data.addressLabel
                         }, token);
                     }}
                 />

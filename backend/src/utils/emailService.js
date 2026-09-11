@@ -133,6 +133,22 @@ export const sendPasswordResetEmail = async (user, otp) => {
     return sendGenericEmailJS({ to_name: user.name, to_email: user.email, subject, html_message: html });
 };
 
+export const sendVerificationEmail = async (user, otp) => {
+    const subject = 'Verify your email - Appointly';
+    const html = `
+        <div style="font-family: sans-serif; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #eee; border-radius: 10px; text-align: center;">
+            <h2 style="color: #4f46e5;">Email Verification</h2>
+            <p>Hi ${user.name},</p>
+            <p>Please use the code below to verify your email address. This code will expire in <strong>2 minutes</strong>.</p>
+            <div style="margin: 30px 0; background: #f3f4f6; padding: 20px; border-radius: 8px; font-size: 32px; font-weight: bold; letter-spacing: 8px; color: #1f2937;">
+                ${otp}
+            </div>
+            <p style="color: #666; font-size: 14px;">If you didn't request this, you can safely ignore this email.</p>
+        </div>
+    `;
+    return sendGenericEmailJS({ to_name: user.name, to_email: user.email, subject, html_message: html });
+};
+
 // --- EmailJS Reminders (Daily Cron) ---
 
 export const sendEmailJSReminder = async (clientName, providerName, clientEmail, providerEmail, date, time) => {

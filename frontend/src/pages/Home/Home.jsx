@@ -1,140 +1,175 @@
-import { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { toast } from 'sonner';
-import { motion } from 'framer-motion';
-import { Search, MapPin, User, Tag } from 'lucide-react';
-import Button from '../../components/ui/Button/Button';
-import Card from '../../components/ui/Card/Card';
-import Badge from '../../components/ui/Badge/Badge';
-import Skeleton from '../../components/ui/Skeleton/Skeleton';
-import Navbar from '../../components/ui/Navbar/Navbar';
+import { useState, useEffect, useCallback, lazy, Suspense } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { toast } from '../../utils/toast';
 import { useAuth } from '../../context/AuthContext';
+import { useLanguage } from '../../context/LanguageContext';
 import { providerApi } from '../../api/providers';
 import { statsApi, siteReviewApi } from '../../api/stats';
 import ThemeToggle from '../../components/ui/ThemeToggle/ThemeToggle';
+import LocationPromptModal from '../../components/modals/LocationPromptModal/LocationPromptModal';
+import ReviewCard from '../../components/ui/ReviewCard/ReviewCard';
+import { AnimatePresence } from 'framer-motion';
+import { MapPin, X } from 'lucide-react';
+import Skeleton from '../../components/ui/Skeleton/Skeleton';
 import './Home.css';
 
-/* ── Animated counter hook ── */
-function useCounter(target, duration = 2000, start = false) {
-    const [count, setCount] = useState(0);
-    useEffect(() => {
-        if (!start) return;
-        let startTime = null;
-        const step = (timestamp) => {
-            if (!startTime) startTime = timestamp;
-            const progress = Math.min((timestamp - startTime) / duration, 1);
-            setCount(Math.floor(progress * target));
-            if (progress < 1) requestAnimationFrame(step);
-        };
-        requestAnimationFrame(step);
-    }, [target, duration, start]);
-    return count;
-}
+// Lazy-load heavy modals (keeps initial Home page bundle feather-light)
+const VideoGuideModal = lazy(() => import('../../components/modals/VideoGuideModal/VideoGuideModal'));
+const NearbyProvidersMapModal = lazy(() => import('../../components/modals/NearbyProvidersMapModal/NearbyProvidersMapModal'));
 
-/* ── Data ── */
-const NAV_LINKS = [
-    { label: 'Home', href: '#', active: true },
-    { label: 'How it works', href: '#how-it-works' },
-    { label: 'Services', href: '#services' },
-    { label: 'Providers', href: '#providers-list' },
-    { label: 'About', to: '/about' },
+/* Default fallback testimonials if database is loading */
+const DEFAULT_TESTIMONIALS = [
+    { name: 'Kabir', rating: 5, comment: 'Highly recommended platform.' },
+    { name: 'Ishita', rating: 5, comment: 'The messaging feature is so helpful.' },
+    { name: 'Megha', rating: 5, comment: 'Very easy to find specialists.' },
+    { name: 'Aakash', rating: 5, comment: 'Best booking app I have used.' },
+    { name: 'Rohan', rating: 4, comment: 'Great experience, simple UI.' }
 ];
 
-const SERVICES = [
-    { icon: '🏥', title: 'Health & Wellness', desc: 'Doctors, therapists, nutritionists', count: '1.2k+', color: 'var(--color-health)' },
-    { icon: '💇', title: 'Beauty & Spa', desc: 'Salons, barbers, nail artists', count: '800+', color: 'var(--color-beauty)' },
-    { icon: '🏠', title: 'Home Services', desc: 'Plumbers, electricians, cleaners', count: '600+', color: 'var(--color-home)' },
-    { icon: '🏋️', title: 'Fitness', desc: 'Personal trainers, yoga, pilates', count: '450+', color: 'var(--color-fitness)' },
-    { icon: '⚖️', title: 'Legal & Finance', desc: 'Lawyers, accountants, advisors', count: '300+', color: 'var(--color-legal)' },
-    { icon: '📚', title: 'Education', desc: 'Tutors, coaches, mentors', count: '700+', color: 'var(--color-edu)' },
-];
-
-const STEPS = [
-    { num: '01', icon: '🔍', title: 'Search', desc: 'Find the perfect professional by service or location.' },
-    { num: '02', icon: '📅', title: 'Book', desc: 'Pick an available slot and confirm in seconds — no phone calls.' },
-    { num: '03', icon: '✅', title: 'Get Served', desc: 'Receive a confirmation, reminders, and show up worry-free.' },
-];
-
-const TESTIMONIALS = [
-    { name: 'Priya Sharma', role: 'Booked a dermatologist', avatar: '👩🏽', text: '"Finding and booking Dr. Mehta took less than 2 minutes. Super smooth experience!"', rating: 5 },
-    { name: 'Arjun Verma', role: 'Booked a personal trainer', avatar: '👨🏻', text: '"I love that I can see real-time availability and cancel if needed. Game changer."', rating: 5 },
-    { name: 'Neha Gupta', role: 'Booked a salon', avatar: '👩🏼', text: '"Saved me so much time. The reminders are a great touch — never missed an appointment."', rating: 4 },
-];
-
-/* ── Component ── */
 export default function Home() {
+    const { t } = useLanguage();
     const { user, logout, isAuthenticated } = useAuth();
+    const navigate = useNavigate();
+    const routerLocation = useLocation();
+    const isProvider = isAuthenticated && user?.role?.toLowerCase() === 'provider';
+
+    // Active location for 50 km provider filtering
+    const [clientLocation, setClientLocation] = useState(() => {
+        try {
+            const saved = localStorage.getItem('appointly_client_location');
+            if (saved) return JSON.parse(saved);
+        } catch {
+            // Ignore
+        }
+        if (user?.latitude && user?.longitude) {
+            return {
+                lat: user.latitude,
+                lng: user.longitude,
+                name: user.location || user.city || 'My Location',
+                city: user.city || user.location,
+            };
+        }
+        return null;
+    });
+    const [showLocationPrompt, setShowLocationPrompt] = useState(false);
+
     const [search, setSearch] = useState({ service: '', location: '', name: '', maxPrice: '' });
     const [providers, setProviders] = useState([]);
     const [filteredProviders, setFilteredProviders] = useState([]);
+    const [currentPage, setCurrentPage] = useState(1);
+    const ITEMS_PER_PAGE = 8;
     const [loadingProviders, setLoadingProviders] = useState(true);
     const [testimonials, setTestimonials] = useState([]);
     const [reviewForm, setReviewForm] = useState({ name: '', rating: 5, comment: '' });
     const [submittingReview, setSubmittingReview] = useState(false);
     const [reviewSuccess, setReviewSuccess] = useState(false);
-    const navigate = useNavigate();
-    const statsRef = useRef(null);
-    const providerScrollRef = useRef(null);
-    const [statsVisible, setStatsVisible] = useState(false);
-    const [stats, setStats] = useState({ providersCount: 0, bookingsCompleted: 0, citiesCount: 0 });
+    const [showVideoGuide, setShowVideoGuide] = useState(false);
+    const [showLocationMap, setShowLocationMap] = useState(false);
+    const [stats, setStats] = useState({ providersCount: 0, bookingsCompleted: 0, citiesCount: 5 });
 
-    const actualProvidersTarget = stats.providersCount || providers.length || 0;
-    const providersCount = useCounter(actualProvidersTarget, 1500, statsVisible);
-    const bookingsCount = useCounter(stats.bookingsCompleted || 0, 2000, statsVisible);
-    const citiesCount = useCounter(stats.citiesCount || 0, 1500, statsVisible);
-
-    const getServiceCount = (title) => {
-        if (!providers.length) return 0;
-        const categoryMap = {
-            'Health & Wellness': ['Dentist', 'Doctor', 'Therapist', 'Health', 'Wellness', 'Medicine'],
-            'Beauty & Spa': ['Salon', 'Barber', 'Beauty', 'Spa', 'Nail', 'Hair'],
-            'Home Services': ['Plumber', 'Electrician', 'Cleaner', 'Home', 'Repair'],
-            'Fitness': ['Fitness', 'Yoga', 'Trainer', 'Gym'],
-            'Legal & Finance': ['Legal', 'Finance', 'Accountant', 'Lawyer', 'Consultant'],
-            'Education': ['Education', 'Tutor', 'Coach', 'Teacher', 'Specialist']
-        };
-        const keywords = categoryMap[title] || [title];
-        return providers.filter(p => {
-            const spec = p.providerProfile?.specialty?.toLowerCase() || '';
-            return keywords.some(k => spec.includes(k.toLowerCase()));
-        }).length;
-    };
-
-    // Fetch all providers on load
+    // Only prompt for location if user explicitly arrived with askLocation flag
     useEffect(() => {
-        providerApi.getAll()
-            .then(data => {
-                setProviders(data);
-                setFilteredProviders(data);
-                setLoadingProviders(false);
-            })
-            .catch(() => setLoadingProviders(false));
+        if (!isProvider && routerLocation.state?.askLocation) {
+            setShowLocationPrompt(true);
+        }
+    }, [routerLocation.state, isProvider]);
 
-        // Fetch public stats
+    // Fetch providers filtered within 50 km or all providers if location is null
+    const fetchProviders = useCallback(async (loc = clientLocation, keyword = search.service, name = search.name, price = search.maxPrice) => {
+        setLoadingProviders(true);
+        try {
+            const lat = loc?.lat || '';
+            const lng = loc?.lng || '';
+            const radius = lat && lng ? 50 : '';
+            const data = await providerApi.getAll(
+                keyword,
+                '',
+                '',
+                '',
+                name,
+                price,
+                lat,
+                lng,
+                radius
+            );
+            setProviders(data);
+            setFilteredProviders(data);
+            setCurrentPage(1);
+        } catch (err) {
+            console.error('Failed to load providers:', err);
+        } finally {
+            setLoadingProviders(false);
+        }
+    }, [clientLocation, search.service, search.name, search.maxPrice]);
+
+    // Fetch on mount or when client location changes
+    useEffect(() => {
+        if (!isProvider) {
+            fetchProviders(clientLocation, search.service, search.name, search.maxPrice);
+        }
+
         statsApi.getPublicStats()
             .then(data => setStats(data))
             .catch(err => console.error('Failed to fetch stats:', err));
 
-        // Fetch testimonials
         statsApi.getSiteReviews()
-            .then(data => setTestimonials(data))
-            .catch(err => console.error('Failed to fetch testimonials:', err));
-    }, []);
+            .then(data => {
+                if (data && data.length > 0) setTestimonials(data);
+                else setTestimonials(DEFAULT_TESTIMONIALS);
+            })
+            .catch(() => setTestimonials(DEFAULT_TESTIMONIALS));
+    }, [clientLocation, isProvider]);
 
-    // Search/filter providers
-    const handleSearch = async (keywordOverride, locOverride) => {
+    // Location selection handler (supports clearing when loc is null)
+    const handleSelectLocation = (loc) => {
+        setClientLocation(loc);
+        setCurrentPage(1);
+        if (!isProvider) {
+            fetchProviders(loc, search.service, search.name, search.maxPrice);
+        }
+        const el = document.getElementById('providers');
+        if (el) el.scrollIntoView({ behavior: 'smooth' });
+    };
+
+    // Explicit Clear Location Filter handler
+    const handleClearLocation = (e) => {
+        if (e) e.stopPropagation();
+        setClientLocation(null);
+        setCurrentPage(1);
+        try {
+            localStorage.removeItem('appointly_client_location');
+        } catch {
+            // Ignore
+        }
+        setSearch(prev => ({ ...prev, location: '' }));
+        if (!isProvider) {
+            fetchProviders(null, search.service, search.name, search.maxPrice);
+        }
+        toast.info('Location filter cleared. Showing all providers nationwide.');
+    };
+
+    // Search / Filter providers on top of 50 km radius
+    const handleSearch = async (keywordOverride) => {
+        if (isProvider) {
+            const el = document.getElementById('providers');
+            if (el) el.scrollIntoView({ behavior: 'smooth' });
+            return;
+        }
         setLoadingProviders(true);
+        setCurrentPage(1);
         try {
             const keyword = keywordOverride !== undefined ? keywordOverride : search.service;
-            const loc = locOverride !== undefined ? locOverride : search.location;
             const name = search.name;
             const price = search.maxPrice;
+            const lat = clientLocation?.lat || '';
+            const lng = clientLocation?.lng || '';
+            const radius = lat && lng ? 50 : '';
 
-            const data = await providerApi.getAll(keyword, '', loc, '', name, price);
+            const data = await providerApi.getAll(keyword, '', '', '', name, price, lat, lng, radius);
             setFilteredProviders(data);
+            setCurrentPage(1);
 
-            // Scroll to providers list
-            const el = document.getElementById('providers-list');
+            const el = document.getElementById('providers');
             if (el) el.scrollIntoView({ behavior: 'smooth' });
         } catch (err) {
             console.error('Search failed:', err);
@@ -147,6 +182,7 @@ export default function Home() {
         if (e.key === 'Enter') handleSearch();
     };
 
+    // Review submit
     const handleReviewSubmit = async (e) => {
         e.preventDefault();
         setSubmittingReview(true);
@@ -155,7 +191,6 @@ export default function Home() {
             await siteReviewApi.create(reviewForm, token);
             setReviewSuccess(true);
             setReviewForm({ name: '', rating: 5, comment: '' });
-            // Refresh testimonials
             const updated = await statsApi.getSiteReviews();
             setTestimonials(updated);
             setTimeout(() => setReviewSuccess(false), 5000);
@@ -167,488 +202,750 @@ export default function Home() {
         }
     };
 
-    useEffect(() => {
-        const observer = new IntersectionObserver(
-            ([entry]) => { if (entry.isIntersecting) setStatsVisible(true); },
-            { threshold: 0.4 }
-        );
-        if (statsRef.current) observer.observe(statsRef.current);
-        return () => observer.disconnect();
-    }, []);
-
     return (
         <div className="home">
-            {/* ── Navbar ── */}
-            <Navbar
-                logo={<span className="home-logo">Appointly</span>}
-                links={NAV_LINKS}
-                actions={
-                    isAuthenticated ? (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                            <ThemeToggle />
-                            <div className="navbar__user-profile" onClick={() => navigate(user.role === 'provider' ? '/dashboard/provider' : '/dashboard/client')} style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                                <div className="sidebar__avatar" style={{ width: '38px', height: '38px', fontSize: '1.2rem', margin: 0 }}>
-                                    {user.role === 'provider' ? '🧑‍💼' : '🙋'}
-                                </div>
-                                <span className="text-bold" style={{ fontSize: '0.9rem' }}>{user.name.split(' ')[0]}</span>
-                            </div>
-                            <Button variant="ghost" size="sm" onClick={() => { logout(); navigate('/'); }}>Logout</Button>
-                        </div>
-                    ) : (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                            <ThemeToggle />
-                            <Button variant="ghost" size="sm" onClick={() => navigate('/login')}>Log in</Button>
-                            <Button variant="primary" size="sm" onClick={() => navigate('/signup')}>Sign up free</Button>
-                        </div>
-                    )
-                }
-            />
+            {/* ===== HEADER & NAVIGATION ===== */}
+            <header className="home-header">
+                <nav className="home-nav">
+                    <div className="logo" onClick={() => navigate('/')}>
+                        <span className="mark"></span>Appointly
+                    </div>
 
-            {/* ── Hero ── */}
+                    <div className="nav-links">
+                        <a href="#" className="active">Home</a>
+                        <a href="#providers">Providers</a>
+                        <a href="#about">About</a>
+                    </div>
+
+                    <div className="nav-right">
+                        <button
+                            type="button"
+                            className="chip"
+                            onClick={() => setShowVideoGuide(true)}
+                            title="Watch guide videos"
+                        >
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
+                                <rect x="3" y="5" width="18" height="14" rx="2" />
+                                <path d="M8 9h8M8 13h5" />
+                            </svg>
+                            <span className="label">Watch guides</span>
+                        </button>
+
+                        <div style={{ display: 'inline-flex', alignItems: 'center' }}>
+                            <ThemeToggle />
+                        </div>
+
+                        {isAuthenticated ? (
+                            <>
+                                <button
+                                    type="button"
+                                    className="chip user-chip"
+                                    onClick={() => navigate(isProvider ? '/dashboard/provider' : '/dashboard/client')}
+                                    title="Open Dashboard"
+                                >
+                                    <span className="avatar"></span>
+                                    <span className="label">{user?.name ? user.name.split(' ')[0] : 'Account'}</span>
+                                </button>
+                                <button
+                                    type="button"
+                                    className="chip"
+                                    onClick={() => { logout(); navigate('/'); }}
+                                >
+                                    <span className="label">{t('logout')}</span>
+                                </button>
+                            </>
+                        ) : (
+                            <>
+                                <button
+                                    type="button"
+                                    className="chip"
+                                    onClick={() => navigate('/login')}
+                                >
+                                    <span className="label">{t('login')}</span>
+                                </button>
+                                <button
+                                    type="button"
+                                    className="chip"
+                                    onClick={() => navigate('/signup')}
+                                    style={{ borderColor: 'var(--amber)', color: 'var(--amber)' }}
+                                >
+                                    <span className="label">{t('signup')}</span>
+                                </button>
+                            </>
+                        )}
+                    </div>
+                </nav>
+            </header>
+
+            {/* ===== HERO SECTION ===== */}
             <section className="hero">
-                <div className="hero__bg-mesh" aria-hidden="true" />
-                <div className="hero__content animate-fade-in">
-                    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }}>
-                        <Badge variant="primary">🎉 Now in {stats.citiesCount || 10}+ cities</Badge>
-                    </motion.div>
-                    <motion.h1
-                        className="hero__headline"
-                        initial={{ opacity: 0, y: 30 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.8, delay: 0.1 }}
-                    >
-                        Book any service,<br />
-                        <span className="hero__highlight text-gradient">anywhere, anytime.</span>
-                    </motion.h1>
-                    <motion.p
-                        className="hero__sub"
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.8, delay: 0.2 }}
-                    >
-                        Connect with thousands of verified professionals —
-                        health, beauty, home, fitness &amp; more.
-                    </motion.p>
+                <div className="wrap hero-inner">
+                    <span className="stamp">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M12 2l2.4 7.2H22l-6 4.4 2.3 7.1L12 16.3 5.7 20.7 8 13.6 2 9.2h7.6z" />
+                        </svg>
+                        Now serving {stats.citiesCount || 5}+ cities
+                    </span>
 
-                    {/* Search bar */}
-                    <motion.div
-                        className="hero__search-bar"
-                        initial={{ opacity: 0, scale: 0.95 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        transition={{ duration: 0.6, delay: 0.3 }}
-                    >
-                        <div className="hero__search-field">
-                            <Search size={18} className="hero__search-icon-svg" />
+                    <h1>
+                        Book any service.
+                        <em>Anywhere, anytime.</em>
+                    </h1>
+
+                    <p className="lede">
+                        Connect with thousands of verified professionals — health, beauty, home repair, and fitness — and get a confirmed slot in under a minute.
+                    </p>
+
+                    {/* SEARCH PANEL */}
+                    <div className="search-panel">
+                        <div className="search-field" style={{ flex: 1.3 }}>
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+                                <circle cx="11" cy="11" r="7" />
+                                <path d="M21 21l-4.3-4.3" />
+                            </svg>
                             <input
                                 type="text"
-                                placeholder="Service"
+                                placeholder="What service do you need?"
                                 value={search.service}
                                 onChange={(e) => setSearch({ ...search, service: e.target.value })}
                                 onKeyDown={handleKeyDown}
-                                className="hero__search-input"
                             />
                         </div>
-                        <div className="hero__search-divider" />
-                        <div className="hero__search-field">
-                            <MapPin size={18} className="hero__search-icon-svg" />
+
+                        <div
+                            className="search-field search-field--location"
+                            onClick={() => setShowLocationPrompt(true)}
+                            title={clientLocation ? "Location active. Click to change or clear." : "Click to set your location"}
+                            style={{ cursor: 'pointer' }}
+                        >
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+                                <path d="M12 21s7-6.5 7-11.5A7 7 0 0 0 5 9.5C5 14.5 12 21 12 21z" />
+                                <circle cx="12" cy="9.5" r="2.3" />
+                            </svg>
                             <input
                                 type="text"
-                                placeholder="Location"
-                                value={search.location}
-                                onChange={(e) => setSearch({ ...search, location: e.target.value })}
-                                onKeyDown={handleKeyDown}
-                                className="hero__search-input"
+                                placeholder="Search location"
+                                value={clientLocation ? clientLocation.name : ""}
+                                readOnly
+                                style={{ cursor: 'pointer' }}
                             />
+                            {clientLocation && (
+                                <button
+                                    type="button"
+                                    onClick={handleClearLocation}
+                                    title="Clear location"
+                                    style={{
+                                        background: 'transparent',
+                                        border: 'none',
+                                        borderRadius: '50%',
+                                        width: '20px',
+                                        height: '20px',
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        color: 'var(--muted, #94a3b8)',
+                                        cursor: 'pointer',
+                                        padding: 0,
+                                        flexShrink: 0
+                                    }}
+                                >
+                                    <X size={14} />
+                                </button>
+                            )}
                         </div>
-                        <div className="hero__search-divider" />
-                        <div className="hero__search-field">
-                            <User size={18} className="hero__search-icon-svg" />
+
+                        <div className="search-field">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+                                <circle cx="12" cy="8" r="4" />
+                                <path d="M4 21c0-4 4-6 8-6s8 2 8 6" />
+                            </svg>
                             <input
                                 type="text"
-                                placeholder="Provider Name"
+                                placeholder="Provider name"
                                 value={search.name}
                                 onChange={(e) => setSearch({ ...search, name: e.target.value })}
                                 onKeyDown={handleKeyDown}
-                                className="hero__search-input"
                             />
                         </div>
-                        <div className="hero__search-divider" />
-                        <div className="hero__search-field">
-                            <Tag size={18} className="hero__search-icon-svg" />
+
+                        <div className="search-field" style={{ borderRight: 'none' }}>
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+                                <path d="M12 3v18M8 7h6a2.5 2.5 0 0 1 0 5H10a2.5 2.5 0 0 0 0 5h7" />
+                            </svg>
                             <input
                                 type="number"
-                                placeholder="Max Price (₹)"
+                                placeholder="Max price"
                                 value={search.maxPrice}
                                 onChange={(e) => setSearch({ ...search, maxPrice: e.target.value })}
                                 onKeyDown={handleKeyDown}
-                                className="hero__search-input"
                             />
                         </div>
-                        <Button
-                            variant="primary"
-                            className="hero__search-btn"
-                            onClick={() => handleSearch()}
-                        >
+
+                        <button className="search-btn" onClick={() => handleSearch()}>
                             Search
-                        </Button>
-                    </motion.div>
-
-                    <p className="hero__popular">
-                        Popular:
-                        {SERVICES.slice(0, 4).map((svc) => (
-                            <button
-                                key={svc.title}
-                                className="hero__tag glass"
-                                onClick={() => {
-                                    setSearch({ ...search, service: svc.title });
-                                    handleSearch(svc.title);
-                                }}
-                            >
-                                {svc.icon} {svc.title}
-                            </button>
-                        ))}
-                    </p>
-                </div>
-
-                {/* Floating cards */}
-                <div className="hero__float hero__float--1" aria-hidden="true">
-                    <span>✅</span> Verified Pros
-                </div>
-                <div className="hero__float hero__float--2" aria-hidden="true">
-                    <span>⭐</span> 4.9 avg. rating
-                </div>
-                <div className="hero__float hero__float--3" aria-hidden="true">
-                    <span>💎</span> Premium Service
-                </div>
-            </section>
-
-            {/* ── Live Providers ── */}
-            <section className="section" id="providers-list">
-                <div className="section__header">
-                    <Badge variant="primary">Browse Professionals</Badge>
-                    <h2 className="section__title">Our Providers</h2>
-                    <p className="section__sub">Click on any provider to view their profile and book an appointment.</p>
-                </div>
-                {loadingProviders ? (
-                    <div className="providers-scroll-container">
-                        <div className="providers-scroll-inner">
-                            {Array(6).fill(0).map((_, i) => (
-                                <Card key={i} variant="default" className="provider-card skeleton-card">
-                                    <Skeleton variant="circle" width="48px" height="48px" style={{ marginBottom: '1rem' }} />
-                                    <Skeleton variant="text" width="80%" height="1.5rem" style={{ marginBottom: '0.5rem' }} />
-                                    <Skeleton variant="text" width="60%" height="1rem" style={{ marginBottom: '1rem' }} />
-                                    <Skeleton variant="text" width="90%" height="1.2rem" />
-                                </Card>
-                            ))}
-                        </div>
+                        </button>
                     </div>
-                ) : filteredProviders.length === 0 ? (
-                    <p style={{ textAlign: 'center', color: 'var(--text-light)', padding: '2rem' }}>No providers found. Try a different search.</p>
-                ) : (
-                    <div className="providers-scroll-container" ref={providerScrollRef}>
-                        <div className="providers-scroll-inner">
-                            {filteredProviders.map(p => (
-                                <Card
-                                    key={p.id}
-                                    variant="default"
-                                    className="provider-card"
-                                    style={{ cursor: 'pointer' }}
-                                    onClick={() => navigate(`/provider/${p.id}`)}
-                                >
-                                    <div className="provider-card__cover">
-                                        <div className="provider-card__avatar">
-                                            {p.name.charAt(0).toUpperCase()}
-                                        </div>
-                                        <div className="provider-card__badge-wrapper">
-                                            <Badge variant="success" style={{ padding: '0.2rem 0.5rem', fontSize: '0.7rem' }}>✓ Verified</Badge>
-                                        </div>
-                                    </div>
-                                    <div className="provider-card__body">
-                                        <h3 className="provider-card__name">{p.name}</h3>
-                                        <p className="provider-card__specialty">{p.providerProfile?.specialty || 'Professional'}</p>
 
-                                        <div className="provider-card__meta">
-                                            {p.providerProfile?.location && (
-                                                <span className="provider-meta-item">📍 {p.providerProfile.location}</span>
-                                            )}
-                                            <span className="provider-meta-item">⭐ {p.providerProfile?.rating ?? 4.9}</span>
-                                        </div>
-                                    </div>
-                                    <div className="provider-card__footer">
-                                        <Button variant="outline" size="sm" style={{ padding: '0.4rem 1rem' }}>Book</Button>
-                                        {p.providerProfile?.services?.length > 0 && (
-                                            <div className="provider-price">
-                                                <span className="provider-price-label">From</span>
-                                                <span className="provider-price-value">₹{Math.min(...p.providerProfile.services.map(s => s.price))}</span>
-                                            </div>
-                                        )}
-                                    </div>
-                                </Card>
-                            ))}
-                        </div>
-                    </div>
-                )}
-            </section>
-
-
-            {/* ── How It Works ── */}
-            <section className="section" id="how-it-works">
-                <div className="section__header">
-                    <Badge variant="primary">Simple process</Badge>
-                    <h2 className="section__title">How it works</h2>
-                    <p className="section__sub">Three easy steps to your next appointment.</p>
-                </div>
-
-                <div className="steps">
-                    {STEPS.map((step, i) => (
-                        <motion.div
-                            key={step.num}
-                            className="step"
-                            initial={{ opacity: 0, y: 20 }}
-                            whileInView={{ opacity: 1, y: 0 }}
-                            viewport={{ once: true }}
-                            transition={{ duration: 0.5, delay: i * 0.1 }}
+                    {/* POPULAR TAGS WITH LINE ICONS */}
+                    <div className="popular">
+                        <span className="label">Popular:</span>
+                        <button
+                            type="button"
+                            className="tag"
+                            onClick={() => {
+                                setSearch({ ...search, service: 'Health & wellness' });
+                                handleSearch('Health');
+                            }}
                         >
-                            <div className="step__num">{step.num}</div>
-                            <div className="step__icon">{step.icon}</div>
-                            <h3 className="step__title">{step.title}</h3>
-                            <p className="step__desc">{step.desc}</p>
-                            {i < STEPS.length - 1 && <div className="step__arrow" aria-hidden="true">→</div>}
-                        </motion.div>
-                    ))}
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <path d="M12 2C7 2 4 6 4 10c0 5.2 8 12 8 12s8-6.8 8-12c0-4-3-8-8-8z" />
+                                <path d="M9 10l2 2 4-4" />
+                            </svg>
+                            Health &amp; wellness
+                        </button>
+
+                        <button
+                            type="button"
+                            className="tag"
+                            onClick={() => {
+                                setSearch({ ...search, service: 'Beauty & spa' });
+                                handleSearch('Beauty');
+                            }}
+                        >
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <circle cx="12" cy="7" r="4" />
+                                <path d="M5 21c0-3.5 3-6 7-6s7 2.5 7 6" />
+                            </svg>
+                            Beauty &amp; spa
+                        </button>
+
+                        <button
+                            type="button"
+                            className="tag"
+                            onClick={() => {
+                                setSearch({ ...search, service: 'Home services' });
+                                handleSearch('Plumber');
+                            }}
+                        >
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <path d="M3 11l9-7 9 7" />
+                                <path d="M5 10v10h14V10" />
+                            </svg>
+                            Home services
+                        </button>
+
+                        <button
+                            type="button"
+                            className="tag"
+                            onClick={() => {
+                                setSearch({ ...search, service: 'Fitness' });
+                                handleSearch('Yoga');
+                            }}
+                        >
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <path d="M6.5 6.5l11 11M6.5 17.5l11-11" />
+                                <rect x="2" y="9" width="6" height="6" rx="1" />
+                                <rect x="16" y="9" width="6" height="6" rx="1" />
+                            </svg>
+                            Fitness
+                        </button>
+                    </div>
                 </div>
             </section>
 
-            {/* ── Services ── */}
-            <section className="section section--alt" id="services">
-                <div className="section__header">
-                    <Badge variant="info">Browse categories</Badge>
-                    <h2 className="section__title">Explore services</h2>
-                    <p className="section__sub">Hundreds of skilled professionals across every category.</p>
-                </div>
+            <div className="divider"></div>
 
-                <div className="services-grid">
-                    {SERVICES.map((svc, i) => {
-                        const count = getServiceCount(svc.title);
-                        return (
-                            <Card
-                                key={svc.title}
-                                variant="default"
-                                hover
-                                animate
-                                delay={i * 0.05}
-                                className="service-card"
-                                style={{ '--svc-color': svc.color, cursor: 'pointer' }}
-                                onClick={() => {
-                                    setSearch({ ...search, service: svc.title });
-                                    handleSearch(svc.title);
-                                }}
-                            >
-                                <div className="service-card__icon">{svc.icon}</div>
-                                <h3 className="service-card__title">{svc.title}</h3>
-                                <p className="service-card__desc">{svc.desc}</p>
-                                <span className="service-card__count">{count} provider{count !== 1 ? 's' : ''}</span>
-                            </Card>
-                        );
-                    })}
-                </div>
-            </section>
-
-            {/* ── Testimonials ── */}
-            <section className="section" id="testimonials">
-                <div className="section__header">
-                    <Badge variant="success">What people say</Badge>
-                    <h2 className="section__title">Loved by thousands</h2>
-                    <p className="section__sub">Real reviews from real customers.</p>
-                </div>
-
-                <div className="testimonials">
-                    {testimonials.length > 0 ? (
-                        testimonials.map((t, i) => (
-                            <Card
-                                key={t.id}
-                                variant="elevated"
-                                animate
-                                delay={i * 0.1}
-                                className="testimonial-card"
-                            >
-                                <div className="testimonial-card__stars">
-                                    {'⭐'.repeat(t.rating)}
-                                </div>
-                                <p className="testimonial-card__text">"{t.text}"</p>
-                                <div className="testimonial-card__author">
-                                    <span className="testimonial-card__avatar">{t.avatar}</span>
-                                    <div>
-                                        <div className="testimonial-card__name">{t.name}</div>
-                                        <div className="testimonial-card__role">{t.role}</div>
-                                    </div>
-                                </div>
-                            </Card>
-                        ))
+            {/* ===== PROVIDERS — NUMBERED LEDGER LIST ===== */}
+            <section id="providers">
+                <div className="wrap">
+                    {isProvider ? (
+                        <div style={{
+                            textAlign: 'center',
+                            padding: '60px 24px',
+                            background: 'var(--panel)',
+                            border: '1px solid var(--border)',
+                            borderRadius: '16px',
+                            maxWidth: '620px',
+                            margin: '40px auto',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center'
+                        }}>
+                            <h2 style={{
+                                fontSize: '1.4rem',
+                                fontWeight: 600,
+                                color: 'var(--text)',
+                                margin: 0,
+                                letterSpacing: '-0.01em'
+                            }}>
+                                A provider cannot book a service.
+                            </h2>
+                        </div>
                     ) : (
-                        <p style={{ textAlign: 'center', color: 'var(--text-light)', width: '100%' }}>No reviews yet. Be the first to share your experience!</p>
+                        <>
+                            <div className="section-head center">
+                                <span className="eyebrow"><span className="dot"></span>Browse professionals</span>
+                                <h2>Our providers</h2>
+                                <p>
+                                    {clientLocation
+                                        ? `Showing verified specialists located within 50 km of ${clientLocation.name}.`
+                                        : 'Showing all verified specialists nationwide across all cities.'}
+                                </p>
+
+                                <div className="home-location-pill-wrap">
+                                    {clientLocation ? (
+                                        <div className="home-location-pill">
+                                            <span className="home-location-pill__icon">
+                                                <MapPin size={15} strokeWidth={2} />
+                                            </span>
+                                            <span className="home-location-pill__text">
+                                                Showing specialists within <strong>50 km</strong> of <strong>{clientLocation.name}</strong>
+                                            </span>
+                                            <span className="home-location-pill__dot">·</span>
+                                            <button
+                                                type="button"
+                                                className="home-location-pill__action"
+                                                onClick={() => setShowLocationPrompt(true)}
+                                            >
+                                                Change
+                                            </button>
+                                            <span className="home-location-pill__dot">·</span>
+                                            <button
+                                                type="button"
+                                                className="home-location-pill__action"
+                                                onClick={handleClearLocation}
+                                                style={{ color: 'var(--amber)' }}
+                                            >
+                                                Show All Cities
+                                            </button>
+                                        </div>
+                                    ) : (
+                                        <div className="home-location-pill">
+                                            <span className="home-location-pill__icon">
+                                                <Globe size={15} strokeWidth={2} />
+                                            </span>
+                                            <span className="home-location-pill__text">
+                                                Showing specialists across <strong>All Cities</strong> (Nationwide)
+                                            </span>
+                                            <span className="home-location-pill__dot">·</span>
+                                            <button
+                                                type="button"
+                                                className="home-location-pill__action"
+                                                onClick={() => setShowLocationPrompt(true)}
+                                            >
+                                                Filter by 50 km Radius
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+
+                            <div className="ledger">
+                                {loadingProviders ? (
+                                    <div className="provider-skeleton-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.25rem', width: '100%', padding: '0.5rem 0 1.5rem' }}>
+                                        {Array.from({ length: 4 }).map((_, i) => (
+                                            <div key={i} className="entry" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                                                    <Skeleton variant="circle" width="52px" height="52px" />
+                                                    <div style={{ flex: 1 }}>
+                                                        <Skeleton variant="text" width="60%" height="18px" style={{ marginBottom: '6px' }} />
+                                                        <Skeleton variant="text" width="40%" height="13px" />
+                                                    </div>
+                                                </div>
+                                                <Skeleton variant="text" width="90%" height="14px" style={{ marginTop: '8px' }} />
+                                                <Skeleton variant="text" width="75%" height="14px" />
+                                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '12px', paddingTop: '12px', borderTop: '1px solid var(--line)' }}>
+                                                    <Skeleton variant="text" width="70px" height="18px" />
+                                                    <Skeleton variant="rect" width="90px" height="32px" style={{ borderRadius: '6px' }} />
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                ) : filteredProviders.length === 0 ? (
+                                    <div style={{ textAlign: 'center', padding: '50px 20px', color: 'var(--muted)' }}>
+                                        <p style={{ fontSize: '1.05rem', marginBottom: '8px', color: 'var(--text)' }}>
+                                            No service providers found {clientLocation ? `within 50 km of ${clientLocation.name}` : ''}.
+                                        </p>
+                                        <p style={{ fontSize: '0.88rem', maxWidth: '440px', margin: '0 auto 18px', color: 'var(--muted)' }}>
+                                            We restrict listings strictly to a 50 km service radius. You can adjust your location area or clear active search filters.
+                                        </p>
+                                        <button
+                                            className="chip"
+                                            onClick={() => setShowLocationPrompt(true)}
+                                            style={{ borderColor: 'var(--amber)', color: 'var(--amber)', cursor: 'pointer', padding: '8px 18px' }}
+                                        >
+                                            📍 Change Location Hub
+                                        </button>
+                                    </div>
+                                ) : (
+                                    (() => {
+                                        const totalPages = Math.ceil(filteredProviders.length / ITEMS_PER_PAGE);
+                                        const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+                                        const paginatedProviders = filteredProviders.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+
+                                        return (
+                                            <>
+                                                {paginatedProviders.map((p, index) => {
+                                                    const globalIndex = startIndex + index + 1;
+                                                    const minPrice = p.providerProfile?.services?.length > 0
+                                                        ? Math.min(...p.providerProfile.services.map(s => s.price))
+                                                        : null;
+
+                                                    return (
+                                                        <div key={p.id} className="ledger-row">
+                                                            <div className="ledger-index">
+                                                                {String(globalIndex).padStart(2, '0')}
+                                                            </div>
+
+                                                            <div className="ledger-main">
+                                                                <div className="ledger-name-row">
+                                                                    <span
+                                                                        className="ledger-name"
+                                                                        style={{ cursor: 'pointer' }}
+                                                                        onClick={() => navigate(`/provider/${p.id}`)}
+                                                                    >
+                                                                        {p.name}
+                                                                    </span>
+                                                                    <span className="verified">
+                                                                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                                                                            <path d="M4 12l5 5L20 6" />
+                                                                        </svg>
+                                                                        Verified
+                                                                    </span>
+                                                                </div>
+
+                                                                <div className="ledger-role">
+                                                                    {p.providerProfile?.specialty || 'Professional'}
+                                                                </div>
+
+                                                                <div className="ledger-meta">
+                                                                    <span>
+                                                                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+                                                                            <path d="M12 21s7-6.5 7-11.5A7 7 0 0 0 5 9.5C5 14.5 12 21 12 21z" />
+                                                                            <circle cx="12" cy="9.5" r="2.3" />
+                                                                        </svg>
+                                                                        {p.location || p.providerProfile?.location || p.city || 'India'}
+                                                                    </span>
+
+                                                                    {p.distanceKm != null && (
+                                                                        <span style={{
+                                                                            background: 'rgba(245, 158, 11, 0.12)',
+                                                                            color: 'var(--amber)',
+                                                                            border: '1px solid rgba(245, 158, 11, 0.25)',
+                                                                            padding: '2px 8px',
+                                                                            borderRadius: '6px',
+                                                                            fontSize: '0.78rem',
+                                                                            fontWeight: 600,
+                                                                            display: 'inline-flex',
+                                                                            alignItems: 'center',
+                                                                            gap: '4px'
+                                                                        }}>
+                                                                            📍 {p.distanceKm} km away
+                                                                        </span>
+                                                                    )}
+
+                                                                    <span>
+                                                                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+                                                                            <path d="M12 2l2.4 7.2H22l-6 4.4 2.3 7.1L12 16.3 5.7 20.7 8 13.6 2 9.2h7.6z" />
+                                                                        </svg>
+                                                                        {p.providerProfile?.rating ? `${p.providerProfile.rating} rating` : '⭐ 4.9 rating'}
+                                                                    </span>
+                                                                </div>
+                                                            </div>
+
+                                                            <div className="ledger-price">
+                                                                {minPrice && (
+                                                                    <>From <span className="amt">₹{minPrice}</span></>
+                                                                )}
+                                                            </div>
+
+                                                            <button
+                                                                className="book-btn"
+                                                                onClick={() => navigate(`/provider/${p.id}`)}
+                                                            >
+                                                                Book
+                                                            </button>
+                                                        </div>
+                                                    );
+                                                })}
+
+                                                {/* Pagination Controls */}
+                                                {totalPages > 1 && (
+                                                    <div className="home-pagination-bar">
+                                                        <span className="home-pagination-info">
+                                                            Showing <strong>{startIndex + 1}</strong>–<strong>{Math.min(startIndex + ITEMS_PER_PAGE, filteredProviders.length)}</strong> of <strong>{filteredProviders.length}</strong> specialists
+                                                        </span>
+                                                        <div className="home-pagination-btns">
+                                                            <button
+                                                                type="button"
+                                                                className="home-page-nav-btn"
+                                                                disabled={currentPage === 1}
+                                                                onClick={() => {
+                                                                    setCurrentPage(p => Math.max(1, p - 1));
+                                                                    document.getElementById('providers')?.scrollIntoView({ behavior: 'smooth' });
+                                                                }}
+                                                            >
+                                                                ← Prev
+                                                            </button>
+                                                            {Array.from({ length: totalPages }, (_, i) => i + 1).map(pageNum => (
+                                                                <button
+                                                                    key={pageNum}
+                                                                    type="button"
+                                                                    className={`home-page-num-btn ${currentPage === pageNum ? 'home-page-num-btn--active' : ''}`}
+                                                                    onClick={() => {
+                                                                        setCurrentPage(pageNum);
+                                                                        document.getElementById('providers')?.scrollIntoView({ behavior: 'smooth' });
+                                                                    }}
+                                                                >
+                                                                    {pageNum}
+                                                                </button>
+                                                            ))}
+                                                            <button
+                                                                type="button"
+                                                                className="home-page-nav-btn"
+                                                                disabled={currentPage === totalPages}
+                                                                onClick={() => {
+                                                                    setCurrentPage(p => Math.min(totalPages, p + 1));
+                                                                    document.getElementById('providers')?.scrollIntoView({ behavior: 'smooth' });
+                                                                }}
+                                                            >
+                                                                Next →
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </>
+                                        );
+                                    })()
+                                )}
+                            </div>
+                        </>
                     )}
                 </div>
             </section>
 
-            {/* ── Share Your Experience ── */}
-            <section className="section section--alt" id="feedback">
-                <div className="section__header">
-                    <Badge variant="primary">Share Your Story</Badge>
-                    <h2 className="section__title">Help us grow</h2>
-                    <p className="section__sub">Tell us how Appointly has helped you. We value your feedback!</p>
+            <div className="divider"></div>
+
+            {/* ===== TRUST STRIP (DIVIDED COLUMN STRIP) ===== */}
+            <section style={{ padding: '80px 0' }}>
+                <div className="wrap">
+                    <div className="section-head center">
+                        <span className="eyebrow"><span className="dot"></span>Appointly trust promise</span>
+                        <h2>Why 50,000+ clients trust Appointly</h2>
+                        <p>Enterprise-grade safety, price transparency, and guaranteed service satisfaction.</p>
+                    </div>
                 </div>
 
-                <div className="review-form-container" style={{ maxWidth: '600px', margin: '0 auto' }}>
-                    <Card variant="default" style={{ padding: '2rem' }}>
-                        {reviewSuccess ? (
-                            <div style={{ textAlign: 'center', padding: '1rem' }}>
-                                <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>🎉</div>
-                                <h3 style={{ marginBottom: '0.5rem' }}>Thank you!</h3>
-                                <p style={{ color: 'var(--text-light)' }}>Your feedback means the world to us.</p>
-                            </div>
-                        ) : (
-                            <form onSubmit={handleReviewSubmit}>
-                                {!isAuthenticated && (
-                                    <div className="form-group" style={{ marginBottom: '1.5rem' }}>
-                                        <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.9rem', color: 'var(--text-bold)' }}>Your Name</label>
-                                        <input
-                                            type="text"
-                                            placeholder="Enter your name"
-                                            value={reviewForm.name}
-                                            onChange={e => setReviewForm({ ...reviewForm, name: e.target.value })}
-                                            style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid #e2e8f0' }}
-                                            required={!isAuthenticated}
-                                        />
-                                    </div>
-                                )}
-                                <div className="form-group" style={{ marginBottom: '1.5rem' }}>
-                                    <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.9rem', color: 'var(--text-bold)' }}>Rating</label>
-                                    <div style={{ display: 'flex', gap: '0.5rem' }}>
-                                        {[1, 2, 3, 4, 5].map(star => (
-                                            <button
-                                                key={star}
-                                                type="button"
-                                                onClick={() => setReviewForm({ ...reviewForm, rating: star })}
-                                                style={{
-                                                    background: 'none',
-                                                    border: 'none',
-                                                    fontSize: '1.5rem',
-                                                    cursor: 'pointer',
-                                                    color: star <= reviewForm.rating ? '#ffb800' : '#e2e8f0'
-                                                }}
-                                            >
-                                                ⭐
-                                            </button>
-                                        ))}
-                                    </div>
-                                </div>
-                                <div className="form-group" style={{ marginBottom: '1.5rem' }}>
-                                    <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.9rem', color: 'var(--text-bold)' }}>Your Feedback</label>
-                                    <textarea
-                                        rows="4"
-                                        placeholder="How was your experience using our website?"
-                                        value={reviewForm.comment}
-                                        onChange={e => setReviewForm({ ...reviewForm, comment: e.target.value })}
-                                        style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid #e2e8f0', resize: 'none' }}
-                                        required
-                                    ></textarea>
-                                </div>
-                                <Button
-                                    type="submit"
-                                    variant="primary"
-                                    size="lg"
-                                    style={{ width: '100%' }}
-                                    disabled={submittingReview}
-                                >
-                                    {submittingReview ? 'Submitting...' : 'Post Review'}
-                                </Button>
-                            </form>
-                        )}
-                    </Card>
-                </div>
-            </section>
+                <div className="trust-strip">
+                    <div className="trust-item">
+                        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7">
+                            <path d="M12 3l7 3v6c0 4.5-3 7.7-7 9-4-1.3-7-4.5-7-9V6z" />
+                        </svg>
+                        <h3>100% verified specialists</h3>
+                        <p>Government ID and professional credentials checked before any listing goes live.</p>
+                    </div>
 
-            {/* ── About Us ── */}
-            <section className="section" id="about">
-                <div className="section__header">
-                    <Badge variant="primary">Our Mission</Badge>
-                    <h2 className="section__title">About Our Company</h2>
-                    <p className="section__sub" style={{ maxWidth: '800px', lineHeight: '1.8' }}>
-                        At Appointly, we believe that accessing quality services should be effortless.
-                        Founded with a vision to connect talented professionals with people who need them,
-                        we have built a platform that simplifies scheduling, builds trust through transparent reviews,
-                        and empowers local businesses to thrive in the digital age.
-                        Whether you are looking for a quick haircut, a reliable plumber, or a long-term business consultant,
-                        we are here to make that connection happen instantly.
-                    </p>
-                </div>
-            </section>
+                    <div className="trust-item">
+                        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7">
+                            <path d="M12 3v18M8 7h6a2.5 2.5 0 0 1 0 5H10a2.5 2.5 0 0 0 0 5h7" />
+                        </svg>
+                        <h3>Fixed, transparent pricing</h3>
+                        <p>Upfront service rates are guaranteed, with zero hidden platform fees.</p>
+                    </div>
 
-            {/* ── Provider CTA ── */}
-            <section className="cta-banner" id="providers">
-                <div className="cta-banner__bg" aria-hidden="true" />
-                <div className="cta-banner__content">
-                    <h2 className="cta-banner__title">Are you a service provider?</h2>
-                    <p className="cta-banner__sub">
-                        Join 5,000+ professionals growing their business on Appointly.
-                        Set your hours, manage bookings, and get paid — all in one place.
-                    </p>
-                    <div className="cta-banner__actions">
-                        <Button variant="primary" size="lg" onClick={() => navigate('/signup?role=provider')}>Join as a Provider</Button>
-                        <Button variant="outline" size="lg" className="cta-banner__learn" onClick={() => {
-                            const el = document.getElementById('how-it-works');
-                            if (el) el.scrollIntoView({ behavior: 'smooth' });
-                        }}>Learn more →</Button>
+                    <div className="trust-item">
+                        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7">
+                            <path d="M12 21s7-6.5 7-11.5A7 7 0 0 0 5 9.5C5 14.5 12 21 12 21z" />
+                            <circle cx="12" cy="9.5" r="2.3" />
+                        </svg>
+                        <h3>Live GPS directions</h3>
+                        <p>Turn-by-turn routing and distance calculation straight to your specialist.</p>
+                    </div>
+
+                    <div className="trust-item">
+                        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7">
+                            <path d="M13 2L4 14h6l-1 8 9-12h-6z" />
+                        </svg>
+                        <h3>Instant one-tap booking</h3>
+                        <p>Pick a date and time slot, then get push and SMS confirmation in under 30 seconds.</p>
                     </div>
                 </div>
             </section>
 
-            {/* ── Footer ── */}
-            <footer className="footer">
-                <div className="footer__brand">
-                    <span className="home-logo">Appointly</span>
-                    <p>Making appointments effortless.</p>
+            <div className="divider"></div>
+
+            {/* ===== TESTIMONIALS ===== */}
+            <section>
+                <div className="wrap">
+                    <div className="section-head center">
+                        <span className="eyebrow"><span className="dot" style={{ background: 'var(--teal)' }}></span>What people say</span>
+                        <h2>Loved by thousands</h2>
+                        <p>Real reviews from real customers.</p>
+                    </div>
                 </div>
-                <div className="footer__links">
-                    {[
-                        {
-                            heading: 'Product',
-                            links: [
-                                { label: 'Features', href: '#how-it-works' },
-                                { label: 'Providers', href: '#providers-list' },
-                                { label: 'Services', href: '#services' }
-                            ]
-                        },
-                        {
-                            heading: 'Company',
-                            links: [
-                                { label: 'About', href: '#about' },
-                                { label: 'Feedback', href: '#feedback' },
-                                { label: 'Join Us', href: '#providers' }
-                            ]
-                        },
-                        {
-                            heading: 'Support',
-                            links: [
-                                { label: 'Help Center', href: '#' },
-                                { label: 'Terms', href: '/terms' },
-                                { label: 'Privacy', href: '/privacy' }
-                            ]
-                        },
-                    ].map((col) => (
-                        <div key={col.heading} className="footer__col">
-                            <span className="footer__col-heading">{col.heading}</span>
-                            {col.links.map((l) => (
-                                <a key={l.label} href={l.href} className="footer__link">{l.label}</a>
-                            ))}
+
+                <div className="wrap">
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '20px' }}>
+                        {testimonials.slice(0, 6).map((tItem, i) => (
+                            <ReviewCard key={tItem.id || i} review={tItem} />
+                        ))}
+                    </div>
+                </div>
+            </section>
+
+            <div className="divider"></div>
+
+            {/* ===== FEEDBACK FORM ===== */}
+            <section id="feedback">
+                <div className="wrap">
+                    <div className="section-head center">
+                        <span className="eyebrow"><span className="dot"></span>Share your story</span>
+                        <h2>Help us grow</h2>
+                        <p>Tell us how Appointly has helped you. We value your feedback.</p>
+                    </div>
+
+                    <div className="form-card">
+                        {reviewSuccess ? (
+                            <div style={{ textAlign: 'center', padding: '24px 0' }}>
+                                <div style={{ fontSize: '32px', marginBottom: '12px' }}>✓</div>
+                                <h3 className="serif" style={{ fontSize: '24px', color: 'var(--paper)', margin: '0 0 8px' }}>Thank you!</h3>
+                                <p style={{ color: 'var(--paper-dim)', margin: 0 }}>Your feedback helps our community thrive.</p>
+                            </div>
+                        ) : (
+                            <form onSubmit={handleReviewSubmit}>
+                                {!isAuthenticated && (
+                                    <>
+                                        <label className="field-label">Your Name</label>
+                                        <input
+                                            type="text"
+                                            className="form-input-text"
+                                            placeholder="Enter your name"
+                                            value={reviewForm.name}
+                                            onChange={e => setReviewForm({ ...reviewForm, name: e.target.value })}
+                                            required={!isAuthenticated}
+                                        />
+                                    </>
+                                )}
+
+                                <label className="field-label">Rating</label>
+                                <div className="star-input">
+                                    {[1, 2, 3, 4, 5].map((star) => (
+                                        <button
+                                            key={star}
+                                            type="button"
+                                            onClick={() => setReviewForm({ ...reviewForm, rating: star })}
+                                            style={{ opacity: star <= reviewForm.rating ? 1 : 0.3 }}
+                                            title={`${star} star`}
+                                        >
+                                            <svg width="26" height="26" viewBox="0 0 24 24" fill="currentColor">
+                                                <path d="M12 2l2.9 6h6.6l-5.3 4.1 2 6.4L12 15l-6.2 3.5 2-6.4L2.5 8h6.6z" />
+                                            </svg>
+                                        </button>
+                                    ))}
+                                </div>
+
+                                <label className="field-label">Your feedback</label>
+                                <textarea
+                                    className="form-textarea"
+                                    placeholder="How was your experience using our platform?"
+                                    value={reviewForm.comment}
+                                    onChange={e => setReviewForm({ ...reviewForm, comment: e.target.value })}
+                                    required
+                                ></textarea>
+
+                                <button
+                                    type="submit"
+                                    className="submit-btn"
+                                    disabled={submittingReview}
+                                >
+                                    {submittingReview ? 'Posting...' : 'Post review'}
+                                </button>
+                            </form>
+                        )}
+                    </div>
+                </div>
+            </section>
+
+            <div className="divider"></div>
+
+            {/* ===== ABOUT ===== */}
+            <section id="about" style={{ paddingBottom: '100px' }}>
+                <div className="wrap about">
+                    <span className="eyebrow"><span className="dot"></span>Our mission</span>
+                    <h2>About our company</h2>
+                    <p>
+                        At Appointly, we believe accessing quality services should be effortless. We built a platform that simplifies scheduling, builds trust through transparent reviews, and helps local professionals thrive. Whether you need a quick haircut, a reliable plumber, or a long-term consultant, we make that connection instantly.
+                    </p>
+                </div>
+            </section>
+
+            {/* ===== FOOTER ===== */}
+            <footer className="home-footer">
+                <div className="wrap">
+                    <div className="footer-grid">
+                        <div className="footer-brand">
+                            <div className="logo"><span className="mark"></span>Appointly</div>
+                            <p>Making appointments effortless.</p>
                         </div>
-                    ))}
-                </div>
-                <div className="footer__bottom">
-                    <span>© 2026 Appointly. All rights reserved.</span>
+
+                        <div className="footer-col">
+                            <h4>Product</h4>
+                            <a href="#providers">Providers</a>
+                            <a href="#about">About</a>
+                        </div>
+
+                        <div className="footer-col">
+                            <h4>Company</h4>
+                            <a href="#about">About us</a>
+                            <a href="#feedback">Feedback</a>
+                            <a href="/contact">Contact</a>
+                        </div>
+
+                        <div className="footer-col">
+                            <h4>Support</h4>
+                            <a href="/contact">Help center</a>
+                            <a href="/terms">Terms</a>
+                            <a href="/privacy">Privacy</a>
+                        </div>
+                    </div>
+
+                    <div className="footer-bottom">
+                        © 2026 Appointly. All rights reserved.
+                    </div>
                 </div>
             </footer>
+
+            {/* ===== MODALS ===== */}
+            <Suspense fallback={null}>
+                <AnimatePresence>
+                    {showVideoGuide && (
+                        <VideoGuideModal onClose={() => setShowVideoGuide(false)} />
+                    )}
+                </AnimatePresence>
+
+                {showLocationMap && (
+                    <NearbyProvidersMapModal
+                        isOpen={showLocationMap}
+                        onClose={() => setShowLocationMap(false)}
+                        providers={providers}
+                        currentLocationName={clientLocation ? clientLocation.name : search.location}
+                        onSelectLocation={(locName, coords) => {
+                            const newLoc = coords
+                                ? { lat: coords.lat, lng: coords.lng, name: locName }
+                                : { lat: 28.6304, lng: 77.2177, name: locName };
+                            handleSelectLocation(newLoc);
+                        }}
+                    />
+                )}
+            </Suspense>
+
+            <LocationPromptModal
+                isOpen={showLocationPrompt}
+                onClose={() => setShowLocationPrompt(false)}
+                onSelectLocation={handleSelectLocation}
+                currentLocation={clientLocation}
+                canDismiss={true}
+            />
         </div>
     );
 }

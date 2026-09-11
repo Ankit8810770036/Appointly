@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Mail, Lock } from 'lucide-react';
+import { Mail, Lock, RotateCw } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import Button from '../../components/ui/Button/Button';
 import Input from '../../components/ui/Input/Input';
@@ -14,14 +14,13 @@ export default function ForgotPassword() {
     const [step, setStep] = useState(1); // 1: Email, 2: OTP + Password
     const [otp, setOtp] = useState('');
     const [password, setPassword] = useState('');
-    const [confirm, setConfirm] = useState('');
     const [loading, setLoading] = useState(false);
     const [message, setMessage] = useState('');
     const [error, setError] = useState('');
     const [success, setSuccess] = useState(false);
 
     const handleRequestOTP = async (e) => {
-        e.preventDefault();
+        if (e) e.preventDefault();
         setError('');
         setMessage('');
         setLoading(true);
@@ -41,9 +40,6 @@ export default function ForgotPassword() {
     const handleResetPassword = async (e) => {
         e.preventDefault();
         setError('');
-        if (password !== confirm) {
-            return setError('Passwords do not match');
-        }
         if (password.length < 8) {
             return setError('Password must be at least 8 characters');
         }
@@ -80,7 +76,7 @@ export default function ForgotPassword() {
             <div className="auth-panel auth-panel--form">
                 <div className="auth-form-box animate-fade-in">
                     <div className="auth-form-header">
-                        <h1>{step === 1 ? 'Forgot Password?' : 'Verify OTP'}</h1>
+                        <h1>{step === 1 ? 'Forgot Password?' : 'Verify OTP & Reset'}</h1>
                         <p>{step === 1 ? 'Enter your email to receive a reset code.' : 'Enter the 6-digit code and your new password.'}</p>
                     </div>
 
@@ -93,7 +89,7 @@ export default function ForgotPassword() {
                         </div>
                     ) : (
                         <form className="auth-form" onSubmit={step === 1 ? handleRequestOTP : handleResetPassword}>
-                            {message && <div style={{ background: 'hsla(142, 70%, 45%, 0.1)', border: '1px solid hsla(142, 70%, 45%, 0.3)', color: 'hsl(142, 70%, 35%)', padding: '1rem', borderRadius: '8px', fontSize: '0.9rem', marginBottom: '1.5rem' }}>{message}</div>}
+                            {message && <div style={{ background: 'rgba(62, 142, 126, 0.15)', border: '1px solid rgba(62, 142, 126, 0.3)', color: 'var(--teal)', padding: '10px 14px', borderRadius: '6px', fontSize: '13px' }}>{message}</div>}
                             {error && <div className="auth-error">{error}</div>}
 
                             {step === 1 ? (
@@ -110,18 +106,21 @@ export default function ForgotPassword() {
                                     <Button type="submit" variant="primary" size="lg" loading={loading} className="auth-submit-btn">
                                         Send OTP Code
                                     </Button>
+                                    <p style={{ textAlign: 'center', fontSize: '13px', color: 'var(--muted)', marginTop: '8px' }}>
+                                        Remember your password? <Link to="/login" className="auth-link">Sign in →</Link>
+                                    </p>
                                 </>
                             ) : (
                                 <>
                                     <Input
-                                        label="6-Digit OTP"
+                                        label="6-Digit OTP Code"
                                         type="text"
                                         maxLength={6}
                                         placeholder="123456"
                                         value={otp}
                                         onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
                                         required
-                                        style={{ fontSize: '1.5rem', textAlign: 'center', letterSpacing: '0.5rem', fontWeight: 'bold' }}
+                                        style={{ fontSize: '1.25rem', textAlign: 'center', letterSpacing: '0.35rem', fontWeight: 'bold' }}
                                     />
                                     <Input
                                         label="New Password"
@@ -132,23 +131,23 @@ export default function ForgotPassword() {
                                         leftIcon={<Lock size={16} />}
                                         showPasswordToggle={true}
                                         required
-                                    />
-                                    <Input
-                                        label="Confirm New Password"
-                                        type="password"
-                                        placeholder="••••••••"
-                                        value={confirm}
-                                        onChange={(e) => setConfirm(e.target.value)}
-                                        leftIcon={<Lock size={16} />}
-                                        showPasswordToggle={true}
-                                        required
+                                        hint="At least 8 characters"
                                     />
                                     <Button type="submit" variant="primary" size="lg" loading={loading} className="auth-submit-btn">
                                         Reset Password
                                     </Button>
-                                    <button type="button" className="auth-link" style={{ background: 'none', border: 'none', cursor: 'pointer', marginTop: '1rem', width: '100%', textAlign: 'center' }} onClick={() => setStep(1)}>
-                                        Didn't get code? Try again
-                                    </button>
+                                    <div className="auth-otp-footer" style={{ marginTop: '8px' }}>
+                                        <span>Didn't receive code?</span>
+                                        <button
+                                            type="button"
+                                            className="auth-resend-btn"
+                                            onClick={handleRequestOTP}
+                                            disabled={loading}
+                                        >
+                                            <RotateCw size={11} className={loading ? 'spin-icon' : ''} />
+                                            Resend OTP
+                                        </button>
+                                    </div>
                                 </>
                             )}
                         </form>

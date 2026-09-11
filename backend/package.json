@@ -8,6 +8,7 @@
     "dev": "nodemon src/index.js",
     "db:clear": "node scripts/clear-db.js",
     "db:seed-5": "node scripts/seed-5.js",
+    "db:seed-bulk": "node scripts/seed-60-providers-20-clients.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
@@ -21,12 +22,14 @@
     "cors": "^2.8.6",
     "dotenv": "^17.3.1",
     "express": "^5.2.1",
+    "google-auth-library": "^10.6.2",
     "jsonwebtoken": "^9.0.3",
     "multer": "^2.1.1",
     "node-cron": "^4.2.1",
     "pg": "^8.20.0",
     "socket.io": "^4.8.3",
-    "stripe": "^20.4.1"
+    "stripe": "^20.4.1",
+    "twilio": "^5.13.1"
   },
   "devDependencies": {
     "nodemon": "^3.1.14",

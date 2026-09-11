@@ -1,0 +1,178 @@
+.otp-modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(8px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    padding: 1.5rem;
+}
+
+.otp-modal-container {
+    background: var(--grad-surface);
+    border: 1px solid var(--border-glass);
+    border-radius: var(--radius-2xl);
+    width: 100%;
+    max-width: 420px;
+    padding: 2.5rem;
+    position: relative;
+    box-shadow: var(--shadow-2xl);
+    text-align: center;
+}
+
+.otp-modal-close {
+    position: absolute;
+    top: 1.25rem;
+    right: 1.25rem;
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 0.5rem;
+    border-radius: var(--radius-lg);
+    transition: all var(--transition-fast);
+}
+
+.otp-modal-close:hover {
+    background: var(--bg-subtle);
+    color: var(--text-bold);
+}
+
+.otp-lock-icon {
+    width: 64px;
+    height: 64px;
+    background: var(--primary-faint);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 1.5rem;
+}
+
+.otp-modal-header h2 {
+    font-size: 1.75rem;
+    font-weight: 800;
+    margin-bottom: 0.75rem;
+    color: var(--text-bold);
+}
+
+.otp-modal-header p {
+    color: var(--text-muted);
+    line-height: 1.6;
+    margin-bottom: 2rem;
+}
+
+.otp-inputs-wrapper {
+    display: flex;
+    gap: 0.75rem;
+    justify-content: center;
+    margin-bottom: 1.5rem;
+}
+
+.otp-digit-input {
+    width: 48px;
+    height: 56px;
+    border: 2px solid var(--border);
+    background: var(--bg);
+    border-radius: var(--radius-lg);
+    font-size: 1.5rem;
+    font-weight: 700;
+    text-align: center;
+    color: var(--text-bold);
+    transition: all var(--transition-bounce);
+}
+
+.otp-digit-input:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 4px var(--primary-faint);
+    transform: translateY(-2px);
+}
+
+.otp-input-error {
+    border-color: var(--danger) !important;
+}
+
+.otp-error-msg {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    color: var(--danger);
+    font-size: 0.875rem;
+    font-weight: 500;
+    margin-bottom: 1.5rem;
+}
+
+.otp-timer-row {
+    margin-bottom: 1.5rem;
+    font-size: 0.875rem;
+    color: var(--text-muted);
+}
+
+.otp-verify-btn {
+    width: 100% !important;
+    height: 52px !important;
+    margin-bottom: 1.5rem !important;
+}
+
+.otp-resend-footer {
+    font-size: 0.95rem;
+    color: var(--text-muted);
+}
+
+.resend-link {
+    background: none;
+    border: none;
+    color: var(--primary);
+    font-weight: 700;
+    cursor: pointer;
+    margin-left: 0.5rem;
+    padding: 0;
+    text-decoration: underline;
+    text-underline-offset: 4px;
+}
+
+.resend-disabled {
+    color: var(--text-muted);
+    cursor: not-allowed;
+    text-decoration: none;
+    opacity: 0.6;
+}
+
+.otp-success-state {
+    padding: 1rem 0;
+}
+
+.otp-success-icon {
+    margin-bottom: 1.5rem;
+}
+
+.otp-success-state h3 {
+    font-size: 1.5rem;
+    font-weight: 800;
+    margin-bottom: 0.75rem;
+    color: var(--text-bold);
+}
+
+.otp-success-state p {
+    color: var(--text-muted);
+}
+
+@media (max-width: 480px) {
+    .otp-modal-container {
+        padding: 1.5rem;
+    }
+
+    .otp-inputs-wrapper {
+        gap: 0.5rem;
+    }
+
+    .otp-digit-input {
+        width: 40px;
+        height: 48px;
+        font-size: 1.25rem;
+    }
+}

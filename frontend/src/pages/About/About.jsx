@@ -1,21 +1,24 @@
 import React from 'react';
-import { motion } from 'framer-motion';
 import { Sparkles, Target, Lightbulb, Users, ArrowRight, Github, Twitter, Linkedin } from 'lucide-react';
 import Navbar from '../../components/ui/Navbar/Navbar';
 import Button from '../../components/ui/Button/Button';
 import ThemeToggle from '../../components/ui/ThemeToggle/ThemeToggle';
 import { useAuth } from '../../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import { useLanguage } from '../../context/LanguageContext';
+import VideoGuideModal from '../../components/modals/VideoGuideModal/VideoGuideModal';
+import { motion, AnimatePresence } from 'framer-motion';
 import './About.css';
 
 const About = () => {
     const { isAuthenticated, user, logout } = useAuth();
+    const { t } = useLanguage();
+    const [showVideoGuide, setShowVideoGuide] = React.useState(false);
     const navigate = useNavigate();
 
     const NAV_LINKS = [
         { label: 'Home', to: '/' },
         { label: 'About', to: '/about', active: true },
-        { label: 'Explore', href: '/#providers-list' },
     ];
 
     const TEAM_MEMBERS = [
@@ -50,18 +53,32 @@ const About = () => {
                 actions={
                     isAuthenticated ? (
                         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                            <ThemeToggle />
-                            <div className="navbar__user-profile" onClick={() => navigate(user.role === 'provider' ? '/dashboard/provider' : '/dashboard/client')} style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => setShowVideoGuide(true)}
+                                style={{ gap: '6px' }}
+                            >
+                                📺 {t('instruction_video')}
+                            </Button>
+                            <div className="navbar__user-profile" onClick={() => navigate(user?.role?.toLowerCase() === 'provider' ? '/dashboard/provider' : '/dashboard/client')} style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                                 <div className="sidebar__avatar" style={{ width: '38px', height: '38px', fontSize: '1.2rem', margin: 0 }}>
-                                    {user.role === 'provider' ? '🧑‍💼' : '🙋'}
+                                    {user?.role?.toLowerCase() === 'provider' ? '🧑‍💼' : '🙋'}
                                 </div>
-                                <span className="text-bold" style={{ fontSize: '0.9rem' }}>{user.name.split(' ')[0]}</span>
+                                <span className="text-bold" style={{ fontSize: '0.9rem' }}>{user?.name ? user.name.split(' ')[0] : 'Account'}</span>
                             </div>
                             <Button variant="ghost" size="sm" onClick={() => logout()}>Logout</Button>
                         </div>
                     ) : (
                         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                            <ThemeToggle />
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => setShowVideoGuide(true)}
+                                style={{ gap: '6px' }}
+                            >
+                                📺 {t('instruction_video')}
+                            </Button>
                             <Button variant="ghost" size="sm" onClick={() => navigate('/login')}>Log in</Button>
                             <Button variant="primary" size="sm" onClick={() => navigate('/signup')}>Sign up free</Button>
                         </div>
@@ -172,6 +189,12 @@ const About = () => {
                     <p>&copy; 2026 Appointly. Dedicated to professional excellence.</p>
                 </div>
             </footer>
+
+            <AnimatePresence>
+                {showVideoGuide && (
+                    <VideoGuideModal onClose={() => setShowVideoGuide(false)} />
+                )}
+            </AnimatePresence>
         </div>
     );
 };

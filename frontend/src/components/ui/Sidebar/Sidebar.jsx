@@ -71,6 +71,7 @@ const Sidebar = ({
                 {navItems.map((item) => (
                     <button
                         key={item.id}
+                        type="button"
                         className={`nav-item ${activeSection === item.id ? 'active' : ''}`}
                         onClick={() => onNav(item.id)}
                     >
@@ -102,6 +103,7 @@ const Sidebar = ({
                     ) : (
                         <button
                             key={item.id || item.label}
+                            type="button"
                             className={`nav-item footer-item ${item.className || ''}`}
                             onClick={item.onClick}
                         >

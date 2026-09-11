@@ -1,16 +1,17 @@
-/* ─── Input ─────────────────────────────────────── */
+/* ─── Editorial Directory Input ─────────────────────────────────────── */
 .input-group {
     display: flex;
     flex-direction: column;
-    gap: var(--space-2);
+    gap: 6px;
     width: 100%;
 }
 
 .input-label {
-    font-size: var(--fs-sm);
-    font-weight: 500;
-    color: var(--text-bold);
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--paper, #F4F1E8);
     user-select: none;
+    letter-spacing: -0.01em;
 }
 
 .input-wrapper {
@@ -21,56 +22,57 @@
 
 .input-field {
     width: 100%;
-    padding: 0.6rem var(--space-3);
+    height: 40px;
+    padding: 0 14px;
     font-family: var(--font-sans);
-    font-size: var(--fs-base);
-    color: var(--text-bold);
-    background: var(--input-bg);
-    border: 1.5px solid var(--border);
-    border-radius: var(--radius-md);
-    transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+    font-size: 14px;
+    color: var(--paper, #F4F1E8);
+    background: var(--ink, #0E1116);
+    border: 1px solid var(--line, #272B34);
+    border-radius: var(--radius, 6px);
+    transition: border-color 0.15s ease;
     box-sizing: border-box;
     outline: none;
     appearance: none;
 }
 
 .input-field::placeholder {
-    color: var(--text-muted);
+    color: #5c584d;
 }
 
 .input-field:focus {
-    border-color: var(--primary);
-    box-shadow: 0 0 0 3px var(--primary-faint);
+    border-color: var(--amber, #E2892F);
+    background: var(--ink, #0E1116);
 }
 
 .input-field:hover:not(:focus):not(:disabled) {
-    border-color: var(--text-muted);
+    border-color: #3d4250;
 }
 
 /* Icon offsets */
 .input-field--has-left-icon {
-    padding-left: 2.5rem;
+    padding-left: 38px;
 }
 
 .input-field--has-right-icon {
-    padding-right: 2.5rem;
+    padding-right: 38px;
 }
 
 .input-icon {
     position: absolute;
     display: inline-flex;
     align-items: center;
-    color: var(--text-muted);
-    font-size: 1.1rem;
+    color: var(--muted, #8D897D);
+    font-size: 1rem;
     pointer-events: none;
 }
 
 .input-icon--left {
-    left: var(--space-3);
+    left: 12px;
 }
 
 .input-icon--right {
-    right: var(--space-3);
+    right: 12px;
 }
 
 .input-password-toggle {
@@ -79,28 +81,27 @@
     border: none;
     padding: 0;
     cursor: pointer;
-    transition: color var(--transition-fast);
+    color: var(--muted, #8D897D);
+    display: flex;
+    align-items: center;
+    transition: color 0.15s ease;
     outline: none;
 }
 
 .input-password-toggle:hover {
-    color: var(--primary);
+    color: var(--paper, #F4F1E8);
 }
 
 /* Error state */
 .input-group--error .input-field {
-    border-color: hsl(0, 85%, 60%);
-}
-
-.input-group--error .input-field:focus {
-    box-shadow: 0 0 0 3px hsla(0, 85%, 60%, 0.15);
+    border-color: #ef4444;
 }
 
 /* Disabled state */
 .input-group--disabled .input-field {
-    opacity: 0.5;
+    opacity: 0.4;
     cursor: not-allowed;
-    background: var(--bg-subtle);
+    background: var(--panel-2, #1D222B);
 }
 
 .input-group--disabled .input-label {
@@ -109,14 +110,14 @@
 
 /* Messages */
 .input-message {
-    font-size: var(--fs-xs);
+    font-size: 12px;
     margin: 0;
 }
 
 .input-message--error {
-    color: hsl(0, 85%, 55%);
+    color: #ef4444;
 }
 
 .input-message--hint {
-    color: var(--text-muted);
+    color: var(--muted, #8D897D);
 }

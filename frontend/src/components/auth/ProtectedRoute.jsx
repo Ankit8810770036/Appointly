@@ -14,11 +14,12 @@ export default function ProtectedRoute({ children, requiredRole }) {
         return <Navigate to="/login" state={{ from: location }} replace />;
     }
 
-    if (requiredRole && user?.role !== requiredRole) {
-        // Send them to their actual dashboard instead of showing a blank/wrong page
-        const correctDashboard = user?.role === 'provider'
-            ? '/dashboard/provider'
-            : '/dashboard/client';
+    if (requiredRole && user?.role?.toLowerCase() !== requiredRole.toLowerCase()) {
+        const userRole = user?.role?.toLowerCase();
+        let correctDashboard = '/dashboard/client';
+        if (userRole === 'provider') correctDashboard = '/dashboard/provider';
+        else if (userRole === 'admin') correctDashboard = '/dashboard/admin';
+
         return <Navigate to={correctDashboard} replace />;
     }
 

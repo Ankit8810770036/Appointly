@@ -27,7 +27,7 @@ const Button = ({
             {...props}
         >
             {loading && (
-                <span className="btn__spinner" aria-hidden="true" />
+                <span className="btn__skeleton-shimmer" aria-hidden="true" />
             )}
             {!loading && leftIcon && (
                 <span className="btn__icon btn__icon--left">{leftIcon}</span>

@@ -7,11 +7,26 @@ import { sendBookingRequestEmail, sendBookingStatusEmail, sendServiceCompletionE
 // @access  Private (Client only)
 export const createAppointment = async (req, res) => {
     try {
-        if (req.user.role !== 'CLIENT') {
-            return res.status(403).json({ message: 'Only clients can book appointments' });
+        if (req.user?.role?.toUpperCase() !== 'CLIENT') {
+            return res.status(403).json({ message: 'Only clients can book appointments. Providers are restricted from booking services.' });
         }
 
-        const { providerId, serviceId, date, note } = req.body;
+        const {
+            providerId,
+            serviceId,
+            date,
+            note,
+            addressId,
+            streetAddress,
+            city,
+            state,
+            zipCode,
+            country = 'India',
+            latitude,
+            longitude,
+            saveAddress = false,
+            addressLabel = 'Home'
+        } = req.body;
         const appointmentDate = new Date(date);
 
         // 1. Check if the provider actually exists and get their userId
@@ -35,7 +50,7 @@ export const createAppointment = async (req, res) => {
                 providerId,
                 date: appointmentDate,
                 status: {
-                    in: ['PENDING', 'CONFIRMED']
+                    in: ['PENDING', 'CONFIRMED', 'COMPLETED']
                 }
             }
         });
@@ -44,15 +59,59 @@ export const createAppointment = async (req, res) => {
             return res.status(400).json({ message: 'This time slot is already booked. Please choose another time.' });
         }
 
+        // 4. Resolve Address Snapshot
+        let resolvedAddressId = addressId || null;
+        let resolvedServiceAddress = null;
+        let resolvedLat = latitude ? parseFloat(latitude) : null;
+        let resolvedLng = longitude ? parseFloat(longitude) : null;
+
+        if (addressId) {
+            const savedAddr = await prisma.address.findUnique({
+                where: { id: addressId }
+            });
+            if (savedAddr) {
+                resolvedServiceAddress = [savedAddr.streetAddress, savedAddr.city, savedAddr.state, savedAddr.zipCode, savedAddr.country].filter(Boolean).join(', ');
+                if (!resolvedLat && savedAddr.latitude) resolvedLat = savedAddr.latitude;
+                if (!resolvedLng && savedAddr.longitude) resolvedLng = savedAddr.longitude;
+            }
+        } else if (streetAddress || city) {
+            resolvedServiceAddress = [streetAddress, city, state, zipCode, country].filter(Boolean).join(', ');
+            if (saveAddress && streetAddress && city) {
+                try {
+                    const newSaved = await prisma.address.create({
+                        data: {
+                            userId: req.user.id,
+                            label: addressLabel || 'Home',
+                            streetAddress: streetAddress.trim(),
+                            city: city.trim(),
+                            state: state ? state.trim() : null,
+                            zipCode: zipCode ? zipCode.trim() : null,
+                            country: country ? country.trim() : 'India',
+                            latitude: resolvedLat,
+                            longitude: resolvedLng
+                        }
+                    });
+                    resolvedAddressId = newSaved.id;
+                } catch (addrErr) {
+                    console.error('[appointmentController] Failed to auto-save address:', addrErr);
+                }
+            }
+        }
+
         const appointment = await prisma.appointment.create({
             data: {
                 clientId: req.user.id,
                 providerId,
                 serviceId,
                 date: appointmentDate,
-                note
+                note,
+                addressId: resolvedAddressId,
+                serviceAddress: resolvedServiceAddress,
+                latitude: resolvedLat,
+                longitude: resolvedLng
             },
             include: {
+                address: true,
                 client: { select: { name: true, email: true } },
                 provider: {
                     include: { user: true }
@@ -88,27 +147,61 @@ export const getMyAppointments = async (req, res) => {
         let whereClause = {};
         if (req.user.role === 'CLIENT') {
             whereClause.clientId = req.user.id;
-        } else {
-            // For provider, we need to match the providerProfile inside appointments
+        } else if (req.user.role === 'PROVIDER') {
             const profile = await prisma.providerProfile.findUnique({
                 where: { userId: req.user.id }
             });
-            if (profile) {
-                whereClause.providerId = profile.id;
+            if (!profile) {
+                return res.json([]);
             }
+            whereClause.providerId = profile.id;
+        } else if (req.user.role === 'ADMIN') {
+            // Admins can see all
+        } else {
+            return res.json([]);
         }
 
         const appointments = await prisma.appointment.findMany({
             where: whereClause,
             include: {
+                address: true,
                 service: true,
                 review: true,
                 client: {
-                    select: { name: true, email: true }
+                    select: {
+                        id: true,
+                        name: true,
+                        email: true,
+                        phone: true,
+                        location: true,
+                        streetAddress: true,
+                        city: true,
+                        state: true,
+                        zipCode: true,
+                        country: true,
+                        latitude: true,
+                        longitude: true,
+                        createdAt: true
+                    }
                 },
                 provider: {
                     include: {
-                        user: { select: { name: true, email: true } }
+                        user: {
+                            select: {
+                                id: true,
+                                name: true,
+                                email: true,
+                                phone: true,
+                                location: true,
+                                streetAddress: true,
+                                city: true,
+                                state: true,
+                                zipCode: true,
+                                country: true,
+                                latitude: true,
+                                longitude: true
+                            }
+                        }
                     }
                 }
             },
@@ -130,6 +223,12 @@ export const updateAppointmentStatus = async (req, res) => {
         const { status } = req.body;
         const appointmentId = req.params.id;
 
+        const allowedStatuses = ['PENDING', 'CONFIRMED', 'COMPLETED', 'CANCELLED'];
+        const normalizedStatus = (status || '').toUpperCase();
+        if (!allowedStatuses.includes(normalizedStatus)) {
+            return res.status(400).json({ message: `Invalid status. Allowed values: ${allowedStatuses.join(', ')}` });
+        }
+
         // Verify appointment exists
         const existing = await prisma.appointment.findUnique({
             where: { id: appointmentId },
@@ -143,14 +242,20 @@ export const updateAppointmentStatus = async (req, res) => {
         // Check ownership
         const isClient = req.user.role === 'CLIENT' && existing.clientId === req.user.id;
         const isProvider = req.user.role === 'PROVIDER' && existing.provider.userId === req.user.id;
+        const isAdmin = req.user.role === 'ADMIN';
 
-        if (!isClient && !isProvider) {
+        if (!isClient && !isProvider && !isAdmin) {
             return res.status(403).json({ message: 'Not authorized to update this appointment' });
+        }
+
+        // Clients can only cancel appointments
+        if (isClient && !isProvider && !isAdmin && normalizedStatus !== 'CANCELLED') {
+            return res.status(403).json({ message: 'Clients are only permitted to cancel appointments' });
         }
 
         const updatedAppointment = await prisma.appointment.update({
             where: { id: appointmentId },
-            data: { status },
+            data: { status: normalizedStatus },
             include: {
                 client: true,
                 provider: { include: { user: true } },
@@ -162,17 +267,17 @@ export const updateAppointmentStatus = async (req, res) => {
         if (req.user.role === 'PROVIDER') {
             await createNotification({
                 userId: updatedAppointment.clientId,
-                type: `BOOKING_${status}`,
-                title: `Booking ${status.charAt(0) + status.slice(1).toLowerCase()}`,
-                message: `Your appointment for ${updatedAppointment.service.name} with ${updatedAppointment.provider.user.name} has been ${status.toLowerCase()}.`,
+                type: `BOOKING_${normalizedStatus}`,
+                title: `Booking ${normalizedStatus.charAt(0) + normalizedStatus.slice(1).toLowerCase()}`,
+                message: `Your appointment for ${updatedAppointment.service.name} with ${updatedAppointment.provider.user.name} has been ${normalizedStatus.toLowerCase()}.`,
                 link: '/dashboard/client'
             });
         } else if (req.user.role === 'CLIENT') {
             await createNotification({
                 userId: updatedAppointment.provider.userId,
-                type: `BOOKING_${status}`,
-                title: `Booking ${status.charAt(0) + status.slice(1).toLowerCase()}`,
-                message: `Your appointment with ${updatedAppointment.client.name} for ${updatedAppointment.service.name} has been ${status.toLowerCase()}.`,
+                type: `BOOKING_${normalizedStatus}`,
+                title: `Booking ${normalizedStatus.charAt(0) + normalizedStatus.slice(1).toLowerCase()}`,
+                message: `Your appointment with ${updatedAppointment.client.name} for ${updatedAppointment.service.name} has been ${normalizedStatus.toLowerCase()}.`,
                 link: '/dashboard/provider'
             });
         }
@@ -189,7 +294,7 @@ export const updateAppointmentStatus = async (req, res) => {
 
         // Send Email status notification (Async)
         if (fullAppointment) {
-            if (status.toUpperCase() === 'COMPLETED') {
+            if (normalizedStatus === 'COMPLETED') {
                 sendServiceCompletionEmail(fullAppointment).catch(err => console.error('[EmailService] Service completion email failed:', err));
             } else {
                 sendBookingStatusEmail(fullAppointment).catch(err => console.error('[EmailService] Booking status email failed:', err));

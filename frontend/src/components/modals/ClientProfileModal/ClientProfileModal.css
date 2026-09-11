@@ -1,0 +1,235 @@
+/* ─── Client Profile Modal Styling (Appointly Theme) ───────────────────────────── */
+
+.client-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(14, 17, 22, 0.75);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 99999;
+    padding: 1.5rem;
+    box-sizing: border-box;
+    font-family: var(--font-sans, 'Inter', -apple-system, sans-serif);
+}
+
+.client-modal-card {
+    background: var(--panel, #171B22);
+    color: var(--paper, #F4F1E8);
+    width: 100%;
+    max-width: 540px;
+    border-radius: var(--radius-xl, 12px);
+    border: 1px solid var(--line, #272B34);
+    box-shadow: var(--shadow-lg, 0 12px 30px rgba(0, 0, 0, 0.6)), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    padding: 1.75rem;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+    position: relative;
+    overflow: hidden;
+}
+
+.client-modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.client-profile-header-info {
+    display: flex;
+    align-items: center;
+    gap: 0.9rem;
+}
+
+.client-avatar-ring {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--amber, #E2892F) 0%, #B86E20 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #0E1116;
+    font-weight: 800;
+    font-size: 1.05rem;
+    flex-shrink: 0;
+    box-shadow: 0 4px 12px rgba(226, 137, 47, 0.25);
+}
+
+.client-avatar-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 50%;
+}
+
+.client-name-row {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+}
+
+.client-modal-name {
+    font-family: var(--font-sans, 'Inter', -apple-system, sans-serif);
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: var(--paper, #F4F1E8);
+    margin: 0;
+    letter-spacing: -0.01em;
+}
+
+.client-badge {
+    padding: 0.2rem 0.55rem;
+    border-radius: var(--radius-sm, 4px);
+    background: rgba(62, 142, 126, 0.15);
+    border: 1px solid rgba(62, 142, 126, 0.3);
+    color: var(--teal, #3E8E7E);
+    font-size: 0.72rem;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-family: var(--font-sans, 'Inter', -apple-system, sans-serif);
+}
+
+.client-modal-sub {
+    margin: 2px 0 0 0;
+    font-size: 0.8rem;
+    color: var(--muted, #8D897D);
+    font-family: var(--font-sans, 'Inter', -apple-system, sans-serif);
+}
+
+.client-modal-close {
+    width: 32px;
+    height: 32px;
+    border-radius: var(--radius-md, 6px);
+    border: 1px solid var(--line, #272B34);
+    background: var(--panel-2, #1D222B);
+    color: var(--muted, #8D897D);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.client-modal-close:hover {
+    background: rgba(239, 68, 68, 0.12);
+    color: var(--danger, #EF4444);
+    border-color: rgba(239, 68, 68, 0.3);
+}
+
+.client-modal-body {
+    display: flex;
+    flex-direction: column;
+    gap: 1.15rem;
+}
+
+.client-section-title {
+    font-family: var(--font-sans, 'Inter', -apple-system, sans-serif) !important;
+    font-size: 0.76rem;
+    font-weight: 700;
+    color: var(--muted, #8D897D);
+    margin: 0 0 0.6rem 0;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+}
+
+.client-info-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem;
+}
+
+.client-info-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    background: var(--panel-2, #1D222B);
+    padding: 0.85rem 0.95rem;
+    border-radius: var(--radius-lg, 8px);
+    border: 1px solid var(--line, #272B34);
+}
+
+.client-info-item--full {
+    grid-column: span 2;
+}
+
+.client-item-icon {
+    color: var(--amber, #E2892F);
+    margin-top: 2px;
+    flex-shrink: 0;
+}
+
+.client-item-label {
+    display: block;
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--muted, #8D897D);
+    margin-bottom: 2px;
+    font-family: var(--font-sans, 'Inter', -apple-system, sans-serif);
+}
+
+.client-item-val {
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: var(--paper, #F4F1E8);
+    word-break: break-word;
+    font-family: var(--font-sans, 'Inter', -apple-system, sans-serif);
+}
+
+/* Client Notes & Preferences Card */
+.client-notes-card {
+    background: var(--panel-2, #1D222B);
+    border: 1px solid var(--line, #272B34);
+    border-radius: var(--radius-lg, 8px);
+    padding: 0.95rem 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.client-notes-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.client-notes-text {
+    margin: 0;
+    font-size: 0.84rem;
+    line-height: 1.5;
+    color: var(--paper-dim, #C9C6BC);
+    font-family: var(--font-sans, 'Inter', -apple-system, sans-serif);
+}
+
+.client-security-note {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.65rem 0.9rem;
+    border-radius: var(--radius-md, 6px);
+    background: rgba(62, 142, 126, 0.08);
+    border: 1px solid rgba(62, 142, 126, 0.22);
+    color: var(--teal, #3E8E7E);
+    font-size: 0.78rem;
+    font-weight: 500;
+    font-family: var(--font-sans, 'Inter', -apple-system, sans-serif);
+}
+
+/* Footer Buttons */
+.client-modal-footer {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding-top: 0.5rem;
+    border-top: 1px solid var(--line, #272B34);
+}

@@ -1,5 +1,5 @@
-import { useState, useEffect, useMemo } from 'react';
-import { toast } from 'sonner';
+import { useState, useEffect, useMemo, useCallback } from 'react';
+import { toast } from '../../utils/toast';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
@@ -17,14 +17,31 @@ import ThemeToggle from '../../components/ui/ThemeToggle/ThemeToggle';
 import MessagesTab from '../../components/dashboard/MessagesTab/MessagesTab';
 import Sidebar from '../../components/ui/Sidebar/Sidebar';
 import * as Icons from 'lucide-react';
-import { IndianRupee, TrendingUp, Hourglass, CheckCircle2, CalendarDays, Star, Clock, Calendar, XCircle, CheckCircle, UserRound, Settings, Sparkles, PartyPopper, MessageCircle } from 'lucide-react';
+import {
+    IndianRupee, TrendingUp, Hourglass as HourglassIcon, CheckCircle2, CalendarDays,
+    Star, Clock, Calendar, XCircle, CheckCircle, UserRound,
+    Settings, Sparkles, PartyPopper, MessageCircle,
+    CloudUpload, ShieldAlert, FileText, Upload, Trash2, Zap, MapPin
+} from 'lucide-react';
 import MessageModal from '../../components/modals/MessageModal/MessageModal';
+import MapDirectionsModal from '../../components/modals/MapDirectionsModal/MapDirectionsModal';
 import { reviewApi } from '../../api/reviews';
+import VideoGuideModal from '../../components/modals/VideoGuideModal/VideoGuideModal';
+import WatchGuidesTab from '../../components/dashboard/WatchGuidesTab/WatchGuidesTab';
+import MapPicker from '../../components/ui/Map/MapPicker';
+import MapViewer from '../../components/ui/Map/MapViewer';
+import ReviewCard from '../../components/ui/ReviewCard/ReviewCard';
+import ClientProfileModal from '../../components/modals/ClientProfileModal/ClientProfileModal';
 import './ProviderDashboard.css';
 
 // Earnings are calculated dynamically below
 
-const TIME_SLOTS = ['09:00', '09:30', '10:00', '10:30', '11:00', '11:30', '14:00', '14:30', '15:00', '15:30', '16:00', '16:30', '17:00'];
+const TIME_SLOTS = [
+    '08:00', '08:30', '09:00', '09:30', '10:00', '10:30', '11:00', '11:30',
+    '12:00', '12:30', '13:00', '13:30', '14:00', '14:30', '15:00', '15:30',
+    '16:00', '16:30', '17:00', '17:30', '18:00', '18:30', '19:00', '19:30',
+    '20:00', '20:30', '21:00'
+];
 
 const STATUS_VARIANT = { confirmed: 'success', pending: 'warning', completed: 'default', cancelled: 'danger' };
 const STATUS_LABEL = { confirmed: 'Confirmed', pending: 'Pending', completed: 'Done', cancelled: 'Cancelled' };
@@ -82,66 +99,140 @@ function EarningsChart({ data }) {
     );
 }
 
-/* ─── Booking Row ────────────────────────────────── */
-function BookingRow({ booking, onAccept, onDecline, onComplete, onMessage, index = 0 }) {
+/* ─── Booking Row Component ──────────────────────── */
+function BookingRow({ booking, onAccept, onDecline, onComplete, onMessage, onShowMap, onShowClientProfile, providerCoords }) {
+    const handleGetDirections = (e) => {
+        e.stopPropagation();
+        if (onShowMap) {
+            onShowMap(booking);
+        } else {
+            if (!booking.latitude || !booking.longitude) return;
+            let url = "";
+            if (providerCoords?.lat && providerCoords?.lng) {
+                url = `https://www.google.com/maps/dir/?api=1&origin=${providerCoords.lat},${providerCoords.lng}&destination=${booking.latitude},${booking.longitude}&travelmode=driving`;
+            } else {
+                url = `https://www.google.com/maps/search/?api=1&query=${booking.latitude},${booking.longitude}`;
+            }
+            window.open(url, '_blank');
+        }
+    };
+
     return (
-        <motion.div
-            className={`booking-row booking-row--${booking.status}`}
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3, delay: index * 0.05 }}
+        <div
+            className={`my-booking-card my-booking-card--${booking.status} animate-fade-in`}
         >
-            <div className="booking-row__client">
-                <span className="booking-row__avatar">{booking.clientAvatar}</span>
+            {/* Column 1: Client & Service Info (Clicking profile logo/name opens Client Profile) */}
+            <div
+                className="my-booking-profile-col"
+                onClick={() => onShowClientProfile && onShowClientProfile(booking)}
+                title="Click to view full Client Profile details"
+                style={{ cursor: 'pointer' }}
+            >
+                <div className="my-booking-avatar">
+                    <UserRound size={22} />
+                </div>
+                <div className="my-booking-details">
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <h3 className="my-booking-name">{booking.client}</h3>
+                        <span style={{ fontSize: '0.72rem', background: 'rgba(59, 130, 246, 0.15)', color: '#60a5fa', padding: '1px 6px', borderRadius: '4px', border: '1px solid rgba(59, 130, 246, 0.3)' }}>
+                            View Profile ↗
+                        </span>
+                    </div>
+                    <span className="my-booking-service">{booking.service}</span>
+                    <div className="my-booking-location-row">
+                        <MapPin size={13} color="#c084fc" />
+                        <span>Location: {booking.location || 'Connaught Place, New Delhi'}</span>
+                    </div>
+                </div>
+            </div>
+
+            {/* Column 2: Date & Time */}
+            <div className="my-booking-datetime-col">
+                <div className="my-booking-meta-group">
+                    <Calendar size={18} className="my-booking-meta-icon" />
+                    <div className="my-booking-meta-info">
+                        <span className="my-booking-meta-label">Date</span>
+                        <span className="my-booking-meta-val">{booking.date}</span>
+                    </div>
+                </div>
+                <div className="my-booking-meta-group">
+                    <Clock size={18} className="my-booking-meta-icon" />
+                    <div className="my-booking-meta-info">
+                        <span className="my-booking-meta-label">Time & Duration</span>
+                        <span className="my-booking-meta-val">{booking.time} • {booking.duration}min</span>
+                    </div>
+                </div>
+            </div>
+
+            {/* Column 3: Amount & Status Pill */}
+            <div className="my-booking-amount-col">
                 <div>
-                    <span className="booking-row__name">{booking.client}</span>
-                    <span className="booking-row__service">{booking.service}</span>
+                    <span className="my-booking-amount-label">Amount</span>
+                    <div className="my-booking-amount-val">₹{booking.price}</div>
+                </div>
+                <div className={`my-booking-status-pill my-booking-status-pill--${booking.status}`}>
+                    {booking.status === 'confirmed' && <CheckCircle size={14} />}
+                    {booking.status === 'completed' && <CheckCircle size={14} />}
+                    {booking.status === 'pending' && <HourglassIcon size={14} />}
+                    {booking.status === 'cancelled' && <XCircle size={14} />}
+                    <span>{booking.status.charAt(0).toUpperCase() + booking.status.slice(1)}</span>
                 </div>
             </div>
-            <div className="booking-row__datetime">
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <Calendar size={14} className="icon-muted" /> {booking.date}
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <Clock size={14} className="icon-muted" /> {booking.time} · {booking.duration}min
-                </div>
-            </div>
-            <span className="booking-row__price">₹{booking.price}</span>
-            <Badge variant={STATUS_VARIANT[booking.status]}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    {booking.status === 'confirmed' && <CheckCircle2 size={12} />}
-                    {booking.status === 'pending' && <Hourglass size={12} />}
-                    {booking.status === 'completed' && <CheckCircle size={12} />}
-                    {booking.status === 'cancelled' && <XCircle size={12} />}
-                    {STATUS_LABEL[booking.status]}
-                </div>
-            </Badge>
-            <div className="booking-row__actions">
-                <Button variant="ghost" size="sm" onClick={() => onMessage(booking.clientId)} title="Message Client">
-                    <MessageCircle size={16} />
-                </Button>
+
+            {/* Column 4: Action Buttons Stack */}
+            <div className="my-booking-actions-col">
+                <button
+                    className="my-booking-btn"
+                    onClick={handleGetDirections}
+                    title="View Location on Map"
+                >
+                    <MapPin size={13} /> View Location
+                </button>
+
                 {booking.status === 'pending' && (
                     <>
-                        <Button variant="primary" size="sm" onClick={() => onAccept(booking.id)}>Accept</Button>
-                        <Button variant="ghost" size="sm" onClick={() => onDecline(booking.id)}>Decline</Button>
+                        <button className="my-booking-btn" onClick={() => onAccept(booking.id)}>
+                            <CheckCircle size={14} /> Accept Booking
+                        </button>
+                        <button className="my-booking-btn my-booking-btn--danger" onClick={() => onDecline(booking.id)}>
+                            <XCircle size={14} /> Decline
+                        </button>
                     </>
                 )}
+
                 {booking.status === 'confirmed' && (
-                    <div style={{ display: 'flex', gap: '0.5rem' }}>
-                        <Button variant="outline" size="sm" onClick={() => onComplete(booking.id)}>Mark Done</Button>
-                        <Button variant="ghost" size="sm" onClick={() => decline(booking.id)} style={{ color: 'var(--danger)' }}>Cancel</Button>
-                    </div>
+                    <>
+                        <button className="my-booking-btn" onClick={() => onComplete(booking.id)}>
+                            <CheckCircle size={14} /> Mark as Done
+                        </button>
+                        <button className="my-booking-btn my-booking-btn--danger" onClick={() => onDecline(booking.id)}>
+                            <XCircle size={14} /> Cancel Booking
+                        </button>
+                    </>
+                )}
+
+                {booking.status === 'completed' && (
+                    <button className="my-booking-btn" onClick={() => onMessage(booking.clientId)}>
+                        <MessageCircle size={14} /> Message Client
+                    </button>
+                )}
+
+                {booking.status === 'cancelled' && (
+                    <button className="my-booking-btn" onClick={() => onMessage(booking.clientId)}>
+                        <MessageCircle size={14} /> Message Client
+                    </button>
                 )}
             </div>
-        </motion.div>
+        </div>
     );
 }
 
 /* ─── Schedule Tab ───────────────────────────────── */
+const DAYS_MAP = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
 function ScheduleTab({ user, token, onUpdate }) {
     const { login } = useAuth();
     const profile = user?.providerProfile;
-    const daysMap = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
     const [selectedDay, setSelectedDay] = useState('MON');
 
@@ -151,35 +242,57 @@ function ScheduleTab({ user, token, onUpdate }) {
             return profile.workSchedule;
         }
         // Fallback to old availableSlots if workSchedule is empty
-        const initialSlots = profile?.availableSlots || ["09:00", "10:00", "11:00", "14:00", "15:00", "16:00"];
-        return Object.fromEntries(daysMap.map(d => [d.toUpperCase(), [...initialSlots]]));
+        const initialSlots = (profile?.availableSlots && profile.availableSlots.length > 0) ? profile.availableSlots : TIME_SLOTS;
+        return Object.fromEntries(DAYS_MAP.map(d => [d.toUpperCase(), [...initialSlots]]));
     });
 
     const availability = useMemo(() => {
-        return Object.fromEntries(daysMap.map(d => [
+        return Object.fromEntries(DAYS_MAP.map(d => [
             d.toUpperCase(),
             (workSchedule[d.toUpperCase()]?.length || 0) > 0
         ]));
-    }, [workSchedule, daysMap]);
+    }, [workSchedule]);
 
     const [blockDates, setBlockDates] = useState(profile?.blockedDates || []);
     const [newBlock, setNewBlock] = useState('');
     const [saving, setSaving] = useState(false);
 
+    useEffect(() => {
+        if (profile?.workSchedule && Object.keys(profile.workSchedule).length > 0) {
+            setWorkSchedule(profile.workSchedule);
+        } else if (profile?.availableSlots && profile.availableSlots.length > 0) {
+            const initialSlots = profile.availableSlots;
+            setWorkSchedule(Object.fromEntries(DAYS_MAP.map(d => [d.toUpperCase(), [...initialSlots]])));
+        } else {
+            setWorkSchedule(Object.fromEntries(DAYS_MAP.map(d => [d.toUpperCase(), [...TIME_SLOTS]])));
+        }
+        if (profile?.blockedDates) {
+            setBlockDates(profile.blockedDates);
+        }
+    }, [profile?.workSchedule, profile?.availableSlots, profile?.blockedDates]);
+
     const handleSave = async () => {
         setSaving(true);
         try {
             const workingDays = Object.entries(workSchedule)
-                .filter(([_, slots]) => slots.length > 0)
-                .map(([day, _]) => day);
+                .filter(([, slots]) => slots.length > 0)
+                .map(([day]) => day);
+
+            // Sort workSchedule keys & slot arrays
+            const sortedWorkSchedule = Object.fromEntries(
+                Object.entries(workSchedule).map(([day, slots]) => [
+                    day,
+                    [...slots].sort((a, b) => a.localeCompare(b))
+                ])
+            );
 
             // Flatten unique slots for backward compatibility
-            const availableSlots = [...new Set(Object.values(workSchedule).flat())];
+            const availableSlots = [...new Set(Object.values(sortedWorkSchedule).flat())].sort((a, b) => a.localeCompare(b));
 
             const updatedUser = await providerApi.updateProfile({
                 workingDays,
                 availableSlots,
-                workSchedule,
+                workSchedule: sortedWorkSchedule,
                 blockedDates: blockDates
             }, token);
 
@@ -199,13 +312,13 @@ function ScheduleTab({ user, token, onUpdate }) {
             const newSlots = currentSlots.includes(slot)
                 ? currentSlots.filter(s => s !== slot)
                 : [...currentSlots, slot];
-            return { ...prev, [day]: newSlots };
+            return { ...prev, [day]: newSlots.sort((a, b) => a.localeCompare(b)) };
         });
     };
 
     const copyToAll = () => {
         const currentSlots = workSchedule[selectedDay] || [];
-        const newSchedule = Object.fromEntries(daysMap.map(d => [d.toUpperCase(), [...currentSlots]]));
+        const newSchedule = Object.fromEntries(DAYS_MAP.map(d => [d.toUpperCase(), [...currentSlots]]));
         setWorkSchedule(newSchedule);
     };
 
@@ -218,7 +331,7 @@ function ScheduleTab({ user, token, onUpdate }) {
                 </div>
 
                 <div className="schedule-days-tabs">
-                    {daysMap.map(d => {
+                    {DAYS_MAP.map(d => {
                         const dayKey = d.toUpperCase();
                         const isActive = selectedDay === dayKey;
                         const isWorking = availability[dayKey];
@@ -297,17 +410,17 @@ function ScheduleTab({ user, token, onUpdate }) {
     );
 }
 
-/* ─── Services Tab ─────────────────────────────────── */
-function ServicesTab({ onUpdate, initialServices }) {
+/* ─── Services Tab Component ─────────────────────── */
+function ServicesTab({ initialServices = [], onUpdate }) {
     const { user, token } = useAuth();
-    const [services, setServices] = useState(initialServices || []);
+    const [services, setServices] = useState(initialServices);
+    const [showAdd, setShowAdd] = useState(false);
+    const [newService, setNewService] = useState({ name: '', price: '', duration: '30', category: 'Consultation' });
+    const [loading, setLoading] = useState(false);
 
     useEffect(() => {
         setServices(initialServices);
     }, [initialServices]);
-    const [loading, setLoading] = useState(false);
-    const [showAdd, setShowAdd] = useState(false);
-    const [newService, setNewService] = useState({ name: '', price: '', duration: '30', category: 'General' });
 
     const handleAdd = async (e) => {
         e.preventDefault();
@@ -320,39 +433,16 @@ function ServicesTab({ onUpdate, initialServices }) {
             const added = await providerApi.addService(newService, token);
             const updatedServices = [...services, added];
             setServices(updatedServices);
-            setNewService({ name: '', price: '', duration: '30' });
+            setNewService({ name: '', price: '', duration: '30', category: 'Consultation' });
             setShowAdd(false);
             if (onUpdate) onUpdate();
+            toast.success('New service published successfully!');
         } catch (err) {
-            toast.error(err.message);
+            toast.error(err.message || 'Failed to add service');
         } finally {
             setLoading(false);
         }
     };
-
-    if (!user?.providerProfile) {
-        return (
-            <div className="services-tab">
-                <div className="dashboard__section-header">
-                    <h2>Manage Services</h2>
-                </div>
-                <Card variant="default" padding="lg" style={{ textAlign: 'center' }}>
-                    <div style={{ marginBottom: '1.5rem', display: 'flex', justifyContent: 'center' }}>
-                        <div style={{ padding: '1.5rem', background: 'rgba(var(--primary-rgb), 0.1)', borderRadius: '50%', color: 'var(--primary)' }}>
-                            <Settings size={40} />
-                        </div>
-                    </div>
-                    <h3 style={{ marginBottom: '0.5rem' }}>Profile Setup Required</h3>
-                    <p style={{ color: 'var(--text-light)', marginBottom: '1.5rem' }}>
-                        You need to set up your professional profile (Specialty, Location, etc.) before you can add services.
-                    </p>
-                    <Button variant="primary" onClick={() => window.dispatchEvent(new CustomEvent('nav-dashboard', { detail: 'settings' }))}>
-                        Go to Settings
-                    </Button>
-                </Card>
-            </div>
-        );
-    }
 
     const handleDelete = async (id) => {
         if (!window.confirm('Are you sure you want to remove this service?')) return;
@@ -361,170 +451,245 @@ function ServicesTab({ onUpdate, initialServices }) {
             const updatedServices = services.filter(s => s.id !== id);
             setServices(updatedServices);
             if (onUpdate) onUpdate();
+            toast.success('Service removed.');
         } catch (err) {
             toast.error(err.message);
         }
     };
 
+    const avgPrice = services.length > 0
+        ? Math.round(services.reduce((acc, curr) => acc + (Number(curr.price) || 0), 0) / services.length)
+        : 0;
+
+    if (!user?.providerProfile) {
+        return (
+            <div className="pcd-services-wrap animate-fade-in">
+                <div className="my-bookings-header">
+                    <div className="my-bookings-header-left">
+                        <div className="my-bookings-header-icon">
+                            <Zap size={24} />
+                        </div>
+                        <div className="my-bookings-header-text">
+                            <h2>Manage Services</h2>
+                            <p>Configure your consultation offerings and pricing</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="pcd-services-setup-alert">
+                    <div className="pcd-services-setup-icon">
+                        <Settings size={36} />
+                    </div>
+                    <h3>Profile Setup Required</h3>
+                    <p>You need to set up your professional profile (Specialty, Location, Bio) before adding consultation services for clients to book.</p>
+                    <button
+                        className="my-booking-btn my-booking-btn--purple"
+                        style={{ padding: '10px 20px', fontSize: '0.95rem' }}
+                        onClick={() => window.dispatchEvent(new CustomEvent('nav-dashboard', { detail: 'settings' }))}
+                    >
+                        Go to Settings Profile →
+                    </button>
+                </div>
+            </div>
+        );
+    }
+
     return (
-        <div className="services-tab">
-            <div className="dashboard__section-header">
-                <h2>Manage Services</h2>
-                <Button variant="primary" size="sm" onClick={() => setShowAdd(!showAdd)}>
-                    {showAdd ? 'Cancel' : '+ Add Service'}
-                </Button>
+        <div className="pcd-services-wrap animate-fade-in">
+            {/* Header Card */}
+            <div className="my-bookings-header">
+                <div className="my-bookings-header-left">
+                    <div className="my-bookings-header-icon">
+                        <Zap size={24} />
+                    </div>
+                    <div className="my-bookings-header-text">
+                        <h2>Manage Services</h2>
+                        <p>Create, customize, and price your consultation offerings</p>
+                    </div>
+                </div>
+
+                <button
+                    className="pcd-services-add-btn"
+                    onClick={() => setShowAdd(!showAdd)}
+                >
+                    <Sparkles size={16} />
+                    {showAdd ? 'Close Form' : '+ Add New Service'}
+                </button>
             </div>
 
-            {showAdd && (
-                <Card variant="default" padding="md" style={{ marginBottom: '2rem' }}>
-                    <form onSubmit={handleAdd} className="settings-fields" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))' }}>
-                        <div className="settings-field">
-                            <label>Service Name</label>
-                            <input
-                                required
-                                className="settings-input"
-                                placeholder="e.g. Initial Consultation"
-                                value={newService.name}
-                                onChange={e => setNewService({ ...newService, name: e.target.value })}
-                            />
-                        </div>
-                        <div className="settings-field">
-                            <label>Price (₹)</label>
-                            <input
-                                required
-                                type="number"
-                                className="settings-input"
-                                placeholder="500"
-                                value={newService.price}
-                                onChange={e => setNewService({ ...newService, price: e.target.value })}
-                            />
-                        </div>
-                        <div className="settings-field">
-                            <label>Duration (min)</label>
-                            <select
-                                className="settings-input"
-                                value={newService.duration}
-                                onChange={e => setNewService({ ...newService, duration: e.target.value })}
-                            >
-                                <option value="15">15 min</option>
-                                <option value="30">30 min</option>
-                                <option value="45">45 min</option>
-                                <option value="60">60 min</option>
-                                <option value="90">90 min</option>
-                            </select>
-                        </div>
-                        <div className="settings-field">
-                            <label>Category</label>
-                            <input
-                                className="settings-input"
-                                placeholder="e.g. Consultation, Treatment"
-                                value={newService.category}
-                                onChange={e => setNewService({ ...newService, category: e.target.value })}
-                            />
-                        </div>
-                        <div className="settings-field" style={{ display: 'flex', alignItems: 'flex-end' }}>
-                            <Button variant="primary" type="submit" disabled={loading} style={{ width: '100%' }}>
-                                {loading ? 'Saving...' : 'Save Service'}
-                            </Button>
-                        </div>
-                    </form>
-                </Card>
-            )}
+            {/* Quick KPI Stats Row */}
+            <div className="pcd-services-kpi-grid">
+                <div className="pcd-services-kpi-card">
+                    <div className="pcd-services-kpi-icon" style={{ background: 'rgba(147, 51, 234, 0.12)', color: '#9333ea' }}>
+                        <Zap size={20} />
+                    </div>
+                    <div>
+                        <span className="pcd-services-kpi-label">Active Services</span>
+                        <div className="pcd-services-kpi-val">{services.length}</div>
+                    </div>
+                </div>
 
-            <div className="services-list grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '1.5rem' }}>
-                {services.length === 0 ? (
-                    <Card variant="default" padding="lg" style={{ textAlign: 'center', gridColumn: '1 / -1' }}>
-                        <div style={{ marginBottom: '1rem', display: 'flex', justifyContent: 'center', color: 'var(--primary)', opacity: 0.6 }}>
-                            <Sparkles size={32} />
+                <div className="pcd-services-kpi-card">
+                    <div className="pcd-services-kpi-icon" style={{ background: 'rgba(34, 197, 94, 0.12)', color: '#16a34a' }}>
+                        <IndianRupee size={20} />
+                    </div>
+                    <div>
+                        <span className="pcd-services-kpi-label">Avg. Consultation Fee</span>
+                        <div className="pcd-services-kpi-val">₹{avgPrice.toLocaleString()}</div>
+                    </div>
+                </div>
+
+                <div className="pcd-services-kpi-card">
+                    <div className="pcd-services-kpi-icon" style={{ background: 'rgba(59, 130, 246, 0.12)', color: '#2563eb' }}>
+                        <Clock size={20} />
+                    </div>
+                    <div>
+                        <span className="pcd-services-kpi-label">Standard Duration</span>
+                        <div className="pcd-services-kpi-val">30 mins</div>
+                    </div>
+                </div>
+            </div>
+
+            {/* Add Service Form Drawer */}
+            <AnimatePresence>
+                {showAdd && (
+                    <motion.div
+                        className="pcd-services-form-card"
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: 'auto' }}
+                        exit={{ opacity: 0, height: 0 }}
+                        transition={{ duration: 0.3 }}
+                    >
+                        <div className="pcd-services-form-header">
+                            <h3>Publish New Consultation Service</h3>
+                            <p>Enter service name, duration, category, and consultation fee</p>
                         </div>
-                        <p className="empty-hint">You haven't added any services yet. Clients won't be able to book you until you add at least one.</p>
-                    </Card>
-                ) : (
-                    services.map(s => (
-                        <Card key={s.id} variant="default" padding="md" className="service-item-card">
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                                <div style={{ flex: 1 }}>
-                                    {s.category && <span className="service-cat-badge">{s.category}</span>}
-                                    <h4 style={{ margin: 0, fontSize: '1.1rem', color: 'var(--text-bold)' }}>{s.name}</h4>
-                                    <p style={{ color: 'var(--text-light)', margin: '0.5rem 0 0', fontSize: '0.95rem', fontWeight: 500 }}>
-                                        <span style={{ marginRight: '12px' }}>⏱️ {s.duration} min</span>
-                                        <span style={{ color: 'var(--primary)', fontWeight: 700 }}>💰 ₹{s.price}</span>
-                                    </p>
+
+                        <form onSubmit={handleAdd} className="pcd-services-form-grid">
+                            <div className="pcd-services-field">
+                                <label><FileText size={14} /> Service Name</label>
+                                <input
+                                    required
+                                    className="pcd-services-input"
+                                    placeholder="e.g. General Health Consultation"
+                                    value={newService.name}
+                                    onChange={e => setNewService({ ...newService, name: e.target.value })}
+                                />
+                            </div>
+
+                            <div className="pcd-services-field">
+                                <label><IndianRupee size={14} /> Fee Amount (₹)</label>
+                                <input
+                                    required
+                                    type="number"
+                                    min="0"
+                                    className="pcd-services-input"
+                                    placeholder="500"
+                                    value={newService.price}
+                                    onChange={e => setNewService({ ...newService, price: e.target.value })}
+                                />
+                            </div>
+
+                            <div className="pcd-services-field">
+                                <label><Clock size={14} /> Duration</label>
+                                <div className="pcd-services-duration-pills">
+                                    {['15', '30', '45', '60', '90'].map(dur => (
+                                        <button
+                                            type="button"
+                                            key={dur}
+                                            className={`pcd-services-duration-pill ${newService.duration === dur ? 'active' : ''}`}
+                                            onClick={() => setNewService({ ...newService, duration: dur })}
+                                        >
+                                            {dur} min
+                                        </button>
+                                    ))}
                                 </div>
-                                <button
-                                    onClick={() => handleDelete(s.id)}
-                                    style={{
-                                        background: 'rgba(239, 68, 68, 0.1)',
-                                        border: 'none',
-                                        color: 'var(--danger)',
-                                        cursor: 'pointer',
-                                        padding: '8px',
-                                        borderRadius: '8px',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center'
-                                    }}
-                                    title="Delete Service"
-                                >
-                                    <Icons.Trash2 size={16} />
+                            </div>
+
+                            <div className="pcd-services-field">
+                                <label><Sparkles size={14} /> Category</label>
+                                <input
+                                    className="pcd-services-input"
+                                    placeholder="e.g. Consultation, Therapy, Checkup"
+                                    value={newService.category}
+                                    onChange={e => setNewService({ ...newService, category: e.target.value })}
+                                />
+                            </div>
+
+                            <div className="pcd-services-form-actions" style={{ gridColumn: 'span 2' }}>
+                                <button type="button" className="my-booking-btn" onClick={() => setShowAdd(false)}>
+                                    Cancel
+                                </button>
+                                <button type="submit" className="pcd-services-add-btn" disabled={loading}>
+                                    {loading ? 'Publishing...' : 'Save & Publish Service'}
                                 </button>
                             </div>
-                        </Card>
-                    ))
+                        </form>
+                    </motion.div>
                 )}
-            </div>
-        </div >
-    );
-}
+            </AnimatePresence>
 
-/* ─── Analytics Tab ──────────────────────────────── */
-function AnalyticsTab({ bookings }) {
-    const totalBookings = bookings.length;
-    const completed = bookings.filter(b => b.status === 'completed').length;
-    const cancelled = bookings.filter(b => b.status === 'cancelled').length;
-    const revenue = bookings.filter(b => b.status !== 'cancelled').reduce((s, b) => s + b.price, 0);
-
-    const calcRate = (num, den) => den === 0 ? 0 : Math.round((num / den) * 100);
-    const resolvedBookings = totalBookings - bookings.filter(b => b.status === 'pending').length;
-    const completionRate = calcRate(completed, resolvedBookings);
-    const cancelRate = calcRate(cancelled, totalBookings);
-
-    const services = {};
-    bookings.forEach(b => { services[b.service] = (services[b.service] || 0) + 1; });
-    const sorted = Object.entries(services).sort((a, b) => b[1] - a[1]);
-    const maxCount = sorted[0]?.[1] || 1;
-
-    return (
-        <div className="analytics-tab">
-            <div className="analytics-kpis">
-                {[
-                    { label: 'Total Bookings', value: totalBookings, delta: 'Lifetime', up: true },
-                    { label: 'Completion Rate', value: `${completionRate}%`, delta: 'Resolved', up: true },
-                    { label: 'Total Revenue', value: `₹${revenue.toLocaleString()}`, delta: 'Lifetime', up: true },
-                    { label: 'Cancel Rate', value: `${cancelRate}%`, delta: 'Total', up: false },
-                ].map(k => (
-                    <Card key={k.label} variant="default" className="kpi-card">
-                        <div className="kpi-value">{k.value}</div>
-                        <div className="kpi-label">{k.label}</div>
-                        <span className={`kpi-delta ${k.up ? 'kpi-delta--up' : 'kpi-delta--down'}`}>{k.delta}</span>
-                    </Card>
-                ))}
-            </div>
-
-            <Card variant="default" padding="md">
-                <h3 className="settings-section-title">Popular Services</h3>
-                <div className="service-bars">
-                    {sorted.map(([name, count]) => (
-                        <div key={name} className="service-bar-row">
-                            <span className="service-bar-name">{name}</span>
-                            <div className="service-bar-track">
-                                <div className="service-bar-fill" style={{ width: `${(count / maxCount) * 100}%` }} />
+            {/* Service Cards Grid */}
+            {services.length === 0 ? (
+                <div className="pcd-services-empty-card">
+                    <div className="pcd-services-empty-icon">
+                        <Sparkles size={36} />
+                    </div>
+                    <h3>No Consultation Services Yet</h3>
+                    <p>Add your first service offerings so clients can browse and book appointments with you.</p>
+                    <button className="pcd-services-add-btn" onClick={() => setShowAdd(true)} style={{ margin: '0 auto' }}>
+                        + Add Your First Service
+                    </button>
+                </div>
+            ) : (
+                <div className="pcd-services-grid">
+                    {services.map((s, i) => (
+                        <motion.div
+                            key={s.id}
+                            className="pcd-service-card"
+                            initial={{ opacity: 0, y: 15 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: i * 0.05 }}
+                        >
+                            {/* Card Header & Badge */}
+                            <div className="pcd-service-card-top">
+                                <span className="pcd-service-cat-badge">{s.category || 'Consultation'}</span>
+                                <span className="pcd-service-status-badge">✓ Active</span>
                             </div>
-                            <span className="service-bar-count">{count} sessions</span>
-                        </div>
+
+                            {/* Main Info */}
+                            <div className="pcd-service-card-body">
+                                <div className="pcd-service-icon-box">
+                                    <Zap size={22} />
+                                </div>
+                                <div className="pcd-service-title-wrap">
+                                    <h3>{s.name}</h3>
+                                    <div className="pcd-service-duration-line">
+                                        <Clock size={14} color="#9333ea" />
+                                        <span>{s.duration} minutes consultation</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Price & Action Row */}
+                            <div className="pcd-service-card-footer">
+                                <div>
+                                    <span className="pcd-service-fee-label">Consultation Fee</span>
+                                    <div className="pcd-service-fee-val">₹{s.price}</div>
+                                </div>
+
+                                <button
+                                    className="pcd-service-del-btn"
+                                    onClick={() => handleDelete(s.id)}
+                                    title="Delete Service"
+                                >
+                                    <Trash2 size={16} />
+                                </button>
+                            </div>
+                        </motion.div>
                     ))}
                 </div>
-            </Card>
+            )}
         </div>
     );
 }
@@ -551,32 +716,11 @@ function ReviewsTab({ reviews }) {
     return (
         <div className="reviews-tab">
             <div className="dashboard__header">
-                <div><h1>Client Reviews</h1><p>See what your customers are saying.</p></div>
+                <div><h1>Client Reviews</h1><p>See what your customers are saying about your consultation services.</p></div>
             </div>
-            <div className="reviews-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))', gap: '1.5rem' }}>
+            <div className="reviews-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(400px, 1fr))', gap: '1.5rem' }}>
                 {reviews.map((r, idx) => (
-                    <Card key={r.id || idx} variant="default" padding="md" animate delay={idx * 0.1}>
-                        <div className="review-header" style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem' }}>
-                            <div>
-                                <h4 style={{ margin: 0 }}>{r.appointment?.client?.name || 'Anonymous Client'}</h4>
-                                <div style={{ display: 'flex', gap: '2px', marginTop: '4px' }}>
-                                    {[1, 2, 3, 4, 5].map(s => (
-                                        <Star key={s} size={14} fill={s <= r.rating ? "#ffb800" : "none"} stroke={s <= r.rating ? "#ffb800" : "#ccc"} />
-                                    ))}
-                                </div>
-                            </div>
-                            <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                                {new Date(r.appointment?.date).toLocaleDateString()}
-                            </span>
-                        </div>
-                        <p style={{ margin: 0, fontSize: '0.95rem', lineHeight: 1.5, color: 'var(--text-light)' }}>
-                            {r.comment || "No comment provided."}
-                        </p>
-                        <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid var(--border)', fontSize: '0.85rem' }}>
-                            <span style={{ color: 'var(--text-muted)' }}>Service: </span>
-                            <span style={{ fontWeight: 600 }}>{r.appointment?.service?.name || "General Service"}</span>
-                        </div>
-                    </Card>
+                    <ReviewCard key={r.id || idx} review={r} />
                 ))}
             </div>
         </div>
@@ -586,21 +730,49 @@ function ReviewsTab({ reviews }) {
 /* ─── Settings Tab ───────────────────────────────── */
 function SettingsTab() {
     const { user, token, login } = useAuth();
+    const [isEditing, setIsEditing] = useState(false);
     const [formData, setFormData] = useState({
         name: user?.name || '',
         specialty: user?.providerProfile?.specialty || '',
-        phone: user?.providerProfile?.phone || '',
-        location: user?.providerProfile?.location || '',
+        phone: user?.phone || user?.providerProfile?.phone || '',
+        location: user?.location || user?.providerProfile?.location || '',
+        streetAddress: user?.streetAddress || '',
+        city: user?.city || '',
+        state: user?.state || '',
+        zipCode: user?.zipCode || '',
+        country: user?.country || 'IND',
+        latitude: user?.latitude || null,
+        longitude: user?.longitude || null,
         about: user?.providerProfile?.about || '',
     });
     const [saving, setSaving] = useState(false);
-    const [successMsg, setSuccessMsg] = useState('');
+    const [file, setFile] = useState(null);
+    const [uploading, setUploading] = useState(false);
+
+    const handleUploadDoc = async () => {
+        if (!file) {
+            toast.error('Please select a file first.');
+            return;
+        }
+        setUploading(true);
+        try {
+            const res = await providerApi.uploadVerification(file, token);
+            toast.success(res.message);
+            login(res.user, token);
+            setFile(null);
+        } catch (err) {
+            toast.error(err.message);
+        } finally {
+            setUploading(false);
+        }
+    };
 
     const handleChange = (e) => {
         setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
     };
 
-    const handleSave = async () => {
+    const handleSave = async (e) => {
+        if (e) e.preventDefault();
         if (!formData.name || !formData.specialty || !formData.about) {
             toast.error('All professional details are required!');
             return;
@@ -610,13 +782,11 @@ function SettingsTab() {
             return;
         }
         setSaving(true);
-        setSuccessMsg('');
         try {
             const updatedUser = await providerApi.updateProfile(formData, token);
             login(updatedUser, token); // Update context
             toast.success('Profile updated successfully!');
-            setSuccessMsg('Profile updated successfully!');
-            setTimeout(() => setSuccessMsg(''), 3000);
+            setIsEditing(false);
         } catch (err) {
             console.error(err);
             toast.error(`Failed: ${err.message || 'Server error'}`);
@@ -625,67 +795,292 @@ function SettingsTab() {
         }
     };
 
-    return (
-        <div className="settings-tab">
-            <div className="dashboard__header">
-                <div>
-                    <h1>Professional Settings</h1>
-                    <p>Manage your professional profile and credentials.</p>
-                </div>
-                <div className="header-actions">
-                    <ThemeToggle />
-                </div>
-            </div>
-            <Card variant="default" padding="lg" className="settings-card">
-                <h3 className="settings-section-title">Professional Information</h3>
-                <div className="settings-fields">
-                    <div className="settings-field">
-                        <label>Full Name</label>
-                        <input name="name" value={formData.name} onChange={handleChange} className="settings-input" placeholder="Your Name" />
-                    </div>
-                    <div className="settings-field">
-                        <label>Email</label>
-                        <input value={user?.email || ''} className="settings-input" readOnly />
-                    </div>
-                    <div className="settings-field">
-                        <label>Specialty</label>
-                        <input name="specialty" value={formData.specialty} onChange={handleChange} className="settings-input" placeholder="e.g. Dermatologist" />
-                    </div>
-                    <div className="settings-field">
-                        <label>Phone</label>
-                        <input name="phone" value={formData.phone} onChange={handleChange} className="settings-input" placeholder="e.g. +91 9876543210" />
-                    </div>
-                    <div className="settings-field">
-                        <label>Location</label>
-                        <input name="location" value={formData.location} onChange={handleChange} className="settings-input" placeholder="e.g. Koramangala, Bengaluru" />
-                    </div>
-                </div>
-                <div className="settings-field" style={{ marginBottom: 'var(--space-4)' }}>
-                    <label>Bio / About</label>
-                    <textarea name="about" className="auth-textarea" rows={4} value={formData.about} onChange={handleChange} placeholder="Tell patients about your experience..." style={{ width: '100%', boxSizing: 'border-box' }} />
-                </div>
-                <div className="settings-actions" style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                    <Button variant="primary" onClick={handleSave} disabled={saving}>
-                        {saving ? 'Saving...' : 'Save Changes'}
-                    </Button>
-                    {successMsg && <span style={{ color: 'var(--success)', fontWeight: '500' }}>{successMsg}</span>}
-                </div>
-            </Card>
+    const avatarUrl = user?.avatarUrl || null;
+    const initials = (user?.name || 'P').split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+    const memberSinceStr = user?.createdAt ? new Date(user.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '27 Jan 2025';
 
-            <Card variant="default" padding="lg" className="settings-card" style={{ marginTop: '2rem' }}>
-                <h3 className="settings-section-title">Notifications</h3>
-                {[
-                    { label: 'New booking requests', checked: true },
-                    { label: 'Booking confirmations', checked: true },
-                    { label: 'Cancellations', checked: true },
-                    { label: 'Review alerts', checked: false },
-                ].map(n => (
-                    <label key={n.label} className="settings-toggle">
-                        <span>{n.label}</span>
-                        <input type="checkbox" defaultChecked={n.checked} />
-                    </label>
-                ))}
-            </Card>
+    return (
+        <div className="pcd-settings-wrap animate-fade-in">
+            {/* Top Profile Header Card */}
+            <div className="pcd-settings-profile-card">
+                <div className="pcd-settings-profile-left">
+                    <div className="pcd-settings-profile-avatar">
+                        {avatarUrl
+                            ? <img src={avatarUrl} alt={user?.name} />
+                            : <span>{initials}</span>
+                        }
+                    </div>
+                    <div className="pcd-settings-profile-meta">
+                        <div className="pcd-settings-profile-name-row">
+                            <h2 className="pcd-settings-profile-name">{user?.name || '—'}</h2>
+                            {user.providerProfile?.isVerified && (
+                                <span className="pcd-settings-profile-badge">✓ Verified Provider</span>
+                            )}
+                        </div>
+                        <div className="pcd-settings-profile-start-date">
+                            <Icons.Calendar size={14} className="pcd-settings-cal-icon" />
+                            <span>Start date: {memberSinceStr}</span>
+                        </div>
+                    </div>
+                </div>
+                <button className="pcd-settings-edit-btn" onClick={() => setIsEditing(!isEditing)}>
+                    <Icons.Edit3 size={15} />
+                    <span>{isEditing ? 'View details' : 'Edit profile'}</span>
+                </button>
+            </div>
+
+            {/* Details or Edit Form Card */}
+            <div className="pcd-settings-details-card">
+                <div className="pcd-settings-details-header">
+                    <h3>Professional details</h3>
+                    {!isEditing && (
+                        <button className="pcd-settings-details-inline-edit" onClick={() => setIsEditing(true)}>
+                            <Icons.Edit3 size={14} /> Edit
+                        </button>
+                    )}
+                </div>
+
+                {isEditing ? (
+                    <form onSubmit={handleSave}>
+                        <div className="pcd-settings-edit-fields-grid">
+                            <div className="pcd-settings-edit-field">
+                                <label>Full Name</label>
+                                <input
+                                    name="name"
+                                    value={formData.name}
+                                    onChange={handleChange}
+                                    className="pcd-settings-edit-input"
+                                    placeholder="Full Name"
+                                    required
+                                />
+                            </div>
+                            <div className="pcd-settings-edit-field">
+                                <label>Email Address</label>
+                                <input value={user?.email || ''} className="pcd-settings-edit-input pcd-settings-edit-input--readonly" readOnly />
+                            </div>
+                            <div className="pcd-settings-edit-field">
+                                <label>Specialty</label>
+                                <input
+                                    name="specialty"
+                                    value={formData.specialty}
+                                    onChange={handleChange}
+                                    className="pcd-settings-edit-input"
+                                    placeholder="e.g. Dentist"
+                                    required
+                                />
+                            </div>
+                            <div className="pcd-settings-edit-field">
+                                <label>Phone Number</label>
+                                <input
+                                    name="phone"
+                                    value={formData.phone}
+                                    onChange={handleChange}
+                                    className="pcd-settings-edit-input"
+                                    placeholder="+91 88107 70036"
+                                />
+                            </div>
+                            <div className="pcd-settings-edit-field">
+                                <label>City</label>
+                                <input
+                                    name="city"
+                                    value={formData.city}
+                                    onChange={handleChange}
+                                    className="pcd-settings-edit-input"
+                                    placeholder="City"
+                                />
+                            </div>
+                            <div className="pcd-settings-edit-field">
+                                <label>State</label>
+                                <input
+                                    name="state"
+                                    value={formData.state}
+                                    onChange={handleChange}
+                                    className="pcd-settings-edit-input"
+                                    placeholder="State"
+                                />
+                            </div>
+                            <div className="pcd-settings-edit-field">
+                                <label>Office Address</label>
+                                <input
+                                    name="streetAddress"
+                                    value={formData.streetAddress}
+                                    onChange={handleChange}
+                                    className="pcd-settings-edit-input"
+                                    placeholder="Office Address"
+                                />
+                            </div>
+                            <div className="pcd-settings-edit-field">
+                                <label>Postal Code</label>
+                                <input
+                                    name="zipCode"
+                                    value={formData.zipCode}
+                                    onChange={handleChange}
+                                    className="pcd-settings-edit-input"
+                                    placeholder="Postal Code"
+                                />
+                            </div>
+                            <div className="pcd-settings-edit-field" style={{ gridColumn: 'span 2' }}>
+                                <label>About / Bio (min 50 chars)</label>
+                                <textarea
+                                    name="about"
+                                    rows={4}
+                                    value={formData.about}
+                                    onChange={handleChange}
+                                    className="pcd-settings-edit-input"
+                                    placeholder="Tell patients about your experience..."
+                                    style={{ width: '100%', boxSizing: 'border-box' }}
+                                    required
+                                />
+                            </div>
+                            <div className="pcd-settings-edit-field" style={{ gridColumn: 'span 2' }}>
+                                <MapPicker
+                                    value={{ lat: formData.latitude, lng: formData.longitude }}
+                                    onChange={(pos) => setFormData(prev => ({ ...prev, latitude: pos.lat, longitude: pos.lng }))}
+                                    onAddressUpdate={(addr) => setFormData(prev => ({
+                                        ...prev,
+                                        streetAddress: addr.street || prev.streetAddress,
+                                        city: addr.city || prev.city,
+                                        state: addr.state || prev.state,
+                                        zipCode: addr.zipCode || prev.zipCode,
+                                        country: addr.country || prev.country
+                                    }))}
+                                    label="Pin Your Office Location"
+                                />
+                            </div>
+                        </div>
+                        <div className="pcd-settings-edit-actions">
+                            <button type="button" className="cs-btn cs-btn--secondary" onClick={() => setIsEditing(false)}>Cancel</button>
+                            <button type="submit" className="cs-btn cs-btn--primary" disabled={saving}>
+                                {saving ? 'Saving...' : 'Save Changes'}
+                            </button>
+                        </div>
+                    </form>
+                ) : (
+                    <div className="pcd-settings-details-grid">
+                        <div className="pcd-settings-details-item">
+                            <div className="pcd-settings-item-icon-box">
+                                <Icons.User size={18} />
+                            </div>
+                            <div className="pcd-settings-details-info">
+                                <span className="pcd-settings-details-label">FULL NAME</span>
+                                <span className="pcd-settings-details-value">{formData.name || user?.name || '—'}</span>
+                            </div>
+                        </div>
+
+                        <div className="pcd-settings-details-item">
+                            <div className="pcd-settings-item-icon-box">
+                                <Icons.Mail size={18} />
+                            </div>
+                            <div className="pcd-settings-details-info">
+                                <span className="pcd-settings-details-label">EMAIL</span>
+                                <span className="pcd-settings-details-value">
+                                    {user?.email || '—'}
+                                </span>
+                            </div>
+                        </div>
+
+                        <div className="pcd-settings-details-item">
+                            <div className="pcd-settings-item-icon-box">
+                                <Icons.Star size={18} />
+                            </div>
+                            <div className="pcd-settings-details-info">
+                                <span className="pcd-settings-details-label">SPECIALTY</span>
+                                <span className="pcd-settings-details-value">{formData.specialty || 'Dentist'}</span>
+                            </div>
+                        </div>
+
+                        <div className="pcd-settings-details-item">
+                            <div className="pcd-settings-item-icon-box">
+                                <Icons.Phone size={18} />
+                            </div>
+                            <div className="pcd-settings-details-info">
+                                <span className="pcd-settings-details-label">NUMBER</span>
+                                <span className="pcd-settings-details-value">
+                                    {formData.phone || '—'}
+                                </span>
+                            </div>
+                        </div>
+
+                        <div className="pcd-settings-details-item">
+                            <div className="pcd-settings-item-icon-box">
+                                <Icons.FileText size={18} />
+                            </div>
+                            <div className="pcd-settings-details-info">
+                                <span className="pcd-settings-details-label">ABOUT / BIO</span>
+                                <span className="pcd-settings-details-value">{formData.about || 'Experienced dental surgeon with a focus on painless treatments.'}</span>
+                            </div>
+                        </div>
+
+                        <div className="pcd-settings-details-item">
+                            <div className="pcd-settings-item-icon-box">
+                                <Icons.Globe size={18} />
+                            </div>
+                            <div className="pcd-settings-details-info">
+                                <span className="pcd-settings-details-label">CITY / STATE</span>
+                                <span className="pcd-settings-details-value">{[formData.city, formData.state].filter(Boolean).join(', ') || 'Delhi, Delhi'}</span>
+                            </div>
+                        </div>
+
+                        <div className="pcd-settings-details-item">
+                            <div className="pcd-settings-item-icon-box">
+                                <Icons.MapPin size={18} />
+                            </div>
+                            <div className="pcd-settings-details-info">
+                                <span className="pcd-settings-details-label">OFFICE ADDRESS</span>
+                                <span className="pcd-settings-details-value">{formData.streetAddress || 'Shop 20, Main Road'}</span>
+                            </div>
+                        </div>
+
+                        <div className="pcd-settings-details-item">
+                            <div className="pcd-settings-item-icon-box">
+                                <Icons.Clock size={18} />
+                            </div>
+                            <div className="pcd-settings-details-info">
+                                <span className="pcd-settings-details-label">POSTAL CODE</span>
+                                <span className="pcd-settings-details-value">{formData.zipCode || '110001'}</span>
+                            </div>
+                        </div>
+                    </div>
+                )}
+            </div>
+
+            {/* Bottom Card: Professional Verification */}
+            <div className="pcd-settings-verify-card">
+                <div className="pcd-settings-verify-left">
+                    <div className="pcd-settings-verify-icon-wrap">
+                        <Icons.Shield size={20} />
+                    </div>
+                    <div className="pcd-settings-verify-text">
+                        <h4>Professional verification</h4>
+                        {user.providerProfile?.isVerified ? (
+                            <p className="pcd-settings-verify-success">✓ Account Verified & Credentials Approved</p>
+                        ) : (
+                            <p>Upload a certificate to build trust and unlock your "Verified" badge.</p>
+                        )}
+                    </div>
+                </div>
+
+                {!user.providerProfile?.isVerified && (
+                    <div className="pcd-settings-verify-actions">
+                        <input
+                            type="file"
+                            id="cert-upload-banner"
+                            accept=".pdf,.jpg,.jpeg,.png"
+                            onChange={(e) => setFile(e.target.files[0])}
+                            style={{ display: 'none' }}
+                        />
+                        <label htmlFor="cert-upload-banner" className="pcd-settings-cert-btn">
+                            <Icons.Upload size={15} />
+                            <span>{file ? file.name : 'Select file'}</span>
+                        </label>
+                        {file && (
+                            <button className="pcd-settings-cert-submit" onClick={handleUploadDoc} disabled={uploading}>
+                                {uploading ? 'Uploading...' : 'Submit'}
+                            </button>
+                        )}
+                    </div>
+                )}
+            </div>
         </div>
     );
 }
@@ -703,22 +1098,25 @@ export default function ProviderDashboard() {
     const [hasVisitedBookings, setHasVisitedBookings] = useState(false);
     const [unreadMessages, setUnreadMessages] = useState(0);
     const [messageTarget, setMessageTarget] = useState(null);
+    const [mapTarget, setMapTarget] = useState(null);
+    const [clientProfileTarget, setClientProfileTarget] = useState(null);
+    const [showVideoGuide, setShowVideoGuide] = useState(false);
     const [loading, setLoading] = useState(true);
     const myConnection = useSocket();
 
-    useEffect(() => {
-        if (section === 'bookings') setHasVisitedBookings(true);
-        if (section === 'messages') setUnreadMessages(0);
-        if (section === 'reviews') {
-            // we could have a review badge here if needed
-        }
-    }, [section]);
-
-    const handleNotifNavigate = (targetSection) => {
+    const handleSectionChange = useCallback((targetSection) => {
         setSection(targetSection);
         if (targetSection === 'messages') setUnreadMessages(0);
-        if (targetSection === 'bookings') setHasVisitedBookings(true);
-    };
+        if (targetSection === 'bookings') {
+            setHasVisitedBookings(true);
+            const hasPending = bookings.some(b => b.status === 'pending');
+            if (hasPending) {
+                setBookFilter('pending');
+            }
+        }
+    }, [bookings]);
+
+    const handleNotifNavigate = handleSectionChange;
 
     // Listen for live socket events to instantly badge and refresh bookings/messages
     useEffect(() => {
@@ -743,28 +1141,30 @@ export default function ProviderDashboard() {
 
     useEffect(() => {
         if (!token) return;
-        setLoading(true);
         messageApi.getConversations(token).then(data => {
             const sum = data.reduce((acc, c) => acc + c.unreadCount, 0);
             if (section !== 'messages') setUnreadMessages(sum);
         }).catch(err => console.error(err))
             .finally(() => setLoading(false));
-    }, [token, syncTick]);
+    }, [token, syncTick, section]);
 
     useEffect(() => {
-        const handleNav = (e) => setSection(e.detail);
+        const handleNav = (e) => handleSectionChange(e.detail);
         window.addEventListener('nav-dashboard', handleNav);
         return () => window.removeEventListener('nav-dashboard', handleNav);
-    }, []);
+    }, [handleSectionChange]);
 
     useEffect(() => {
         if (!token) return;
-        setLoading(true);
         appointmentApi.getMy(token).then(data => {
-            setBookings(data.map(b => ({
+            const formatted = data.map(b => ({
                 id: b.id,
-                clientId: b.client?.userId,
+                clientId: b.client?.id,
                 client: b.client?.name || 'Client',
+                clientLocation: b.serviceAddress || (b.address ? [b.address.streetAddress, b.address.city, b.address.state].filter(Boolean).join(', ') : null) || b.client?.location || [b.client?.city, b.client?.state].filter(Boolean).join(', ') || 'Not specified',
+                rawClient: b.client,
+                serviceAddress: b.serviceAddress,
+                address: b.address,
                 service: b.service?.name || 'Service',
                 date: new Date(b.date).toLocaleDateString(),
                 rawDate: new Date(b.date),
@@ -772,8 +1172,18 @@ export default function ProviderDashboard() {
                 duration: b.service?.duration || 30,
                 price: b.service?.price || 0,
                 status: b.status.toLowerCase(),
-                clientAvatar: <UserRound size={20} className="icon-muted" />
-            })));
+                note: b.note,
+                notes: b.note,
+                clientAvatar: <Icons.UserRound size={20} className="icon-muted" />,
+                latitude: b.latitude || b.client?.latitude,
+                longitude: b.longitude || b.client?.longitude,
+                location: b.serviceAddress || (b.address ? [b.address.streetAddress, b.address.city].filter(Boolean).join(', ') : null) || b.client?.location || [b.client?.streetAddress, b.client?.city].filter(Boolean).join(', ') || 'Client Location',
+                providerLat: b.provider?.user?.latitude,
+                providerLng: b.provider?.user?.longitude,
+            }));
+            setBookings(formatted);
+            const hasPending = formatted.some(b => b.status === 'pending');
+            setBookFilter(prev => (prev === 'all' && hasPending ? 'pending' : prev));
         }).catch(err => console.error(err));
 
         // Also fetch full profile to ensure services/settings are in sync
@@ -850,7 +1260,7 @@ export default function ProviderDashboard() {
                         toast.warning('Please complete your profile details first!');
                         return;
                     }
-                    setSection(id);
+                    handleSectionChange(id);
                 }}
                 navItems={[
                     { id: 'overview', icon: 'LayoutDashboard', label: 'Overview' },
@@ -860,16 +1270,17 @@ export default function ProviderDashboard() {
                     { id: 'services', icon: 'Briefcase', label: 'Services' },
                     { id: 'schedule', icon: 'Clock', label: 'My Schedule' },
                     { id: 'earnings', icon: 'CreditCard', label: 'Earnings' },
-                    { id: 'analytics', icon: 'BarChart3', label: 'Analytics' },
                     { id: 'settings', icon: 'Settings', label: 'Settings' },
                 ]}
                 footerItems={[
                     { id: 'view-profile', icon: 'User', label: 'View my profile', to: `/provider/${user?.id || 'me'}` },
+                    { id: 'guides', icon: 'PlayCircle', label: 'Watch Guides', onClick: () => setShowVideoGuide(true) },
                     { id: 'logout', icon: 'LogOut', label: 'Sign Out', onClick: () => { logout(); navigate('/'); }, className: 'sidebar__nav-item--logout' },
                 ]}
             />
 
             <main className="dashboard__main">
+                {showVideoGuide && <VideoGuideModal onClose={() => setShowVideoGuide(false)} />}
                 {loading ? (
                     <div className="dashboard__content animate-fade-in">
                         <div className="dashboard__header">
@@ -945,7 +1356,7 @@ export default function ProviderDashboard() {
                                     <div className="dashboard__content animate-fade-in">
                                         <header className="dashboard-header">
                                             <div className="header-left">
-                                                <h1>Hello, {user.name.split(' ')[0]}!</h1>
+                                                <h1>Hello, {user.name.split(' ')[0]}! {user.providerProfile?.isVerified && <Badge variant="success" style={{ marginLeft: '10px', fontSize: '0.9rem' }}>✓ Verified</Badge>}</h1>
                                                 <p className="header-date">{new Date().toLocaleDateString('en-US', { weekday: 'long', day: 'numeric', month: 'long' })}</p>
                                             </div>
                                             <div className="header-actions">
@@ -959,7 +1370,7 @@ export default function ProviderDashboard() {
                                             {[
                                                 { label: 'Total Revenue', value: `₹${totalEarnings.toLocaleString()}`, icon: <IndianRupee size={22} />, color: 'hsl(142, 70%, 40%)' },
                                                 { label: 'Upcoming', value: `₹${confirmedEarnings.toLocaleString()}`, icon: <TrendingUp size={22} />, color: 'var(--primary)' },
-                                                { label: 'Requests', value: pendingCount, icon: <Hourglass size={22} />, color: 'hsl(38, 80%, 45%)' },
+                                                { label: 'Requests', value: pendingCount, icon: <HourglassIcon size={22} />, color: 'hsl(38, 80%, 45%)' },
                                                 { label: 'Confirmed', value: confirmedCount, icon: <CheckCircle2 size={22} />, color: 'hsl(142, 70%, 40%)' },
                                             ].map((s, i) => (
                                                 <Card key={s.label} variant="default" className="stat-card" style={{ '--stat-color': s.color }} animate delay={i * 0.1}>
@@ -969,6 +1380,63 @@ export default function ProviderDashboard() {
                                                 </Card>
                                             ))}
                                         </div>
+
+                                        {/* Verification Alert Banner */}
+                                        {!user.providerProfile?.isVerified && !user.providerProfile?.verificationDocument && (
+                                            <div style={{
+                                                background: 'rgba(52, 152, 219, 0.1)',
+                                                border: '1px solid var(--primary)',
+                                                padding: '1.25rem 1.5rem',
+                                                borderRadius: '16px',
+                                                marginBottom: '2rem',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'space-between',
+                                                gap: '1.5rem',
+                                                color: 'var(--primary)',
+                                                backdropFilter: 'blur(10px)',
+                                                boxShadow: '0 8px 32px rgba(31, 38, 135, 0.1)'
+                                            }} className="animate-fade-in verification-banner">
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem' }}>
+                                                    <div style={{ background: 'var(--primary)', color: 'white', padding: '10px', borderRadius: '12px' }}>
+                                                        <ShieldAlert size={24} />
+                                                    </div>
+                                                    <div>
+                                                        <strong style={{ fontSize: '1.1rem' }}>Complete Your Professional Verification!</strong>
+                                                        <p style={{ margin: '4px 0 0', opacity: 0.9, fontSize: '0.9rem' }}>
+                                                            Upload your professional certificates to build trust with clients and unlock your "Verified" badge.
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                                <Button variant="primary" size="lg" onClick={() => setSection('settings')} style={{ whiteSpace: 'nowrap' }}>Verify Now</Button>
+                                            </div>
+                                        )}
+
+                                        {/* Verification Pending Banner */}
+                                        {!user.providerProfile?.isVerified && user.providerProfile?.verificationDocument && (
+                                            <div style={{
+                                                background: 'rgba(243, 156, 18, 0.1)',
+                                                border: '1px solid var(--warning)',
+                                                padding: '1.25rem 1.5rem',
+                                                borderRadius: '16px',
+                                                marginBottom: '2rem',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: '1.25rem',
+                                                color: 'var(--warning)',
+                                                backdropFilter: 'blur(10px)'
+                                            }} className="animate-fade-in verification-banner">
+                                                <div style={{ background: 'var(--warning)', color: 'white', padding: '10px', borderRadius: '12px' }}>
+                                                    <HourglassIcon size={24} />
+                                                </div>
+                                                <div>
+                                                    <strong style={{ fontSize: '1.1rem' }}>Verification Under Review</strong>
+                                                    <p style={{ margin: '4px 0 0', opacity: 0.9, fontSize: '0.9rem' }}>
+                                                        We are carefully reviewing your professional documents. You'll be notified immediately once approved.
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        )}
 
                                         {/* Weekly earnings chart */}
                                         <Card variant="default" padding="md" animate delay={0.4}>
@@ -998,7 +1466,18 @@ export default function ProviderDashboard() {
                                                         </div>
                                                     )
                                                     : bookings.filter(b => b.status === 'pending').map((b, i) => (
-                                                        <BookingRow key={b.id} booking={b} index={i} onAccept={accept} onDecline={decline} onComplete={complete} onMessage={() => handleMessage(b)} />
+                                                        <BookingRow
+                                                            key={b.id}
+                                                            booking={b}
+                                                            index={i}
+                                                            onAccept={accept}
+                                                            onDecline={decline}
+                                                            onComplete={complete}
+                                                            onMessage={() => handleMessage(b)}
+                                                            onShowMap={(book) => setMapTarget(book)}
+                                                            onShowClientProfile={(book) => setClientProfileTarget(book)}
+                                                            providerCoords={{ lat: user.latitude, lng: user.longitude }}
+                                                        />
                                                     ))
                                                 }
                                             </div>
@@ -1014,7 +1493,18 @@ export default function ProviderDashboard() {
                                                 {bookings.filter(b => b.status === 'confirmed' && b.date === new Date().toLocaleDateString()).length === 0
                                                     ? <p className="empty-hint">No appointments for today.</p>
                                                     : bookings.filter(b => b.status === 'confirmed' && b.date === new Date().toLocaleDateString()).map((b, i) => (
-                                                        <BookingRow key={b.id} booking={b} index={i} onAccept={accept} onDecline={decline} onComplete={complete} onMessage={() => handleMessage(b)} />
+                                                        <BookingRow
+                                                            key={b.id}
+                                                            booking={b}
+                                                            index={i}
+                                                            onAccept={accept}
+                                                            onDecline={decline}
+                                                            onComplete={complete}
+                                                            onMessage={() => handleMessage(b)}
+                                                            onShowMap={(book) => setMapTarget(book)}
+                                                            onShowClientProfile={(book) => setClientProfileTarget(book)}
+                                                            providerCoords={{ lat: user.latitude, lng: user.longitude }}
+                                                        />
                                                     ))
                                                 }
                                             </div>
@@ -1024,30 +1514,27 @@ export default function ProviderDashboard() {
                                         <div className="dashboard__section">
                                             <div className="dashboard__section-header">
                                                 <h2>My Services</h2>
-                                                <button className="see-all-btn" onClick={() => setSection('services')}>Manage →</button>
+                                                <button className="see-all-btn" onClick={() => handleSectionChange('services')}>Manage →</button>
                                             </div>
                                             <div className="services-overview-grid">
-                                                {!fullProfile?.services || fullProfile.services.length === 0 ? (
+                                                {!profile?.services || profile.services?.length === 0 ? (
                                                     <Card variant="default" padding="md" style={{ textAlign: 'center', gridColumn: '1 / -1' }}>
                                                         <p className="empty-hint">No services added yet.</p>
                                                     </Card>
                                                 ) : (
-                                                    fullProfile.services.map((s, i) => (
-                                                        <motion.div
+                                                    profile.services?.map((s) => (
+                                                        <div
                                                             key={s.id}
-                                                            className="service-mini-card"
-                                                            initial={{ opacity: 0, scale: 0.95 }}
-                                                            animate={{ opacity: 1, scale: 1 }}
-                                                            transition={{ delay: i * 0.05 }}
+                                                            className="service-mini-card animate-fade-in"
                                                         >
                                                             <div className="service-mini-icon">
-                                                                <Icons.Zap size={18} color="var(--primary)" />
+                                                                <Zap size={18} color="var(--primary)" />
                                                             </div>
                                                             <div className="service-mini-info">
                                                                 <div className="service-mini-name">{s.name}</div>
                                                                 <div className="service-mini-meta">₹{s.price} · {s.duration} min</div>
                                                             </div>
-                                                        </motion.div>
+                                                        </div>
                                                     ))
                                                 )}
                                             </div>
@@ -1057,33 +1544,65 @@ export default function ProviderDashboard() {
 
                                 {/* ── Bookings ── */}
                                 {section === 'bookings' && (
-                                    <div className="dashboard__content animate-fade-in">
-                                        <div className="dashboard__header">
-                                            <div><h1>All Bookings</h1><p>Manage incoming and past appointments.</p></div>
-                                            <div className="header-actions">
-                                                <ThemeToggle />
-                                                <NotificationBell onNavigate={handleNotifNavigate} />
+                                    <div className="dashboard__content animate-fade-in my-bookings-container">
+                                        {/* My Bookings Header Card */}
+                                        <div className="my-bookings-header">
+                                            <div className="my-bookings-header-left">
+                                                <div className="my-bookings-header-icon">
+                                                    <Calendar size={24} />
+                                                </div>
+                                                <div className="my-bookings-header-text">
+                                                    <h2>My Bookings</h2>
+                                                    <p>View and manage your service consultation bookings</p>
+                                                </div>
+                                            </div>
+
+                                            <div className="filter-bar" style={{ margin: 0 }}>
+                                                {['all', 'pending', 'confirmed', 'completed', 'cancelled'].map(f => (
+                                                    <button
+                                                        key={f}
+                                                        className={`filter-btn ${bookFilter === f ? 'filter-btn--active' : ''}`}
+                                                        onClick={() => setBookFilter(f)}
+                                                    >
+                                                        {f.charAt(0).toUpperCase() + f.slice(1)}
+                                                        <span className="filter-btn__count">{f === 'all' ? bookings.length : bookings.filter(b => b.status === f).length}</span>
+                                                    </button>
+                                                ))}
                                             </div>
                                         </div>
-                                        <div className="filter-bar">
-                                            {['all', 'pending', 'confirmed', 'completed', 'cancelled'].map(f => (
-                                                <button
-                                                    key={f}
-                                                    className={`filter-btn ${bookFilter === f ? 'filter-btn--active' : ''}`}
-                                                    onClick={() => setBookFilter(f)}
-                                                >
-                                                    {f.charAt(0).toUpperCase() + f.slice(1)}
-                                                    <span className="filter-btn__count">{f === 'all' ? bookings.length : bookings.filter(b => b.status === f).length}</span>
-                                                </button>
-                                            ))}
-                                        </div>
-                                        <div className="bookings-table">
-                                            {filtered.length === 0
-                                                ? <p className="empty-hint">No bookings here.</p>
-                                                : filtered.map((b, i) => (
-                                                    <BookingRow key={b.id} booking={b} index={i} onAccept={accept} onDecline={decline} onComplete={complete} onMessage={() => handleMessage(b)} />
-                                                ))
-                                            }
+
+                                        {/* Bookings List */}
+                                        {filtered.length === 0 ? (
+                                            <div style={{ textAlign: 'center', padding: '4rem 1rem', background: 'rgba(15, 23, 42, 0.6)', borderRadius: '16px', border: '1px solid rgba(255, 255, 255, 0.08)' }}>
+                                                <p className="empty-hint">No bookings found in this section.</p>
+                                            </div>
+                                        ) : (
+                                            filtered.map((b, i) => (
+                                                <BookingRow
+                                                    key={b.id}
+                                                    booking={b}
+                                                    index={i}
+                                                    onAccept={accept}
+                                                    onDecline={decline}
+                                                    onComplete={complete}
+                                                    onMessage={() => handleMessage(b)}
+                                                    onShowMap={(book) => setMapTarget(book)}
+                                                    onShowClientProfile={(book) => setClientProfileTarget(book)}
+                                                    providerCoords={{ lat: user.latitude, lng: user.longitude }}
+                                                />
+                                            ))
+                                        )}
+
+
+
+                                        {/* Confidentiality Footer */}
+                                        <div className="my-bookings-footer-security">
+                                            <div className="my-bookings-footer-line" />
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                                <Icons.ShieldCheck size={16} color="#64748b" />
+                                                <span>All consultations are secure and confidential</span>
+                                            </div>
+                                            <div className="my-bookings-footer-line" />
                                         </div>
                                     </div>
                                 )}
@@ -1094,7 +1613,6 @@ export default function ProviderDashboard() {
                                         <div className="dashboard__header">
                                             <div><h1>Messages</h1><p>Chat with your clients.</p></div>
                                             <div className="header-actions">
-                                                <ThemeToggle />
                                                 <NotificationBell onNavigate={handleNotifNavigate} />
                                             </div>
                                         </div>
@@ -1108,7 +1626,6 @@ export default function ProviderDashboard() {
                                         <div className="dashboard__header">
                                             <div><h1>My Schedule</h1><p>Set your working days, time slots, and block dates.</p></div>
                                             <div className="header-actions">
-                                                <ThemeToggle />
                                                 <NotificationBell onNavigate={handleNotifNavigate} />
                                             </div>
                                         </div>
@@ -1122,7 +1639,6 @@ export default function ProviderDashboard() {
                                         <div className="dashboard__header">
                                             <div><h1>Earnings</h1><p>Track your revenue over time.</p></div>
                                             <div className="header-actions">
-                                                <ThemeToggle />
                                                 <NotificationBell onNavigate={handleNotifNavigate} />
                                             </div>
                                         </div>
@@ -1130,7 +1646,7 @@ export default function ProviderDashboard() {
                                             {[
                                                 { label: 'Total Earnings', value: `₹${totalEarnings.toLocaleString()}`, icon: <IndianRupee size={22} /> },
                                                 { label: 'This Week', value: `₹${weeklyEarnings.toLocaleString()}`, icon: <CalendarDays size={22} /> },
-                                                { label: 'Pending Payout', value: `₹${pendingEarnings.toLocaleString()}`, icon: <Hourglass size={22} /> },
+                                                { label: 'Pending Payout', value: `₹${pendingEarnings.toLocaleString()}`, icon: <HourglassIcon size={22} /> },
                                             ].map((s, i) => (
                                                 <Card key={s.label} variant="default" className="stat-card" style={{ '--stat-color': 'var(--primary)' }} animate delay={i * 0.1}>
                                                     <div className="stat-card__icon">{s.icon}</div>
@@ -1177,25 +1693,11 @@ export default function ProviderDashboard() {
                                     </div>
                                 )}
 
-                                {/* ── Analytics ── */}
-                                {section === 'analytics' && (
-                                    <div className="dashboard__content animate-fade-in">
-                                        <div className="dashboard__header">
-                                            <div><h1>Analytics</h1><p>Insights about your practice performance.</p></div>
-                                            <div className="header-actions">
-                                                <ThemeToggle />
-                                                <NotificationBell onNavigate={handleNotifNavigate} />
-                                            </div>
-                                        </div>
-                                        <AnalyticsTab bookings={bookings} />
-                                    </div>
-                                )}
-
                                 {/* ── Services ── */}
                                 {section === 'services' && (
                                     <div className="dashboard__content animate-fade-in">
                                         <ServicesTab
-                                            initialServices={fullProfile?.services || []}
+                                            initialServices={profile?.services || []}
                                             onUpdate={() => setSyncTick(t => t + 1)}
                                         />
                                     </div>
@@ -1221,7 +1723,28 @@ export default function ProviderDashboard() {
                         }}
                     />
                 )}
+                <MapDirectionsModal
+                    isOpen={!!mapTarget}
+                    onClose={() => setMapTarget(null)}
+                    providerPos={{ lat: user.latitude, lng: user.longitude }}
+                    clientPos={mapTarget ? { lat: mapTarget.latitude, lng: mapTarget.longitude } : { lat: 0, lng: 0 }}
+                    clientName={mapTarget?.client || "Client"}
+                />
+                {clientProfileTarget && (
+                    <ClientProfileModal
+                        booking={clientProfileTarget}
+                        onClose={() => setClientProfileTarget(null)}
+                        onMessage={() => handleMessage(clientProfileTarget)}
+                        onShowMap={(book) => setMapTarget(book)}
+                    />
+                )}
             </main>
+
+            <AnimatePresence>
+                {showVideoGuide && (
+                    <VideoGuideModal onClose={() => setShowVideoGuide(false)} />
+                )}
+            </AnimatePresence>
         </div>
     );
 }

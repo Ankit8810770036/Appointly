@@ -1,0 +1,129 @@
+.watch-guides-tab {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    margin-top: 1rem;
+}
+
+.guides-main-player-card {
+    background: var(--bg-card);
+    border-radius: var(--radius-xl);
+    border: 1px solid var(--border);
+    padding: 1.25rem;
+    box-shadow: var(--shadow-lg);
+}
+
+.player-header-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.player-title {
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: var(--text-bold);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.player-duration {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+}
+
+.main-video-wrapper {
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    background: #000;
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    box-shadow: var(--shadow-md);
+}
+
+.player-description {
+    margin-top: 1rem;
+    font-size: 0.95rem;
+    color: var(--text);
+    line-height: 1.5;
+}
+
+.guides-grid-header {
+    margin-top: 1rem;
+}
+
+.guides-grid-header h3 {
+    margin: 0;
+    font-size: 1.15rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: var(--text-bold);
+}
+
+.guides-grid-header p {
+    margin: 2px 0 0 0;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+}
+
+.guides-cards-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 1rem;
+}
+
+.guide-card-tile {
+    cursor: pointer;
+    transition: all 0.25s ease;
+    display: flex;
+    gap: 1rem;
+    padding: 1.25rem !important;
+}
+
+.guide-card-tile:hover {
+    transform: translateY(-3px);
+}
+
+.active-guide-tile {
+    border-color: var(--primary) !important;
+    box-shadow: var(--skeuo-raised-sm) !important;
+}
+
+.guide-tile-icon {
+    width: 42px;
+    height: 42px;
+    border-radius: 12px;
+    background: var(--primary-faint);
+    color: var(--primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.active-guide-tile .guide-tile-icon {
+    background: var(--grad-primary);
+    color: white;
+}
+
+.guide-tile-content h4 {
+    margin: 0;
+    font-size: 0.95rem;
+    color: var(--text-bold);
+}
+
+.guide-tile-content p {
+    margin: 4px 0 8px 0;
+    font-size: 0.82rem;
+    color: var(--text-muted);
+    line-height: 1.4;
+}
+
+.guide-tile-badge {
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--primary);
+}
