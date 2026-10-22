@@ -1,5 +1,6 @@
 import prisma from '../prisma.js';
 import { createNotification } from '../utils/notificationHelper.js';
+import { deleteCache } from '../utils/redis.js';
 
 // @desc    Create a review for a completed appointment
 // @route   POST /api/reviews
@@ -53,7 +54,7 @@ export const createReview = async (req, res) => {
             }
         });
 
-        // 5. Update Provider Profile aggregate rating
+        // 5. Update Provider Profile aggregate rating dynamically
         const allReviews = await prisma.review.findMany({
             where: {
                 appointment: {
@@ -71,6 +72,10 @@ export const createReview = async (req, res) => {
             data: { rating: parseFloat(avgRating.toFixed(1)) },
             include: { user: true }
         });
+
+        // Invalidate cached provider catalog & stats so updated ratings reflect immediately
+        deleteCache('cache:/api/providers*').catch(() => {});
+        deleteCache('cache:/api/public/stats*').catch(() => {});
 
         // Notify Provider
         await createNotification({
@@ -93,7 +98,16 @@ export const createReview = async (req, res) => {
 // @access  Public
 export const getProviderReviews = async (req, res) => {
     try {
-        const { providerProfileId } = req.params;
+        let { providerProfileId } = req.params;
+
+        // If the ID passed is a User ID, resolve to its ProviderProfile ID
+        const profileByUser = await prisma.providerProfile.findUnique({
+            where: { userId: providerProfileId },
+            select: { id: true }
+        });
+        if (profileByUser) {
+            providerProfileId = profileByUser.id;
+        }
 
         const reviews = await prisma.review.findMany({
             where: {
@@ -105,7 +119,7 @@ export const getProviderReviews = async (req, res) => {
                 appointment: {
                     include: {
                         client: {
-                            select: { name: true }
+                            select: { name: true, avatarUrl: true }
                         }
                     }
                 }

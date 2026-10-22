@@ -8,6 +8,11 @@ export const useSound = () => {
     const audioRef = useRef({});
 
     const play = useCallback((soundName) => {
+        // Respect user silence preference: only play if explicitly enabled
+        if (typeof window !== 'undefined' && localStorage.getItem('appointly_sound_enabled') !== 'true') {
+            return;
+        }
+
         // Preload/cache the audio object if it doesn't exist
         if (!audioRef.current[soundName]) {
             const path = `/sounds/${soundName}.wav`;

@@ -1,0 +1,515 @@
+/* ── MapPicker Styling (Dark Editorial Palette) ── */
+
+.map-picker-container {
+  margin-bottom: var(--space-4, 16px);
+  position: relative;
+  font-family: inherit;
+}
+
+.map-picker-topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.map-picker-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--paper, #F4F1E8);
+  margin: 0;
+}
+
+.locate-me-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11.5px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: var(--radius, 6px);
+  background: rgba(226, 137, 47, 0.12);
+  color: var(--amber, #E2892F);
+  border: 1px solid rgba(226, 137, 47, 0.35);
+  cursor: pointer;
+  transition: all 0.18s ease;
+  user-select: none;
+}
+
+.locate-me-btn:hover:not(:disabled) {
+  background: rgba(226, 137, 47, 0.22);
+  border-color: var(--amber, #E2892F);
+  color: #FFA74F;
+  transform: translateY(-0.5px);
+}
+
+.locate-me-btn:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+/* ── Search Bar ── */
+.map-search-wrapper {
+  position: relative;
+  margin-bottom: 8px;
+}
+
+.map-search-input {
+  width: 100%;
+  height: 38px;
+  background: var(--panel, #171B22);
+  border: 1px solid var(--line, #272B34);
+  border-radius: var(--radius, 6px);
+  padding: 0 34px 0 36px;
+  font-size: 13px;
+  color: var(--paper, #F4F1E8);
+  outline: none;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease;
+}
+
+.map-search-input::placeholder {
+  color: var(--muted, #8D897D);
+}
+
+.map-search-input:focus {
+  border-color: var(--amber, #E2892F);
+  box-shadow: 0 0 0 1px var(--amber, #E2892F), 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.map-search-icon-left {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--muted, #8D897D);
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+}
+
+.map-search-icon-right {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.map-search-clear-btn {
+  background: transparent;
+  border: none;
+  color: var(--muted, #8D897D);
+  cursor: pointer;
+  padding: 3px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.15s ease, background 0.15s ease;
+}
+
+.map-search-clear-btn:hover {
+  color: var(--paper, #F4F1E8);
+  background: var(--panel-2, #1D222B);
+}
+
+/* ── Dropdown Suggestions ── */
+.map-suggestions {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  background: var(--panel, #171B22);
+  border: 1px solid var(--line, #272B34);
+  border-radius: 8px;
+  margin-top: 2px;
+  z-index: 1200;
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.65), 0 0 0 1px rgba(255, 255, 255, 0.04);
+  max-height: 220px;
+  overflow-y: auto;
+  padding: 4px 0;
+  animation: mapSuggestionsIn 0.15s ease-out;
+}
+
+@keyframes mapSuggestionsIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.map-suggestion-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 9px 12px;
+  cursor: pointer;
+  border-left: 3px solid transparent;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+  transition: background 0.12s ease, border-left 0.12s ease;
+  user-select: none;
+}
+
+.map-suggestion-item:last-child {
+  border-bottom: none;
+}
+
+.map-suggestion-item:hover,
+.map-suggestion-item.is-selected {
+  background: var(--panel-2, #1D222B);
+  border-left-color: var(--amber, #E2892F);
+}
+
+.suggestion-icon-wrap {
+  margin-top: 2px;
+  color: var(--muted, #8D897D);
+  flex-shrink: 0;
+  transition: color 0.12s ease;
+}
+
+.map-suggestion-item:hover .suggestion-icon-wrap,
+.map-suggestion-item.is-selected .suggestion-icon-wrap {
+  color: var(--amber, #E2892F);
+}
+
+.suggestion-text-wrap {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+}
+
+.suggestion-primary {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--paper, #F4F1E8);
+  line-height: 1.3;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.suggestion-secondary {
+  font-size: 11.5px;
+  color: var(--muted, #8D897D);
+  line-height: 1.3;
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ── Map Canvas Stage ── */
+.map-stage-wrapper {
+  width: 100%;
+  border-radius: var(--radius, 6px);
+  overflow: hidden;
+  border: 1px solid var(--line, #272B34);
+  position: relative;
+  background: #E8ECEF;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
+}
+
+.map-empty-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(14, 17, 22, 0.25);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 400;
+  pointer-events: none;
+}
+
+.map-empty-badge {
+  background: rgba(23, 27, 34, 0.92);
+  border: 1px solid var(--line, #272B34);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--paper, #F4F1E8);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
+}
+
+/* GPS Accuracy HUD Pill on the map */
+.map-picker-gps-hud {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 500;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(23, 27, 34, 0.92);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(226, 137, 47, 0.45);
+  color: var(--paper, #F4F1E8);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 20px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  pointer-events: none;
+  animation: mapGpsHudFade 0.2s ease-out;
+}
+
+@keyframes mapGpsHudFade {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.gps-hud-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--amber, #E2892F);
+  box-shadow: 0 0 6px var(--amber, #E2892F);
+}
+
+/* ── Live Resolved Address Pill ── */
+.map-picker-address-pill {
+  margin-top: 8px;
+  padding: 8px 12px;
+  background: var(--panel, #171B22);
+  border: 1px solid var(--line, #272B34);
+  border-radius: var(--radius, 6px);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.map-pill-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  flex: 1;
+}
+
+.map-pill-icon {
+  color: var(--amber, #E2892F);
+  flex-shrink: 0;
+}
+
+.map-pill-prefix {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--amber, #E2892F);
+  background: rgba(226, 137, 47, 0.1);
+  padding: 2px 6px;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+.map-pill-address {
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--paper, #F4F1E8);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.map-pill-loading {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-style: italic;
+  color: var(--amber, #E2892F);
+}
+
+.map-pill-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.map-pill-coords {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 11px;
+  color: var(--muted, #8D897D);
+  background: var(--panel-2, #1D222B);
+  padding: 2px 8px;
+  border-radius: 4px;
+  border: 1px solid var(--line, #272B34);
+}
+
+/* ── GPS Pulse Circle on Map (Leaflet SVG layer) ── */
+@keyframes gpsPulseAura {
+  0% {
+    stroke-opacity: 0.9;
+    stroke-width: 1.5;
+    fill-opacity: 0.22;
+  }
+  50% {
+    stroke-opacity: 0.35;
+    stroke-width: 3.2;
+    fill-opacity: 0.06;
+  }
+  100% {
+    stroke-opacity: 0.9;
+    stroke-width: 1.5;
+    fill-opacity: 0.22;
+  }
+}
+
+.gps-pulse-circle {
+  stroke: var(--amber, #E2892F) !important;
+  fill: var(--amber, #E2892F) !important;
+  animation: gpsPulseAura 2.2s ease-in-out infinite;
+}
+
+/* ── Fullscreen & Expand Button for MapPicker ── */
+.map-stage-wrapper.is-fullscreen {
+  position: fixed !important;
+  inset: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  border-radius: 0 !important;
+  border: none !important;
+  z-index: 99999 !important;
+  margin: 0 !important;
+}
+
+.map-picker-expand-btn {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 850;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: rgba(23, 27, 34, 0.92);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid var(--line, #272B34);
+  color: var(--paper, #F4F1E8);
+  font-size: 11.5px;
+  font-weight: 600;
+  padding: 5px 9px;
+  border-radius: 6px;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  transition: all 0.18s ease;
+  user-select: none;
+}
+
+.map-picker-expand-btn:hover {
+  background: var(--panel-2, #1D222B);
+  color: var(--amber, #E2892F);
+  border-color: var(--amber, #E2892F);
+  transform: translateY(-0.5px);
+}
+
+/* Fullscreen Top HUD Pill for MapPicker */
+.map-picker-fullscreen-hud {
+  position: absolute;
+  top: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 900;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(23, 27, 34, 0.94);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(226, 137, 47, 0.4);
+  color: var(--paper, #F4F1E8);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 6px 14px;
+  border-radius: 20px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  pointer-events: none;
+  animation: mapGpsHudFade 0.2s ease-out;
+}
+
+/* Cooperative gestures overlay in MapPicker */
+.map-picker-container .map-gesture-hint-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(14, 17, 22, 0.6);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  z-index: 1000;
+  pointer-events: none;
+  animation: mapGpsHudFade 0.18s ease-out;
+}
+
+.map-picker-container .map-gesture-hint-box {
+  background: var(--panel, #171B22);
+  border: 1px solid var(--line, #272B34);
+  color: var(--paper, #F4F1E8);
+  font-size: 12.5px;
+  font-weight: 600;
+  padding: 10px 18px;
+  border-radius: 20px;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.6);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  text-align: center;
+}
+
+/* ─── Light Mode Overrides for MapPicker ─── */
+html.light .map-suggestions,
+:root.light .map-suggestions,
+[data-theme='light'] .map-suggestions {
+  background: #FFFFFF !important;
+  border: 1px solid #E2E8F0 !important;
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.12) !important;
+}
+
+html.light .map-suggestion-item,
+:root.light .map-suggestion-item,
+[data-theme='light'] .map-suggestion-item {
+  border-bottom: 1px solid #F1F5F9;
+}
+
+html.light .map-suggestion-item:hover,
+html.light .map-suggestion-item.is-selected,
+:root.light .map-suggestion-item:hover,
+:root.light .map-suggestion-item.is-selected,
+[data-theme='light'] .map-suggestion-item:hover,
+[data-theme='light'] .map-suggestion-item.is-selected {
+  background: #F8FAFC !important;
+  border-left-color: #D97706 !important;
+}
+
+html.light .suggestion-primary,
+:root.light .suggestion-primary,
+[data-theme='light'] .suggestion-primary {
+  color: #0F172A !important;
+}
+
+html.light .suggestion-secondary,
+:root.light .suggestion-secondary,
+[data-theme='light'] .suggestion-secondary {
+  color: #64748B !important;
+}

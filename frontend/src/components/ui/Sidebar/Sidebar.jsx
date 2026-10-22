@@ -1,10 +1,10 @@
-import React from 'react';
+import React, { isValidElement } from 'react';
 import { Link } from 'react-router-dom';
 import {
     Sparkles, LayoutDashboard, Calendar, MessageSquare,
     Star, Briefcase, Clock, CreditCard, Settings,
     User, PlayCircle, LogOut, Home, Heart, Search,
-    CheckCircle, UserRound
+    CheckCircle, UserRound, ShieldAlert
 } from 'lucide-react';
 import './Sidebar.css';
 
@@ -12,7 +12,7 @@ const ICON_MAP = {
     Sparkles, LayoutDashboard, Calendar, MessageSquare,
     Star, Briefcase, Clock, CreditCard, Settings,
     User, PlayCircle, LogOut, Home, Heart, Search,
-    CheckCircle, UserRound
+    CheckCircle, UserRound, ShieldAlert
 };
 
 /**
@@ -35,7 +35,7 @@ const Sidebar = ({
 }) => {
 
     const renderIcon = (icon) => {
-        if (React.isValidElement(icon)) return icon;
+        if (isValidElement(icon)) return icon;
         const IconComponent = ICON_MAP[icon];
         return IconComponent ? <IconComponent size={20} /> : null;
     };
@@ -57,7 +57,13 @@ const Sidebar = ({
                 <div className="profile-avatar-wrapper">
                     <div className="avatar-glow"></div>
                     <div className="profile-avatar">
-                        {React.isValidElement(user.avatar) ? (
+                        {user.avatarUrl || (typeof user.avatar === 'string' && (user.avatar.startsWith('http') || user.avatar.startsWith('/'))) ? (
+                            <img
+                                src={user.avatarUrl || user.avatar}
+                                alt={user.name || 'Profile'}
+                                style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }}
+                            />
+                        ) : isValidElement(user.avatar) ? (
                             user.avatar
                         ) : typeof user.avatar === 'string' && user.avatar.length < 5 ? (
                             <span className="avatar-emoji">{user.avatar}</span>

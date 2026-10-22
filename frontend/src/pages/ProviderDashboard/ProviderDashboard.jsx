@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { toast } from '../../utils/toast';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -21,10 +21,12 @@ import {
     Star, Clock, Calendar, XCircle, CheckCircle, UserRound,
     Settings, Sparkles, PartyPopper, MessageCircle,
     CloudUpload, ShieldAlert, FileText, Upload, Trash2, Zap, MapPin,
-    Edit3, User, Mail, Phone, Globe, Shield, ShieldCheck
+    Edit3, User, Mail, Phone, Globe, Shield, ShieldCheck, Camera, Loader2, ExternalLink, Copy
 } from 'lucide-react';
+import { authApi } from '../../api/auth';
 import MessageModal from '../../components/modals/MessageModal/MessageModal';
 import MapDirectionsModal from '../../components/modals/MapDirectionsModal/MapDirectionsModal';
+import CancellationModal from '../../components/modals/CancellationModal/CancellationModal';
 import { reviewApi } from '../../api/reviews';
 import VideoGuideModal from '../../components/modals/VideoGuideModal/VideoGuideModal';
 import WatchGuidesTab from '../../components/dashboard/WatchGuidesTab/WatchGuidesTab';
@@ -33,6 +35,9 @@ import MapViewer from '../../components/ui/Map/MapViewer';
 import ReviewCard from '../../components/ui/ReviewCard/ReviewCard';
 import ClientProfileModal from '../../components/modals/ClientProfileModal/ClientProfileModal';
 import './ProviderDashboard.css';
+
+const API_BASE = import.meta.env.VITE_API_URL || (import.meta.env.PROD ? '/api' : 'http://localhost:5000/api');
+const API_ROOT = API_BASE === '/api' ? '' : API_BASE.replace('/api', '');
 
 // Earnings are calculated dynamically below
 
@@ -129,14 +134,31 @@ function BookingRow({ booking, onAccept, onDecline, onComplete, onMessage, onSho
                 style={{ cursor: 'pointer' }}
             >
                 <div className="my-booking-avatar">
-                    <UserRound size={22} />
+                    {booking.clientAvatarUrl ? (
+                        <img src={booking.clientAvatarUrl} alt={booking.client} className="my-booking-avatar-img" />
+                    ) : (
+                        <UserRound size={22} />
+                    )}
                 </div>
                 <div className="my-booking-details">
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
                         <h3 className="my-booking-name">{booking.client}</h3>
                         <span style={{ fontSize: '0.72rem', background: 'rgba(59, 130, 246, 0.15)', color: '#60a5fa', padding: '1px 6px', borderRadius: '4px', border: '1px solid rgba(59, 130, 246, 0.3)' }}>
                             View Profile ↗
                         </span>
+                        {booking.id && (
+                            <span
+                                className="client-booking-id-tag"
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    navigator.clipboard.writeText(booking.id);
+                                    toast.success(`Copied Booking ID: #APT-${booking.id.replace(/-/g, '').slice(0, 8).toUpperCase()}`);
+                                }}
+                                title="Click to copy Booking ID"
+                            >
+                                #APT-{booking.id.replace(/-/g, '').slice(0, 8).toUpperCase()} <Copy size={10} />
+                            </span>
+                        )}
                     </div>
                     <span className="my-booking-service">{booking.service}</span>
                     <div className="my-booking-location-row">
@@ -194,7 +216,7 @@ function BookingRow({ booking, onAccept, onDecline, onComplete, onMessage, onSho
                         <button className="my-booking-btn" onClick={() => onAccept(booking.id)}>
                             <CheckCircle size={14} /> Accept Booking
                         </button>
-                        <button className="my-booking-btn my-booking-btn--danger" onClick={() => onDecline(booking.id)}>
+                        <button className="my-booking-btn my-booking-btn--danger" onClick={() => onDecline(booking)}>
                             <XCircle size={14} /> Decline
                         </button>
                     </>
@@ -205,22 +227,37 @@ function BookingRow({ booking, onAccept, onDecline, onComplete, onMessage, onSho
                         <button className="my-booking-btn" onClick={() => onComplete(booking.id)}>
                             <CheckCircle size={14} /> Mark as Done
                         </button>
-                        <button className="my-booking-btn my-booking-btn--danger" onClick={() => onDecline(booking.id)}>
+                        <button className="my-booking-btn my-booking-btn--danger" onClick={() => onDecline(booking)}>
                             <XCircle size={14} /> Cancel Booking
                         </button>
                     </>
                 )}
 
                 {booking.status === 'completed' && (
-                    <button className="my-booking-btn" onClick={() => onMessage(booking.clientId)}>
+                    <button className="my-booking-btn" onClick={() => onMessage(booking)}>
                         <MessageCircle size={14} /> Message Client
                     </button>
                 )}
 
                 {booking.status === 'cancelled' && (
-                    <button className="my-booking-btn" onClick={() => onMessage(booking.clientId)}>
-                        <MessageCircle size={14} /> Message Client
-                    </button>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', width: '100%' }}>
+                        <button className="my-booking-btn" onClick={() => onMessage(booking)}>
+                            <MessageCircle size={14} /> Message Client
+                        </button>
+                        {booking.cancellationReason && (
+                            <div style={{
+                                fontSize: '0.74rem',
+                                color: '#f87171',
+                                background: 'rgba(239, 68, 68, 0.08)',
+                                border: '1px solid rgba(239, 68, 68, 0.2)',
+                                padding: '4px 8px',
+                                borderRadius: '6px',
+                                lineHeight: '1.3'
+                            }}>
+                                <strong>Cancelled {booking.cancelledBy ? `by ${booking.cancelledBy.toLowerCase()}` : ''}:</strong> {booking.cancellationReason}
+                            </div>
+                        )}
+                    </div>
                 )}
             </div>
         </div>
@@ -418,6 +455,8 @@ function ServicesTab({ initialServices = [], onUpdate }) {
     const [newService, setNewService] = useState({ name: '', price: '', duration: '30', category: 'Consultation' });
     const [loading, setLoading] = useState(false);
 
+    const [editingService, setEditingService] = useState(null);
+
     useEffect(() => {
         setServices(initialServices);
     }, [initialServices]);
@@ -439,6 +478,29 @@ function ServicesTab({ initialServices = [], onUpdate }) {
             toast.success('New service published successfully!');
         } catch (err) {
             toast.error(err.message || 'Failed to add service');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleSaveEdit = async (e) => {
+        e.preventDefault();
+        if (!editingService) return;
+        setLoading(true);
+        try {
+            const res = await providerApi.updateService(editingService.id, {
+                name: editingService.name,
+                price: editingService.price,
+                duration: editingService.duration,
+                category: editingService.category
+            }, token);
+            const updated = res.service || res;
+            setServices(prev => prev.map(s => s.id === updated.id ? { ...s, ...updated } : s));
+            setEditingService(null);
+            if (onUpdate) onUpdate();
+            toast.success('Service updated successfully!');
+        } catch (err) {
+            toast.error(err.message || 'Failed to update service');
         } finally {
             setLoading(false);
         }
@@ -581,12 +643,25 @@ function ServicesTab({ initialServices = [], onUpdate }) {
                                 <label><IndianRupee size={14} /> Fee Amount (₹)</label>
                                 <input
                                     required
-                                    type="number"
-                                    min="0"
+                                    type="text"
+                                    inputMode="numeric"
+                                    pattern="[0-9]*"
                                     className="pcd-services-input"
                                     placeholder="500"
                                     value={newService.price}
-                                    onChange={e => setNewService({ ...newService, price: e.target.value })}
+                                    maxLength={6}
+                                    onChange={e => {
+                                        const cleanVal = e.target.value.replace(/[^0-9]/g, '');
+                                        if (cleanVal === '') {
+                                            setNewService({ ...newService, price: '' });
+                                            return;
+                                        }
+                                        const num = Math.min(parseInt(cleanVal, 10), 100000);
+                                        setNewService({ ...newService, price: String(num) });
+                                    }}
+                                    onKeyDown={e => {
+                                        if (['e', 'E', '+', '-', '.'].includes(e.key)) e.preventDefault();
+                                    }}
                                 />
                             </div>
 
@@ -622,6 +697,89 @@ function ServicesTab({ initialServices = [], onUpdate }) {
                                 </button>
                                 <button type="submit" className="pcd-services-add-btn" disabled={loading}>
                                     {loading ? 'Publishing...' : 'Save & Publish Service'}
+                                </button>
+                            </div>
+                        </form>
+                    </motion.div>
+                )}
+
+                {/* Edit Service Form Drawer */}
+                {editingService && (
+                    <motion.div
+                        className="pcd-services-form-card"
+                        style={{ borderLeft: '3px solid #0d9488' }}
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: 'auto' }}
+                        exit={{ opacity: 0, height: 0 }}
+                        transition={{ duration: 0.3 }}
+                    >
+                        <div className="pcd-services-form-header">
+                            <h3 style={{ color: '#0d9488' }}>Edit Service Offering</h3>
+                            <p>Update service title, pricing, duration, and category</p>
+                        </div>
+
+                        <form onSubmit={handleSaveEdit} className="pcd-services-form-grid">
+                            <div className="pcd-services-field">
+                                <label><FileText size={14} /> Service Name</label>
+                                <input
+                                    required
+                                    className="pcd-services-input"
+                                    value={editingService.name}
+                                    onChange={e => setEditingService({ ...editingService, name: e.target.value })}
+                                />
+                            </div>
+
+                            <div className="pcd-services-field">
+                                <label><IndianRupee size={14} /> Fee Amount (₹)</label>
+                                <input
+                                    required
+                                    type="text"
+                                    inputMode="numeric"
+                                    pattern="[0-9]*"
+                                    className="pcd-services-input"
+                                    value={editingService.price}
+                                    maxLength={6}
+                                    onChange={e => {
+                                        const cleanVal = e.target.value.replace(/[^0-9]/g, '');
+                                        setEditingService({ ...editingService, price: cleanVal });
+                                    }}
+                                    onKeyDown={e => {
+                                        if (['e', 'E', '+', '-', '.'].includes(e.key)) e.preventDefault();
+                                    }}
+                                />
+                            </div>
+
+                            <div className="pcd-services-field">
+                                <label><Clock size={14} /> Duration</label>
+                                <div className="pcd-services-duration-pills">
+                                    {['15', '30', '45', '60', '90'].map(dur => (
+                                        <button
+                                            type="button"
+                                            key={dur}
+                                            className={`pcd-services-duration-pill ${String(editingService.duration) === dur ? 'active' : ''}`}
+                                            onClick={() => setEditingService({ ...editingService, duration: dur })}
+                                        >
+                                            {dur} min
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+
+                            <div className="pcd-services-field">
+                                <label><Sparkles size={14} /> Category</label>
+                                <input
+                                    className="pcd-services-input"
+                                    value={editingService.category || ''}
+                                    onChange={e => setEditingService({ ...editingService, category: e.target.value })}
+                                />
+                            </div>
+
+                            <div className="pcd-services-form-actions" style={{ gridColumn: 'span 2' }}>
+                                <button type="button" className="my-booking-btn" onClick={() => setEditingService(null)}>
+                                    Cancel
+                                </button>
+                                <button type="submit" className="pcd-services-add-btn" disabled={loading} style={{ background: '#0d9488' }}>
+                                    {loading ? 'Saving...' : 'Update Service'}
                                 </button>
                             </div>
                         </form>
@@ -678,13 +836,26 @@ function ServicesTab({ initialServices = [], onUpdate }) {
                                     <div className="pcd-service-fee-val">₹{s.price}</div>
                                 </div>
 
-                                <button
-                                    className="pcd-service-del-btn"
-                                    onClick={() => handleDelete(s.id)}
-                                    title="Delete Service"
-                                >
-                                    <Trash2 size={16} />
-                                </button>
+                                <div style={{ display: 'flex', gap: '8px' }}>
+                                    <button
+                                        className="pcd-service-del-btn"
+                                        style={{ color: '#0d9488' }}
+                                        onClick={() => {
+                                            setEditingService({ ...s, price: String(s.price), duration: String(s.duration) });
+                                            setShowAdd(false);
+                                        }}
+                                        title="Edit Service Details"
+                                    >
+                                        <Edit3 size={16} />
+                                    </button>
+                                    <button
+                                        className="pcd-service-del-btn"
+                                        onClick={() => handleDelete(s.id)}
+                                        title="Delete Service"
+                                    >
+                                        <Trash2 size={16} />
+                                    </button>
+                                </div>
                             </div>
                         </motion.div>
                     ))}
@@ -728,26 +899,64 @@ function ReviewsTab({ reviews }) {
 }
 
 /* ─── Settings Tab ───────────────────────────────── */
-function SettingsTab() {
-    const { user, token, login } = useAuth();
+function ProviderSettings({ onUpdate }) {
+    const { user, token, login, updateUser } = useAuth();
     const [isEditing, setIsEditing] = useState(false);
+    const [file, setFile] = useState(null);
+    const [uploading, setUploading] = useState(false);
+    const [uploadingAvatar, setUploadingAvatar] = useState(false);
+    const fileInputRef = useRef(null);
+
     const [formData, setFormData] = useState({
         name: user?.name || '',
         specialty: user?.providerProfile?.specialty || '',
-        phone: user?.phone || user?.providerProfile?.phone || '',
-        location: user?.location || user?.providerProfile?.location || '',
-        streetAddress: user?.streetAddress || '',
+        phone: user?.providerProfile?.phone || user?.phone || '',
+        about: user?.providerProfile?.about || '',
+        location: user?.providerProfile?.location || user?.location || '',
         city: user?.city || '',
         state: user?.state || '',
-        zipCode: user?.zipCode || '',
         country: user?.country || 'IND',
+        streetAddress: user?.streetAddress || '',
+        zipCode: user?.zipCode || '',
         latitude: user?.latitude || null,
         longitude: user?.longitude || null,
-        about: user?.providerProfile?.about || '',
     });
     const [saving, setSaving] = useState(false);
-    const [file, setFile] = useState(null);
-    const [uploading, setUploading] = useState(false);
+
+    const handleAvatarUpload = async (e) => {
+        const fileObj = e.target.files?.[0];
+        if (!fileObj) return;
+
+        if (!fileObj.type.startsWith('image/')) {
+            toast.error('Please select a valid image file (PNG, JPG, WEBP).');
+            return;
+        }
+
+        if (fileObj.size > 5 * 1024 * 1024) {
+            toast.error('Image size must be under 5MB.');
+            return;
+        }
+
+        const avatarFormData = new FormData();
+        avatarFormData.append('avatar', fileObj);
+
+        setUploadingAvatar(true);
+        try {
+            const res = await authApi.uploadAvatar(avatarFormData);
+            if (updateUser) {
+                updateUser({ avatarUrl: res.avatarUrl });
+            } else if (res.user) {
+                login(res.user, token);
+            }
+            toast.success('Profile photo uploaded to Cloudinary CDN successfully!');
+            if (onUpdate) onUpdate();
+        } catch (err) {
+            toast.error(err.message || 'Failed to upload profile photo');
+        } finally {
+            setUploadingAvatar(false);
+            if (fileInputRef.current) fileInputRef.current.value = '';
+        }
+    };
 
     const handleUploadDoc = async () => {
         if (!file) {
@@ -758,8 +967,13 @@ function SettingsTab() {
         try {
             const res = await providerApi.uploadVerification(file, token);
             toast.success(res.message);
-            login(res.user, token);
+            if (updateUser) {
+                updateUser(res.user);
+            } else {
+                login(res.user, token);
+            }
             setFile(null);
+            if (onUpdate) onUpdate();
         } catch (err) {
             toast.error(err.message);
         } finally {
@@ -784,9 +998,14 @@ function SettingsTab() {
         setSaving(true);
         try {
             const updatedUser = await providerApi.updateProfile(formData, token);
-            login(updatedUser, token); // Update context
+            if (updateUser) {
+                updateUser(updatedUser);
+            } else {
+                login(updatedUser, token);
+            }
             toast.success('Profile updated successfully!');
             setIsEditing(false);
+            if (onUpdate) onUpdate();
         } catch (err) {
             console.error(err);
             toast.error(`Failed: ${err.message || 'Server error'}`);
@@ -804,15 +1023,31 @@ function SettingsTab() {
             {/* Top Profile Header Card */}
             <div className="pcd-settings-profile-card">
                 <div className="pcd-settings-profile-left">
-                    <div className="pcd-settings-profile-avatar">
-                        {avatarUrl
-                            ? <img src={avatarUrl} alt={user?.name} />
-                            : <span>{initials}</span>
-                        }
+                    <div className="pcd-settings-profile-avatar-container">
+                        <div className="pcd-settings-profile-avatar">
+                            {uploadingAvatar ? (
+                                <Loader2 size={24} className="pcd-avatar-spinner" />
+                            ) : avatarUrl ? (
+                                <img src={avatarUrl} alt={user?.name} />
+                            ) : (
+                                <span>{initials}</span>
+                            )}
+                        </div>
+                        <label className="pcd-avatar-upload-badge" title="Upload new photo (Cloudinary CDN)">
+                            <Camera size={14} />
+                            <input
+                                ref={fileInputRef}
+                                type="file"
+                                accept="image/png, image/jpeg, image/webp, image/gif"
+                                style={{ display: 'none' }}
+                                onChange={handleAvatarUpload}
+                                disabled={uploadingAvatar}
+                            />
+                        </label>
                     </div>
                     <div className="pcd-settings-profile-meta">
                         <div className="pcd-settings-profile-name-row">
-                            <h2 className="pcd-settings-profile-name">{user?.name || '—'}</h2>
+                            <h2 className="pcd-settings-profile-name">{user?.name || '-'}</h2>
                             {user.providerProfile?.isVerified && (
                                 <span className="pcd-settings-profile-badge">✓ Verified Provider</span>
                             )}
@@ -963,7 +1198,7 @@ function SettingsTab() {
                             </div>
                             <div className="pcd-settings-details-info">
                                 <span className="pcd-settings-details-label">FULL NAME</span>
-                                <span className="pcd-settings-details-value">{formData.name || user?.name || '—'}</span>
+                                <span className="pcd-settings-details-value">{formData.name || user?.name || '-'}</span>
                             </div>
                         </div>
 
@@ -974,7 +1209,7 @@ function SettingsTab() {
                             <div className="pcd-settings-details-info">
                                 <span className="pcd-settings-details-label">EMAIL</span>
                                 <span className="pcd-settings-details-value">
-                                    {user?.email || '—'}
+                                    {user?.email || '-'}
                                 </span>
                             </div>
                         </div>
@@ -985,7 +1220,7 @@ function SettingsTab() {
                             </div>
                             <div className="pcd-settings-details-info">
                                 <span className="pcd-settings-details-label">SPECIALTY</span>
-                                <span className="pcd-settings-details-value">{formData.specialty || 'Dentist'}</span>
+                                <span className="pcd-settings-details-value">{formData.specialty || user?.providerProfile?.specialty || 'Specialist'}</span>
                             </div>
                         </div>
 
@@ -996,7 +1231,7 @@ function SettingsTab() {
                             <div className="pcd-settings-details-info">
                                 <span className="pcd-settings-details-label">NUMBER</span>
                                 <span className="pcd-settings-details-value">
-                                    {formData.phone || '—'}
+                                    {formData.phone || '-'}
                                 </span>
                             </div>
                         </div>
@@ -1053,9 +1288,21 @@ function SettingsTab() {
                     <div className="pcd-settings-verify-text">
                         <h4>Professional verification</h4>
                         {user.providerProfile?.isVerified ? (
-                            <p className="pcd-settings-verify-success">✓ Account Verified & Credentials Approved</p>
+                            <p className="pcd-settings-verify-success">✓ Account Verified & Approved: Profile is live and receiving client bookings.</p>
+                        ) : user.providerProfile?.verificationDocument ? (
+                            <div>
+                                <p style={{ color: 'var(--warning, #f59e0b)', marginBottom: '4px' }}>Document submitted. Awaiting Admin review to activate public profile and bookings.</p>
+                                <a
+                                    href={user.providerProfile.verificationDocument.startsWith('http') ? user.providerProfile.verificationDocument : `${API_ROOT}/${user.providerProfile.verificationDocument}`}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    style={{ fontSize: '0.82rem', color: '#6366f1', textDecoration: 'underline', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                                >
+                                    View Current Document <ExternalLink size={12} />
+                                </a>
+                            </div>
                         ) : (
-                            <p>Upload a certificate to build trust and unlock your "Verified" badge.</p>
+                            <p>Upload a certificate/license (PDF or Image) to get verified by Admin. Unverified profiles remain hidden from client search and bookings.</p>
                         )}
                     </div>
                 </div>
@@ -1071,11 +1318,11 @@ function SettingsTab() {
                         />
                         <label htmlFor="cert-upload-banner" className="pcd-settings-cert-btn">
                             <Upload size={15} />
-                            <span>{file ? file.name : 'Select file'}</span>
+                            <span>{file ? file.name : (user.providerProfile?.verificationDocument ? 'Re-upload PDF / Doc' : 'Select PDF / Document')}</span>
                         </label>
                         {file && (
                             <button className="pcd-settings-cert-submit" onClick={handleUploadDoc} disabled={uploading}>
-                                {uploading ? 'Uploading...' : 'Submit'}
+                                {uploading ? 'Uploading...' : 'Submit for Approval'}
                             </button>
                         )}
                     </div>
@@ -1100,14 +1347,16 @@ export default function ProviderDashboard() {
     const [messageTarget, setMessageTarget] = useState(null);
     const [mapTarget, setMapTarget] = useState(null);
     const [clientProfileTarget, setClientProfileTarget] = useState(null);
+    const [cancellingBooking, setCancellingBooking] = useState(null);
     const [showVideoGuide, setShowVideoGuide] = useState(false);
     const [loading, setLoading] = useState(true);
     const myConnection = useSocket();
 
     const handleSectionChange = useCallback((targetSection) => {
-        setSection(targetSection);
-        if (targetSection === 'messages') setUnreadMessages(0);
-        if (targetSection === 'bookings') {
+        const mapped = targetSection === 'appointments' ? 'bookings' : targetSection;
+        setSection(mapped);
+        if (mapped === 'messages') setUnreadMessages(0);
+        if (mapped === 'bookings') {
             setHasVisitedBookings(true);
             const hasPending = bookings.some(b => b.status === 'pending');
             if (hasPending) {
@@ -1157,21 +1406,36 @@ export default function ProviderDashboard() {
     useEffect(() => {
         if (!token) return;
         appointmentApi.getMy(token).then(data => {
-            const formatted = data.map(b => ({
-                id: b.id,
-                clientId: b.client?.id,
-                client: b.client?.name || 'Client',
-                clientLocation: b.serviceAddress || (b.address ? [b.address.streetAddress, b.address.city, b.address.state].filter(Boolean).join(', ') : null) || b.client?.location || [b.client?.city, b.client?.state].filter(Boolean).join(', ') || 'Not specified',
-                rawClient: b.client,
-                serviceAddress: b.serviceAddress,
-                address: b.address,
-                service: b.service?.name || 'Service',
-                date: new Date(b.date).toLocaleDateString(),
-                rawDate: new Date(b.date),
-                time: new Date(b.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-                duration: b.service?.duration || 30,
+            const pad = (n) => String(n).padStart(2, '0');
+            const formatted = data.map(b => {
+                const bDate = new Date(b.date);
+                const hours = pad(bDate.getUTCHours());
+                const minutes = pad(bDate.getUTCMinutes());
+                const hNum = parseInt(hours, 10);
+                const period = hNum >= 12 ? 'PM' : 'AM';
+                const h12 = hNum % 12 === 0 ? 12 : hNum % 12;
+                const timeFormatted = `${h12}:${minutes} ${period}`;
+                const dateFormatted = `${bDate.getUTCFullYear()}-${pad(bDate.getUTCMonth() + 1)}-${pad(bDate.getUTCDate())}`;
+
+                return {
+                    id: b.id,
+                    clientId: b.client?.id,
+                    client: b.client?.name || 'Client',
+                    clientAvatarUrl: b.client?.avatarUrl || null,
+                    clientLocation: b.serviceAddress || (b.address ? [b.address.streetAddress, b.address.city, b.address.state].filter(Boolean).join(', ') : null) || b.client?.location || [b.client?.city, b.client?.state].filter(Boolean).join(', ') || 'Not specified',
+                    rawClient: b.client,
+                    serviceAddress: b.serviceAddress,
+                    address: b.address,
+                    service: b.service?.name || 'Service',
+                    date: dateFormatted,
+                    rawDate: bDate,
+                    time: timeFormatted,
+                    duration: b.service?.duration || 30,
                 price: b.service?.price || 0,
                 status: b.status.toLowerCase(),
+                cancellationReason: b.cancellationReason,
+                cancelledBy: b.cancelledBy,
+                cancelledAt: b.cancelledAt,
                 note: b.note,
                 notes: b.note,
                 clientAvatar: <UserRound size={20} className="icon-muted" />,
@@ -1180,7 +1444,8 @@ export default function ProviderDashboard() {
                 location: b.serviceAddress || (b.address ? [b.address.streetAddress, b.address.city].filter(Boolean).join(', ') : null) || b.client?.location || [b.client?.streetAddress, b.client?.city].filter(Boolean).join(', ') || 'Client Location',
                 providerLat: b.provider?.user?.latitude,
                 providerLng: b.provider?.user?.longitude,
-            }));
+            };
+        });
             setBookings(formatted);
             const hasPending = formatted.some(b => b.status === 'pending');
             setBookFilter(prev => (prev === 'all' && hasPending ? 'pending' : prev));
@@ -1206,13 +1471,17 @@ export default function ProviderDashboard() {
     };
 
     const accept = id => handleAction(id, 'confirmed');
-    const decline = id => handleAction(id, 'cancelled');
+    const decline = booking => setCancellingBooking(booking);
     const complete = id => handleAction(id, 'completed');
 
-    const handleMessage = (booking) => {
+    const handleMessage = (target) => {
+        if (!target) return;
+        const b = typeof target === 'object' ? target : bookings.find(item => item.clientId === target || item.id === target) || {};
         setMessageTarget({
-            id: booking.clientId,
-            name: booking.client
+            id: b.clientId || (typeof target === 'string' ? target : null),
+            name: b.client || 'Client',
+            avatarUrl: b.clientAvatarUrl || null,
+            title: 'Client'
         });
     };
 
@@ -1252,7 +1521,8 @@ export default function ProviderDashboard() {
                 user={{
                     name: user?.name || 'Provider',
                     email: user?.email || '',
-                    avatar: '🧑‍💼'
+                    avatar: user?.avatarUrl || '🧑‍💼',
+                    avatarUrl: user?.avatarUrl
                 }}
                 activeSection={section}
                 onNav={(id) => {
@@ -1273,7 +1543,7 @@ export default function ProviderDashboard() {
                     { id: 'settings', icon: 'Settings', label: 'Settings' },
                 ]}
                 footerItems={[
-                    { id: 'view-profile', icon: 'User', label: 'View my profile', to: `/provider/${user?.id || 'me'}` },
+                    { id: 'view-profile', icon: 'User', label: 'View my profile', to: `/provider/${user?.id || user?.providerProfile?.id || 'me'}` },
                     { id: 'guides', icon: 'PlayCircle', label: 'Watch Guides', onClick: () => setShowVideoGuide(true) },
                     { id: 'logout', icon: 'LogOut', label: 'Sign Out', onClick: () => { logout(); navigate('/'); }, className: 'sidebar__nav-item--logout' },
                 ]}
@@ -1334,7 +1604,7 @@ export default function ProviderDashboard() {
                                 gap: '1rem',
                                 color: 'var(--warning-dark)'
                             }}>
-                                <span style={{ fontSize: '1.5rem' }}>⚠️</span>
+                                <ShieldAlert size={24} style={{ flexShrink: 0 }} />
                                 <div>
                                     <strong>Finalize your profile!</strong>
                                     <p style={{ margin: 0, opacity: 0.8, fontSize: '0.9rem' }}>
@@ -1362,7 +1632,7 @@ export default function ProviderDashboard() {
                                             <div className="header-actions">
                                                 <ThemeToggle />
                                                 <NotificationBell onNavigate={handleNotifNavigate} />
-                                                <Button variant="primary" onClick={() => navigate(`/provider/${user.id}`)}>View Public Profile</Button>
+                                                <Button variant="primary" onClick={() => navigate(`/provider/${user?.id || user?.providerProfile?.id || 'me'}`)}>View Public Profile</Button>
                                             </div>
                                         </header>
                                         {/* KPI row */}
@@ -1404,11 +1674,11 @@ export default function ProviderDashboard() {
                                                     <div>
                                                         <strong style={{ fontSize: '1.1rem' }}>Complete Your Professional Verification!</strong>
                                                         <p style={{ margin: '4px 0 0', opacity: 0.9, fontSize: '0.9rem' }}>
-                                                            Upload your professional certificates to build trust with clients and unlock your "Verified" badge.
+                                                            Upload your certificate/license PDF. Your profile is hidden from client searches and cannot accept bookings until approved by an admin.
                                                         </p>
                                                     </div>
                                                 </div>
-                                                <Button variant="primary" size="lg" onClick={() => setSection('settings')} style={{ whiteSpace: 'nowrap' }}>Verify Now</Button>
+                                                <Button variant="primary" size="lg" onClick={() => setSection('settings')} style={{ whiteSpace: 'nowrap' }}>Upload PDF & Verify</Button>
                                             </div>
                                         )}
 
@@ -1430,9 +1700,9 @@ export default function ProviderDashboard() {
                                                     <HourglassIcon size={24} />
                                                 </div>
                                                 <div>
-                                                    <strong style={{ fontSize: '1.1rem' }}>Verification Under Review</strong>
+                                                    <strong style={{ fontSize: '1.1rem' }}>Verification Under Administrative Review</strong>
                                                     <p style={{ margin: '4px 0 0', opacity: 0.9, fontSize: '0.9rem' }}>
-                                                        We are carefully reviewing your professional documents. You'll be notified immediately once approved.
+                                                        Your credential document is currently being reviewed by our administration team. Your profile will be publicly listed for client bookings as soon as it is approved.
                                                     </p>
                                                 </div>
                                             </div>
@@ -1642,7 +1912,7 @@ export default function ProviderDashboard() {
                                                 <NotificationBell onNavigate={handleNotifNavigate} />
                                             </div>
                                         </div>
-                                        <div className="stats-grid" style={{ gridTemplateColumns: 'repeat(3, 1fr)' }}>
+                                        <div className="stats-grid stats-grid--3">
                                             {[
                                                 { label: 'Total Earnings', value: `₹${totalEarnings.toLocaleString()}`, icon: <IndianRupee size={22} /> },
                                                 { label: 'This Week', value: `₹${weeklyEarnings.toLocaleString()}`, icon: <CalendarDays size={22} /> },
@@ -1657,7 +1927,7 @@ export default function ProviderDashboard() {
                                         </div>
                                         <Card variant="default" padding="md" animate delay={0.4}>
                                             <div className="chart-header">
-                                                <h3 className="settings-section-title" style={{ margin: 0 }}>Daily Earnings — This Week</h3>
+                                                <h3 className="settings-section-title" style={{ margin: 0 }}>Daily Earnings: This Week</h3>
                                                 <span className="chart-total">₹{weeklyEarnings.toLocaleString()}</span>
                                             </div>
                                             <EarningsChart data={dynamicWeeklyEarnings} />
@@ -1706,7 +1976,7 @@ export default function ProviderDashboard() {
                                 {/* ── Settings ── */}
                                 {section === 'settings' && (
                                     <div className="dashboard__content animate-fade-in">
-                                        <SettingsTab />
+                                        <ProviderSettings onUpdate={() => setSyncTick(t => t + 1)} />
                                     </div>
                                 )}
                             </>
@@ -1736,6 +2006,14 @@ export default function ProviderDashboard() {
                         onClose={() => setClientProfileTarget(null)}
                         onMessage={() => handleMessage(clientProfileTarget)}
                         onShowMap={(book) => setMapTarget(book)}
+                    />
+                )}
+                {cancellingBooking && (
+                    <CancellationModal
+                        appointment={cancellingBooking}
+                        userRole="PROVIDER"
+                        onClose={() => setCancellingBooking(null)}
+                        onSuccess={() => setSyncTick(t => t + 1)}
                     />
                 )}
             </main>

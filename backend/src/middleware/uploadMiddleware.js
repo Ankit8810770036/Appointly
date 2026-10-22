@@ -45,6 +45,63 @@ export const upload = multer({
     }
 });
 
+// Memory storage for avatar images direct-streamed to Cloudinary
+const avatarFileFilter = (req, file, cb) => {
+    const allowedMimes = new Set(['image/jpeg', 'image/png', 'image/jpg', 'image/webp', 'image/gif']);
+    const ext = path.extname(file.originalname).toLowerCase();
+    const allowedExts = new Set(['.jpg', '.jpeg', '.png', '.webp', '.gif']);
+
+    if (allowedMimes.has(file.mimetype.toLowerCase()) && allowedExts.has(ext)) {
+        return cb(null, true);
+    }
+    const error = new Error('Invalid file format. Please upload a JPEG, PNG, WEBP, or GIF image.');
+    error.statusCode = 400;
+    cb(error);
+};
+
+export const uploadAvatarMiddleware = multer({
+    storage: multer.memoryStorage(),
+    fileFilter: avatarFileFilter,
+    limits: {
+        fileSize: 5 * 1024 * 1024, // 5MB max
+        files: 1
+    }
+});
+
+export const uploadDocMiddleware = multer({
+    storage: multer.memoryStorage(),
+    fileFilter: fileFilter,
+    limits: {
+        fileSize: 10 * 1024 * 1024, // 10MB max for documents
+        files: 1
+    }
+});
+
+/**
+ * Validates a buffer's binary magic numbers (file signature).
+ * Returns true if the header matches JPEG, PNG, WEBP, or PDF signatures.
+ */
+export const validateBufferSignature = (buffer) => {
+    try {
+        if (!buffer || buffer.length < 4) return false;
+        const hex = buffer.subarray(0, 8).toString('hex').toLowerCase();
+
+        // JPEG: ffd8ff
+        const isJpeg = hex.startsWith('ffd8ff');
+        // PNG: 89504e47
+        const isPng = hex.startsWith('89504e47');
+        // PDF: 25504446 (%PDF)
+        const isPdf = hex.startsWith('25504446');
+        // WEBP: 52494646 (RIFF)
+        const isWebp = hex.startsWith('52494646');
+
+        return isJpeg || isPng || isPdf || isWebp;
+    } catch (err) {
+        console.error('[validateBufferSignature Error]:', err);
+        return false;
+    }
+};
+
 /**
  * Validates the file's binary magic numbers (file signature) on disk.
  * Returns true if the file header matches JPEG, PNG, or PDF signatures.
@@ -72,4 +129,6 @@ export const validateFileSignature = (filePath) => {
         return false;
     }
 };
+
+
 

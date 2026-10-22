@@ -1,10 +1,11 @@
 /* ─── Editorial Directory Card ─────────────────────────────────────── */
 .card {
-    border-radius: var(--radius, 6px);
+    border-radius: 14px;
     background: var(--panel, #171B22);
     border: 1px solid var(--line, #272B34);
+    box-shadow: 0 4px 18px -2px rgba(0, 0, 0, 0.28);
     overflow: hidden;
-    transition: border-color .15s ease, background-color .15s ease;
+    transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
 }
 
 /* Padding variants */
@@ -32,20 +33,64 @@
 
 .card--elevated {
     background: var(--panel-2, #1D222B);
-    border: 1px solid var(--line, #272B34);
+    border: 1px solid rgba(255, 255, 255, 0.09);
+    box-shadow: 0 8px 30px -4px rgba(0, 0, 0, 0.4);
 }
 
 .card--bordered {
     background: var(--panel, #171B22);
-    border: 1px solid var(--line, #272B34);
+    border: 1px solid rgba(255, 255, 255, 0.12);
 }
 
 .card--glass {
-    background: var(--panel, #171B22);
-    border: 1px solid var(--line, #272B34);
+    background: rgba(23, 27, 34, 0.85);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 /* Hover */
 .card--hover:hover {
-    border-color: #3d4250;
+    transform: translateY(-2px);
+    border-color: rgba(226, 137, 47, 0.35);
+    box-shadow: 0 10px 28px -4px rgba(0, 0, 0, 0.45);
+}
+
+/* Light mode overrides */
+html.light .card,
+:root.light .card {
+    background: #FFFFFF;
+    border-color: #E2E8F0;
+    box-shadow: 0 4px 16px -2px rgba(0, 0, 0, 0.06);
+}
+
+html.light .card--default,
+:root.light .card--default {
+    background: #FFFFFF;
+    border-color: #E2E8F0;
+}
+
+html.light .card--elevated,
+:root.light .card--elevated {
+    background: #FFFFFF;
+    border-color: #E2E8F0;
+    box-shadow: 0 10px 30px -4px rgba(0, 0, 0, 0.08);
+}
+
+html.light .card--bordered,
+:root.light .card--bordered {
+    background: #FFFFFF;
+    border-color: #CBD5E1;
+}
+
+html.light .card--glass,
+:root.light .card--glass {
+    background: rgba(255, 255, 255, 0.88);
+    border-color: rgba(0, 0, 0, 0.08);
+}
+
+html.light .card--hover:hover,
+:root.light .card--hover:hover {
+    box-shadow: 0 12px 30px -4px rgba(0, 0, 0, 0.12);
+    border-color: var(--primary);
 }

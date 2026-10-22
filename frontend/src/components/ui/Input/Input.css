@@ -121,3 +121,37 @@
 .input-message--hint {
     color: var(--muted, #8D897D);
 }
+
+/* Light mode overrides */
+html.light .input-label,
+:root.light .input-label {
+    color: #0F172A;
+}
+
+html.light .input-field,
+:root.light .input-field {
+    color: #0F172A;
+    background: #FFFFFF;
+    border-color: #CBD5E1;
+}
+
+html.light .input-field::placeholder,
+:root.light .input-field::placeholder {
+    color: #94A3B8;
+}
+
+html.light .input-field:focus,
+:root.light .input-field:focus {
+    background: #FFFFFF;
+    border-color: var(--primary);
+}
+
+html.light .input-field:hover:not(:focus):not(:disabled),
+:root.light .input-field:hover:not(:focus):not(:disabled) {
+    border-color: #94A3B8;
+}
+
+html.light .input-password-toggle:hover,
+:root.light .input-password-toggle:hover {
+    color: #0F172A;
+}

@@ -5,6 +5,7 @@ import { sendWelcomeEmail, sendPasswordResetEmail, sendVerificationEmail } from 
 import smsService from '../utils/smsService.js';
 import crypto from 'crypto';
 import { OAuth2Client } from 'google-auth-library';
+import { uploadImageStream, isCloudinaryConfigured } from '../utils/cloudinary.js';
 
 const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
@@ -152,9 +153,12 @@ export const registerUser = async (req, res) => {
         });
 
         // Cleanup OTPs
-        await prisma.signupOtp.deleteMany({
-            where: { identifier: { in: [email, phone] } }
-        });
+        const identifiersToClean = [normalizedEmail, normalizedPhone].filter(Boolean);
+        if (identifiersToClean.length > 0) {
+            await prisma.signupOtp.deleteMany({
+                where: { identifier: { in: identifiersToClean } }
+            });
+        }
 
         if (user) {
             // Send Welcome Email (Async, don't block response)
@@ -165,12 +169,19 @@ export const registerUser = async (req, res) => {
                 name: user.name,
                 email: user.email,
                 role: user.role,
-                isEmailVerified: user.isEmailVerified,
-                isPhoneVerified: user.isPhoneVerified,
+                phone: user.phone,
+                location: user.location,
                 streetAddress: user.streetAddress,
                 city: user.city,
                 state: user.state,
                 zipCode: user.zipCode,
+                country: user.country,
+                latitude: user.latitude,
+                longitude: user.longitude,
+                createdAt: user.createdAt,
+                avatarUrl: user.avatarUrl || null,
+                isEmailVerified: user.isEmailVerified,
+                isPhoneVerified: user.isPhoneVerified,
                 providerProfile: user.providerProfile,
                 token: generateAccessToken(user.id),
                 accessToken: generateAccessToken(user.id),
@@ -191,7 +202,10 @@ export const registerUser = async (req, res) => {
 export const loginUser = async (req, res) => {
     try {
         const { email, password, role } = req.body;
-        const normalizedEmail = email?.toLowerCase().trim();
+        if (!email || !password) {
+            return res.status(400).json({ message: 'Email and password are required' });
+        }
+        const normalizedEmail = email.toLowerCase().trim();
 
         const user = await prisma.user.findUnique({
             where: { email: normalizedEmail },
@@ -220,12 +234,19 @@ export const loginUser = async (req, res) => {
                 name: user.name,
                 email: user.email,
                 role: user.role,
-                isEmailVerified: user.isEmailVerified,
-                isPhoneVerified: user.isPhoneVerified,
+                phone: user.phone,
+                location: user.location,
                 streetAddress: user.streetAddress,
                 city: user.city,
                 state: user.state,
                 zipCode: user.zipCode,
+                country: user.country,
+                latitude: user.latitude,
+                longitude: user.longitude,
+                createdAt: user.createdAt,
+                avatarUrl: user.avatarUrl || null,
+                isEmailVerified: user.isEmailVerified,
+                isPhoneVerified: user.isPhoneVerified,
                 providerProfile: user.providerProfile,
                 token: generateAccessToken(user.id),
                 accessToken: generateAccessToken(user.id),
@@ -252,12 +273,19 @@ export const getMe = async (req, res) => {
                 name: true,
                 email: true,
                 role: true,
-                isEmailVerified: true,
-                isPhoneVerified: true,
+                phone: true,
+                location: true,
                 streetAddress: true,
                 city: true,
                 state: true,
                 zipCode: true,
+                country: true,
+                latitude: true,
+                longitude: true,
+                avatarUrl: true,
+                createdAt: true,
+                isEmailVerified: true,
+                isPhoneVerified: true,
                 providerProfile: {
                     include: {
                         services: true
@@ -287,20 +315,27 @@ export const updateMe = async (req, res) => {
             where: { id: req.user.id },
             data: {
                 name, phone, location, streetAddress, city, state, zipCode, country,
-                latitude: latitude ? parseFloat(latitude) : undefined,
-                longitude: longitude ? parseFloat(longitude) : undefined
+                latitude: latitude !== undefined ? (latitude ? parseFloat(latitude) : null) : undefined,
+                longitude: longitude !== undefined ? (longitude ? parseFloat(longitude) : null) : undefined
             },
             select: {
                 id: true,
                 name: true,
                 email: true,
                 role: true,
-                isEmailVerified: true,
-                isPhoneVerified: true,
+                phone: true,
+                location: true,
                 streetAddress: true,
                 city: true,
                 state: true,
                 zipCode: true,
+                country: true,
+                latitude: true,
+                longitude: true,
+                avatarUrl: true,
+                createdAt: true,
+                isEmailVerified: true,
+                isPhoneVerified: true,
                 providerProfile: {
                     include: {
                         services: true
@@ -654,6 +689,17 @@ export const googleLogin = async (req, res) => {
             email: user.email,
             role: user.role,
             isNewUser,
+            phone: user.phone,
+            location: user.location,
+            streetAddress: user.streetAddress,
+            city: user.city,
+            state: user.state,
+            zipCode: user.zipCode,
+            country: user.country,
+            latitude: user.latitude,
+            longitude: user.longitude,
+            createdAt: user.createdAt,
+            avatarUrl: user.avatarUrl || null,
             isEmailVerified: user.isEmailVerified,
             isPhoneVerified: user.isPhoneVerified,
             providerProfile: user.providerProfile,
@@ -664,5 +710,71 @@ export const googleLogin = async (req, res) => {
     } catch (error) {
         console.error('Google Login Error:', error);
         res.status(401).json({ message: 'Google authentication failed' });
+    }
+};
+
+// @desc    Upload user/provider avatar to Cloudinary CDN
+// @route   POST /api/auth/upload-avatar
+// @access  Private
+export const uploadAvatar = async (req, res) => {
+    try {
+        if (!req.file) {
+            return res.status(400).json({ message: 'Please select an image file to upload' });
+        }
+
+        const user = await prisma.user.findUnique({ where: { id: req.user.id } });
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+
+        if (!isCloudinaryConfigured()) {
+            return res.status(500).json({
+                message: 'Cloudinary is not configured. Please add CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, and CLOUDINARY_API_SECRET to backend/.env'
+            });
+        }
+
+        // Stream upload to Cloudinary with face-gravity crop & auto-format
+        const uploadResult = await uploadImageStream(req.file.buffer, {
+            folder: `appointly/avatars/${req.user.id}`
+        });
+
+        // Update user avatar in DB
+        const updatedUser = await prisma.user.update({
+            where: { id: req.user.id },
+            data: { avatarUrl: uploadResult.secureUrl },
+            select: {
+                id: true,
+                name: true,
+                email: true,
+                role: true,
+                avatarUrl: true,
+                phone: true,
+                location: true,
+                streetAddress: true,
+                city: true,
+                state: true,
+                zipCode: true,
+                country: true,
+                latitude: true,
+                longitude: true,
+                createdAt: true,
+                isEmailVerified: true,
+                isPhoneVerified: true,
+                providerProfile: {
+                    include: {
+                        services: true
+                    }
+                }
+            }
+        });
+
+        res.json({
+            message: 'Profile photo updated successfully',
+            avatarUrl: uploadResult.secureUrl,
+            user: updatedUser
+        });
+    } catch (error) {
+        console.error('Avatar upload error:', error);
+        res.status(500).json({ message: error.message || 'Failed to upload profile picture' });
     }
 };

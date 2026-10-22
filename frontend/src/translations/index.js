@@ -13,10 +13,10 @@ export const translations = {
         contact_us: "Contact Us",
 
         // Hero Section
-        hero_badge: "🎉 Now in {cities}+ cities",
+        hero_badge: "Now in {cities}+ cities",
         hero_title_1: "Book any service,",
         hero_title_highlight: "anywhere, anytime.",
-        hero_subtitle: "Connect with thousands of verified professionals — health, beauty, home, fitness & more.",
+        hero_subtitle: "Connect with verified professionals for health, home services, fitness, and more.",
         search_placeholder_service: "Service",
         search_placeholder_location: "Location",
         search_placeholder_name: "Provider Name",
@@ -36,7 +36,7 @@ export const translations = {
         step_1_title: "Search",
         step_1_desc: "Find the perfect professional by service or location.",
         step_2_title: "Book",
-        step_2_desc: "Pick an available slot and confirm in seconds — no phone calls.",
+        step_2_desc: "Pick an available slot and confirm in seconds without phone calls.",
         step_3_title: "Get Served",
         step_3_desc: "Receive a confirmation, reminders, and show up worry-free.",
 
@@ -59,10 +59,10 @@ export const translations = {
         contact_us: "संपर्क करें",
 
         // Hero Section
-        hero_badge: "🎉 अब {cities}+ शहरों में",
+        hero_badge: "अब {cities}+ शहरों में",
         hero_title_1: "कोई भी सेवा बुक करें,",
         hero_title_highlight: "कहीं भी, कभी भी।",
-        hero_subtitle: "हजारों सत्यापित पेशेवरों से जुड़ें — स्वास्थ्य, सौंदर्य, घर, फिटनेस और बहुत कुछ।",
+        hero_subtitle: "सत्यापित पेशेवरों से जुड़ें: स्वास्थ्य, सौंदर्य, घर, फिटनेस और बहुत कुछ।",
         search_placeholder_service: "सेवा",
         search_placeholder_location: "स्थान",
         search_placeholder_name: "प्रदाता का नाम",
@@ -82,7 +82,7 @@ export const translations = {
         step_1_title: "खोजें",
         step_1_desc: "सेवा या स्थान के आधार पर सही पेशेवर खोजें।",
         step_2_title: "बुक करें",
-        step_2_desc: "एक उपलब्ध स्लॉट चुनें और सेकंड में पुष्टि करें — कोई फोन कॉल नहीं।",
+        step_2_desc: "एक उपलब्ध स्लॉट चुनें और सेकंड में पुष्टि करें, बिना किसी फोन कॉल के।",
         step_3_title: "सेवा प्राप्त करें",
         step_3_desc: "पुष्टि, रिमाइंडर प्राप्त करें और चिंता मुक्त होकर पहुंचें।",
 

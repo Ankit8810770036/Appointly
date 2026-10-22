@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { toast } from '../../../utils/toast';
 import Button from '../../ui/Button/Button';
-import { MessageSquare, Send, X } from 'lucide-react';
+import { MessageSquare, Send, X, AlertTriangle } from 'lucide-react';
 import './MessageModal.css';
 import { messageApi } from '../../../api/messages';
 import { useAuth } from '../../../context/AuthContext';
@@ -40,9 +40,11 @@ export default function MessageModal({ provider, onClose, onSuccess }) {
         }
     };
 
-    const providerName = provider?.name || 'Service Provider';
-    const providerTitle = provider?.title || provider?.providerProfile?.specialty || 'Professional';
-    const avatarEmoji = provider?.avatar || '🩺';
+    const providerName = provider?.name || provider?.providerName || provider?.provider || 'Service Provider';
+    const providerTitle = provider?.title || provider?.specialty || provider?.service || provider?.providerProfile?.specialty || 'Professional';
+    const avatarUrl = provider?.avatarUrl || provider?.providerAvatarUrl || provider?.clientAvatarUrl || provider?.provider?.user?.avatarUrl || (typeof provider?.avatar === 'string' && (provider.avatar.startsWith('http') || provider.avatar.startsWith('/')) ? provider.avatar : null);
+    const avatarEmoji = provider?.avatar && typeof provider.avatar === 'string' && provider.avatar.length < 5 ? provider.avatar : '🩺';
+    const initials = providerName.split(' ').filter(Boolean).map(n => n[0]).join('').slice(0, 2).toUpperCase() || 'SP';
 
     return (
         <div className="msg-modal-overlay" onClick={onClose} role="dialog" aria-modal="true">
@@ -57,8 +59,12 @@ export default function MessageModal({ provider, onClose, onSuccess }) {
                 {/* Header Banner */}
                 <div className="msg-modal-header">
                     <div className="msg-provider-info">
-                        <div className="msg-avatar-badge" style={{ position: 'relative' }}>
-                            <span className="msg-avatar-emoji">{avatarEmoji}</span>
+                        <div className="msg-avatar-badge" style={{ position: 'relative', overflow: 'hidden' }}>
+                            {avatarUrl ? (
+                                <img src={avatarUrl} alt={providerName} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} />
+                            ) : (
+                                <span className="msg-avatar-emoji">{avatarEmoji || initials}</span>
+                            )}
                             <span className={`msg-presence-badge ${isOnline ? 'msg-presence-badge--online' : 'msg-presence-badge--offline'}`} style={{ position: 'absolute', bottom: 0, right: 0 }} />
                         </div>
                         <div>
@@ -84,11 +90,11 @@ export default function MessageModal({ provider, onClose, onSuccess }) {
 
                 {/* Form */}
                 <form onSubmit={handleSubmit} className="msg-form">
-                    {error && <div className="msg-error-box">⚠️ {error}</div>}
+                    {error && <div className="msg-error-box"><AlertTriangle size={15} style={{ marginRight: '6px' }} /> {error}</div>}
 
                     <div className="msg-field-group">
                         <label htmlFor="msg-content-input">
-                            <span>💬 Your Message</span>
+                            <span>Your Message</span>
                             <span className="msg-char-count">{content.length}/500</span>
                         </label>
                         <textarea

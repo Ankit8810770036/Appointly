@@ -11,6 +11,7 @@ export const authApi = {
                 id: data.id,
                 name: data.name,
                 email: data.email,
+                avatarUrl: data.avatarUrl || null,
                 phone: data.phone,
                 location: data.location,
                 streetAddress: data.streetAddress,
@@ -54,6 +55,7 @@ export const authApi = {
                 id: data.id,
                 name: data.name,
                 email: data.email,
+                avatarUrl: data.avatarUrl || null,
                 phone: data.phone,
                 location: data.location,
                 streetAddress: data.streetAddress,
@@ -73,18 +75,32 @@ export const authApi = {
 
     me: (token) =>
         request('/auth/me', {
-            headers: { Authorization: `Bearer ${token}` },
+            headers: token ? { Authorization: `Bearer ${token}` } : {},
         }),
 
     updateMe: async (payload, token) => {
         const data = await request('/auth/me', {
             method: 'PUT',
             body: payload,
-            headers: { Authorization: `Bearer ${token}` },
+            headers: token ? { Authorization: `Bearer ${token}` } : {},
         });
         return {
             ...data,
-            role: data.role.toLowerCase()
+            role: data.role ? data.role.toLowerCase() : 'client'
+        };
+    },
+
+    uploadAvatar: async (formData) => {
+        const data = await request('/auth/upload-avatar', {
+            method: 'POST',
+            body: formData,
+        });
+        return {
+            ...data,
+            user: data.user ? {
+                ...data.user,
+                role: data.user.role ? data.user.role.toLowerCase() : 'client'
+            } : null
         };
     },
 
@@ -106,7 +122,7 @@ export const authApi = {
         return request('/auth/request-otp', {
             method: 'POST',
             body: { type },
-            headers: { Authorization: `Bearer ${token}` },
+            headers: token ? { Authorization: `Bearer ${token}` } : {},
         });
     },
 
@@ -114,7 +130,7 @@ export const authApi = {
         return request('/auth/verify-otp', {
             method: 'POST',
             body: { type, otp },
-            headers: { Authorization: `Bearer ${token}` },
+            headers: token ? { Authorization: `Bearer ${token}` } : {},
         });
     },
 
@@ -128,6 +144,7 @@ export const authApi = {
                 id: data.id,
                 name: data.name,
                 email: data.email,
+                avatarUrl: data.avatarUrl || null,
                 phone: data.phone,
                 location: data.location,
                 streetAddress: data.streetAddress,

@@ -21,6 +21,16 @@ const Contact = () => {
     });
     const [isSubmitting, setIsSubmitting] = useState(false);
 
+    React.useEffect(() => {
+        if (user) {
+            setFormState(prev => ({
+                ...prev,
+                name: prev.name || user.name || '',
+                email: prev.email || user.email || ''
+            }));
+        }
+    }, [user]);
+
     const handleSubmit = async (e) => {
         e.preventDefault();
         setIsSubmitting(true);
@@ -73,9 +83,16 @@ const Contact = () => {
                 actions={
                     <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
                         {isAuthenticated ? (
-                            <div className="navbar__user-profile" onClick={() => navigate(user?.role?.toLowerCase() === 'provider' ? '/dashboard/provider' : '/dashboard/client')} style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                            <div
+                                className="navbar__user-profile"
+                                onClick={() => {
+                                    const r = user?.role?.toUpperCase();
+                                    navigate(r === 'PROVIDER' ? '/dashboard/provider' : r === 'ADMIN' ? '/dashboard/admin' : '/dashboard/client');
+                                }}
+                                style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.75rem' }}
+                            >
                                 <div className="sidebar__avatar" style={{ width: '38px', height: '38px', fontSize: '1.2rem', margin: 0 }}>
-                                    {user?.role?.toLowerCase() === 'provider' ? '🧑‍💼' : '🙋'}
+                                    {user?.role?.toUpperCase() === 'PROVIDER' ? '🧑‍💼' : user?.role?.toUpperCase() === 'ADMIN' ? '🛡️' : '🙋'}
                                 </div>
                                 <span className="text-bold" style={{ fontSize: '0.9rem' }}>{user?.name ? user.name.split(' ')[0] : 'Account'}</span>
                             </div>
@@ -127,6 +144,7 @@ const Contact = () => {
                                                 type="text"
                                                 required
                                                 placeholder="John Doe"
+                                                maxLength={60}
                                                 value={formState.name}
                                                 onChange={(e) => setFormState({ ...formState, name: e.target.value })}
                                             />
@@ -137,6 +155,7 @@ const Contact = () => {
                                                 type="email"
                                                 required
                                                 placeholder="john@example.com"
+                                                maxLength={100}
                                                 value={formState.email}
                                                 onChange={(e) => setFormState({ ...formState, email: e.target.value })}
                                             />
@@ -148,15 +167,20 @@ const Contact = () => {
                                             type="text"
                                             required
                                             placeholder="How can we help?"
+                                            maxLength={120}
                                             value={formState.subject}
                                             onChange={(e) => setFormState({ ...formState, subject: e.target.value })}
                                         />
                                     </div>
                                     <div className="form-group">
-                                        <label>Message</label>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                            <label style={{ marginBottom: 0 }}>Message</label>
+                                            <span style={{ fontSize: '0.75rem', color: 'var(--muted, #888)' }}>{formState.message.length} / 1500</span>
+                                        </div>
                                         <textarea
                                             rows="5"
                                             required
+                                            maxLength={1500}
                                             placeholder="Write your message here..."
                                             value={formState.message}
                                             onChange={(e) => setFormState({ ...formState, message: e.target.value })}

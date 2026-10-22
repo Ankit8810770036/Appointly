@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { User, Mail, Lock, Phone, MapPin, ChevronRight, RotateCw, CheckCircle2, Sparkles, ShieldCheck, Zap, MessageSquare } from 'lucide-react';
+import { User, Mail, Lock, Phone, MapPin, ChevronRight, RotateCw, CheckCircle2, Sparkles, ShieldCheck, Zap, MessageSquare, Star, Briefcase, ArrowLeft } from 'lucide-react';
 import { useNavigate, Link, useSearchParams, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import Button from '../../components/ui/Button/Button';
@@ -24,6 +24,15 @@ export default function Signup() {
     const initialRole = searchParams.get('role') || 'client';
     const from = location.state?.from?.pathname || null;
 
+    const [pendingBooking] = useState(() => {
+        try {
+            const saved = sessionStorage.getItem('appointly_pending_booking');
+            return saved ? JSON.parse(saved) : null;
+        } catch {
+            return null;
+        }
+    });
+
     const [step, setStep] = useState(location.state?.step || 1); // 1 = Account, 2 = Contact/Profile, 3 = Location
     const [categories, setCategories] = useState(INITIAL_SPECIALTIES);
     const [customSpecialty, setCustomSpecialty] = useState('');
@@ -47,7 +56,7 @@ export default function Signup() {
     });
     const [loading, setLoading] = useState(false);
     const [errors, setErrors] = useState({});
-    const [showRedirectMessage, setShowRedirectMessage] = useState(!!from);
+    const [showRedirectMessage, setShowRedirectMessage] = useState(!!from && !pendingBooking);
 
     // Verification State
     const [emailVerified, setEmailVerified] = useState(false);
@@ -252,10 +261,16 @@ export default function Signup() {
             toast.success('Account created successfully!');
             login(user, token, refreshToken);
 
-            if (from) {
-                navigate(from, { replace: true });
+            if (pendingBooking && pendingBooking.providerId) {
+                navigate(`/provider/${pendingBooking.providerId}`, { replace: true });
+            } else if (from) {
+                navigate(from, { replace: true, state: { askLocation: user?.role?.toLowerCase() === 'client', autoOpenMap: user?.role?.toLowerCase() === 'client' } });
             } else {
-                navigate(user?.role?.toLowerCase() === 'provider' ? '/dashboard/provider' : '/dashboard/client');
+                if (user?.role?.toLowerCase() === 'provider') {
+                    navigate('/dashboard/provider');
+                } else {
+                    navigate('/', { state: { askLocation: true, autoOpenMap: true } });
+                }
             }
         } catch (err) {
             toast.error(err.message || 'Sign up failed');
@@ -285,8 +300,13 @@ export default function Signup() {
                 return;
             }
 
-            const destination = from || (user?.role?.toLowerCase() === 'provider' ? '/dashboard/provider' : '/dashboard/client');
-            navigate(destination, { replace: true });
+            if (pendingBooking && pendingBooking.providerId) {
+                navigate(`/provider/${pendingBooking.providerId}`, { replace: true });
+                return;
+            }
+
+            const destination = from || (user?.role?.toLowerCase() === 'provider' ? '/dashboard/provider' : '/');
+            navigate(destination, { replace: true, state: { askLocation: user?.role?.toLowerCase() === 'client', autoOpenMap: user?.role?.toLowerCase() === 'client' } });
         } catch (err) {
             toast.error(err.message || 'Google login failed');
             setErrors({ api: err.message || 'Google signup failed' });
@@ -323,7 +343,7 @@ export default function Signup() {
                     <div className="auth-preview-card">
                         <div className="auth-preview-top">
                             <div className="auth-preview-provider">
-                                <div className="auth-preview-avatar">⚡</div>
+                                <div className="auth-preview-avatar"><Zap size={16} /></div>
                                 <div>
                                     <div className="auth-preview-name">Instant Synchronization</div>
                                     <div className="auth-preview-role">Zero double-booking guarantee</div>
@@ -331,43 +351,76 @@ export default function Signup() {
                             </div>
                             <span className="auth-preview-status">
                                 <span className="auth-preview-pulse"></span>
-                                99.9% Uptime
+                                Active Service
                             </span>
                         </div>
                         <div className="auth-preview-bottom">
-                            <span>⭐ <strong>4.9 / 5</strong> average rating</span>
-                            <span style={{ color: '#10B981', fontWeight: 600 }}>Free forever for clients</span>
+                            <span className="auth-preview-verified"><Star size={13} className="auth-preview-star" /> <strong>Verified Schedules</strong></span>
+                            <span className="auth-preview-highlight auth-preview-highlight--green">Free for clients</span>
                         </div>
                     </div>
 
                     {/* Feature Highlights */}
                     <div className="auth-feature-tags">
-                        <span className="auth-feature-tag"><Zap size={13} style={{ color: '#F59E0B' }} /> Real-Time Live Chat</span>
-                        <span className="auth-feature-tag"><ShieldCheck size={13} style={{ color: '#10B981' }} /> Bank-Grade Privacy</span>
-                        <span className="auth-feature-tag"><Sparkles size={13} style={{ color: '#38BDF8' }} /> Smart SMS Reminders</span>
+                        <span className="auth-feature-tag"><Zap size={13} className="auth-tag-icon auth-tag-icon--amber" /> Real-Time Live Chat</span>
+                        <span className="auth-feature-tag"><ShieldCheck size={13} className="auth-tag-icon auth-tag-icon--green" /> Secure Authentication</span>
+                        <span className="auth-feature-tag"><Sparkles size={13} className="auth-tag-icon auth-tag-icon--blue" /> SMS &amp; Calendar Export</span>
                     </div>
 
-                    {/* Social proof */}
+                    {/* Community proof */}
                     <div className="auth-social-proof">
                         <div className="auth-avatars">
-                            {['👩🏽', '👨🏻', '👩🏼', '👨🏾'].map((a, i) => (
-                                <span key={i} className="auth-avatar" style={{ zIndex: 4 - i }}>{a}</span>
-                            ))}
+                            <span className="auth-avatar auth-avatar--1">AK</span>
+                            <span className="auth-avatar auth-avatar--2">RS</span>
+                            <span className="auth-avatar auth-avatar--3">MD</span>
+                            <span className="auth-avatar auth-avatar--4">SK</span>
                         </div>
-                        <span><strong>5,000+</strong> professionals trust Appointly</span>
+                        <span className="auth-social-text">Direct scheduling with <strong>verified local professionals</strong></span>
                     </div>
                 </div>
             </div>
 
-            {/* Right Panel — Form */}
+            {/* Right Panel : Form */}
             <div className="auth-panel auth-panel--form">
                 <div className="auth-form-box">
+                    <div className="auth-back-nav">
+                        <Link to="/" className="auth-back-link">
+                            <ArrowLeft size={14} /> Back to Home
+                        </Link>
+                    </div>
+
                     <div className="auth-form-header">
                         <h1>
                             {step === 1 && 'Create Account'}
                             {step === 2 && (form.role === 'provider' ? 'Professional Profile' : 'Phone Verification')}
                             {step === 3 && (form.role === 'provider' ? 'Business Location' : 'Your Address')}
                         </h1>
+                        {pendingBooking && step === 1 && (
+                            <div className="auth-pending-slot-banner" style={{
+                                background: 'rgba(226, 137, 47, 0.12)',
+                                border: '1px solid rgba(226, 137, 47, 0.35)',
+                                borderRadius: '10px',
+                                padding: '12px 14px',
+                                marginBottom: '14px',
+                                display: 'flex',
+                                alignItems: 'flex-start',
+                                gap: '10px',
+                                color: 'var(--paper, #F4F1E8)'
+                            }}>
+                                <span style={{ color: 'var(--amber, #E2892F)', marginTop: '2px', display: 'inline-flex' }}><Sparkles size={16} /></span>
+                                <div style={{ fontSize: '13px', lineHeight: '1.45', textAlign: 'left' }}>
+                                    <strong style={{ color: 'var(--amber, #E2892F)', display: 'block', marginBottom: '2px' }}>
+                                        Your appointment slot is held!
+                                    </strong>
+                                    <span>
+                                        {pendingBooking.providerName ? `Consultation with ${pendingBooking.providerName}` : 'Appointment'}
+                                        {pendingBooking.formattedDate ? ` on ${pendingBooking.formattedDate}` : ''}
+                                        {pendingBooking.formattedTime ? ` at ${pendingBooking.formattedTime}` : ''}.
+                                        Create your account to complete your booking.
+                                    </span>
+                                </div>
+                            </div>
+                        )}
                         {showRedirectMessage && step === 1 && (
                             <div className="auth-info-alert" style={{
                                 background: 'rgba(37, 99, 235, 0.1)',
@@ -422,7 +475,10 @@ export default function Signup() {
                                             className={`auth-role-btn ${form.role === r ? 'auth-role-btn--active' : ''}`}
                                             onClick={() => setForm((f) => ({ ...f, role: r }))}
                                         >
-                                            {r === 'client' ? '🙋 I need services' : '🧑‍💼 I offer services'}
+                                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                                                {r === 'client' ? <User size={14} /> : <Briefcase size={14} />}
+                                                {r === 'client' ? 'I need services' : 'I offer services'}
+                                            </span>
                                         </button>
                                     ))}
                                 </div>
@@ -744,7 +800,7 @@ export default function Signup() {
                                         className="auth-submit-btn"
                                         style={{ flex: 1 }}
                                     >
-                                        {form.role === 'provider' ? 'Complete & Launch Profile 🚀' : 'Create Account 🎉'}
+                                        {form.role === 'provider' ? 'Complete & Launch Profile' : 'Create Account'}
                                     </Button>
                                 </div>
                             </motion.form>

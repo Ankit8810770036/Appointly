@@ -1,7 +1,9 @@
 import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from 'react-leaflet';
 import L from 'leaflet';
-import { ExternalLink, Navigation, MapPin } from 'lucide-react';
+import { ExternalLink, Navigation, Maximize2, Minimize2 } from 'lucide-react';
 import { useState, useEffect } from 'react';
+import CooperativeGestures from './CooperativeGestures';
+import './MapViewer.css';
 
 // Fix for default marker icons in Leaflet
 delete L.Icon.Default.prototype._getIconUrl;
@@ -16,7 +18,7 @@ function ChangeView({ bounds }) {
     const map = useMap();
     useEffect(() => {
         if (bounds && bounds.length > 0) {
-            map.fitBounds(bounds, { padding: [30, 30] });
+            map.fitBounds(bounds, { padding: [40, 40] });
         }
     }, [bounds, map]);
     return null;
@@ -34,10 +36,18 @@ export default function MapViewer({
     const [route, setRoute] = useState(null);
     const [stats, setStats] = useState({ distance: 0, duration: 0 });
     const [loading, setLoading] = useState(false);
+    const [isFullscreen, setIsFullscreen] = useState(false);
+    const [gestureHint, setGestureHint] = useState(null);
 
-    const destPos = [parseFloat(lat), parseFloat(lng)];
-    const hasOrigin = originLat && originLng;
-    const originPos = hasOrigin ? [parseFloat(originLat), parseFloat(originLng)] : null;
+    const parsedLat = parseFloat(lat);
+    const parsedLng = parseFloat(lng);
+    const isValidDest = !isNaN(parsedLat) && !isNaN(parsedLng);
+    const destPos = isValidDest ? [parsedLat, parsedLng] : [0, 0];
+
+    const parsedOriginLat = parseFloat(originLat);
+    const parsedOriginLng = parseFloat(originLng);
+    const hasOrigin = originLat != null && originLng != null && !isNaN(parsedOriginLat) && !isNaN(parsedOriginLng);
+    const originPos = hasOrigin ? [parsedOriginLat, parsedOriginLng] : null;
 
     useEffect(() => {
         if (!hasOrigin) {
@@ -46,33 +56,83 @@ export default function MapViewer({
             return;
         }
 
+        const fallbackCoords = [[parsedOriginLat, parsedOriginLng], [parsedLat, parsedLng]];
+        const abortController = new AbortController();
+
         const fetchRoute = async () => {
             setLoading(true);
             try {
-                const url = `https://router.project-osrm.org/route/v1/driving/${originLng},${originLat};${lng},${lat}?overview=full&geometries=geojson`;
-                const resp = await fetch(url);
-                const data = await resp.json();
+                const timeoutId = setTimeout(() => abortController.abort(), 3500);
+                const url = `https://router.project-osrm.org/route/v1/driving/${originLng},${originLat};${lng},${lat}?overview=simplified&geometries=geojson`;
+                const resp = await fetch(url, { signal: abortController.signal });
+                clearTimeout(timeoutId);
 
-                if (data.routes && data.routes.length > 0) {
-                    const routeData = data.routes[0];
-                    const coords = routeData.geometry.coordinates.map(c => [c[1], c[0]]);
-                    setRoute(coords);
-                    setStats({
-                        distance: (routeData.distance / 1000).toFixed(1), // km
-                        duration: Math.round(routeData.duration / 60)    // mins
-                    });
+                if (resp.ok) {
+                    const data = await resp.json();
+                    if (data.routes && data.routes.length > 0) {
+                        const routeData = data.routes[0];
+                        let coords = routeData.geometry.coordinates.map(c => [c[1], c[0]]);
+                        if (coords.length > 150) {
+                            const step = Math.ceil(coords.length / 100);
+                            coords = coords.filter((_, idx) => idx % step === 0 || idx === coords.length - 1);
+                        }
+                        setRoute(coords);
+                        setStats({
+                            distance: (routeData.distance / 1000).toFixed(1), // km
+                            duration: Math.max(1, Math.round(routeData.duration / 60)) // mins
+                        });
+                        return;
+                    }
                 }
+                // Fallback to straight line if no route returned
+                setRoute(fallbackCoords);
             } catch (err) {
-                console.error("Routing error:", err);
+                if (err.name !== 'AbortError') {
+                    console.warn("Routing unavailable, falling back to direct line:", err);
+                }
+                setRoute(fallbackCoords);
             } finally {
-                setLoading(false);
+                if (!abortController.signal.aborted) {
+                    setLoading(false);
+                }
             }
         };
 
         fetchRoute();
-    }, [lat, lng, originLat, originLng, hasOrigin]);
 
-    if (!lat || !lng) return null;
+        return () => {
+            abortController.abort();
+        };
+    }, [lat, lng, originLat, originLng, hasOrigin, parsedLat, parsedLng, parsedOriginLat, parsedOriginLng]);
+
+    // Handle Escape key for fullscreen
+    useEffect(() => {
+        const handleKeyDown = (e) => {
+            if (e.key === 'Escape' && isFullscreen) {
+                setIsFullscreen(false);
+            }
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [isFullscreen]);
+
+    // Prevent body scroll when in fullscreen
+    useEffect(() => {
+        if (isFullscreen) {
+            document.body.style.overflow = 'hidden';
+        } else {
+            document.body.style.overflow = '';
+        }
+        return () => {
+            document.body.style.overflow = '';
+        };
+    }, [isFullscreen]);
+
+    const toggleFullscreen = () => {
+        setIsFullscreen(prev => !prev);
+    };
+
+    if (!lat || !lng || !isValidDest) return null;
 
     const googleMapsUrl = hasOrigin
         ? `https://www.google.com/maps/dir/?api=1&origin=${originLat},${originLng}&destination=${lat},${lng}&travelmode=driving`
@@ -81,56 +141,83 @@ export default function MapViewer({
     const bounds = route || (hasOrigin ? [originPos, destPos] : [destPos]);
 
     return (
-        <div className="map-viewer-container" style={{ marginBottom: 'var(--space-2)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-3)' }}>
-                <div style={{ fontSize: 'var(--fs-sm)', fontWeight: '600', color: 'var(--text-bold)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <Navigation size={16} className="text-primary" />
+        <div className="map-viewer-container">
+            {/* Topbar Header */}
+            <div className="map-viewer-topbar">
+                <div className="map-viewer-title">
+                    <Navigation size={15} className="map-viewer-title-icon" />
                     <span>{hasOrigin ? `Directions to ${label}` : label}</span>
-                    {loading && <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 'normal' }}>(Calculating...)</span>}
+                    {loading && <span className="map-viewer-calc">(Calculating route...)</span>}
                 </div>
-                <a
-                    href={googleMapsUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="premium-button-mini"
-                    style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '6px',
-                        fontSize: '12px',
-                        color: 'white',
-                        textDecoration: 'none',
-                        fontWeight: '600',
-                        padding: '6px 12px',
-                        borderRadius: '8px',
-                        background: 'var(--primary)',
-                        transition: 'all 0.2s ease',
-                        boxShadow: '0 2px 8px var(--primary-faint)'
-                    }}
-                >
-                    <ExternalLink size={14} />
-                    Open Maps
-                </a>
+                <div className="map-viewer-actions">
+                    <a
+                        href={googleMapsUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="map-open-btn"
+                        title="Open directions in Google Maps"
+                    >
+                        <ExternalLink size={13} />
+                        Open Maps
+                    </a>
+                </div>
             </div>
 
-            <div style={{
-                height: height,
-                width: '100%',
-                borderRadius: '16px',
-                overflow: 'hidden',
-                border: '1px solid var(--border)',
-                boxShadow: 'var(--shadow-sm)',
-                background: 'var(--bg-subtle)'
-            }}>
+            {/* Map Canvas Stage */}
+            <div
+                className={`map-viewer-stage ${isFullscreen ? 'is-fullscreen' : ''}`}
+                style={isFullscreen ? {} : { height }}
+            >
+                {/* Discrete Expand / Exit Button */}
+                <button
+                    type="button"
+                    className="map-expand-btn"
+                    onClick={toggleFullscreen}
+                    title={isFullscreen ? "Exit full screen (Esc)" : "Expand map to full screen for route inspection"}
+                    aria-label={isFullscreen ? "Exit full screen" : "Expand map to full screen"}
+                >
+                    {isFullscreen ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
+                    <span>{isFullscreen ? "Exit" : "Expand"}</span>
+                </button>
+
+                {/* Fullscreen HUD Pill */}
+                {isFullscreen && (
+                    <div className="map-fullscreen-hud">
+                        <Navigation size={13} style={{ color: 'var(--amber, #E2892F)' }} />
+                        <span>Route Inspection Mode • Press Esc to exit</span>
+                    </div>
+                )}
+
+                {/* Cooperative Gesture Handling Overlay */}
+                {gestureHint && (
+                    <div className="map-gesture-hint-overlay">
+                        <div className="map-gesture-hint-box">
+                            <span>{gestureHint}</span>
+                        </div>
+                    </div>
+                )}
+
+                {/* Leaflet Map */}
                 <MapContainer
                     center={destPos}
                     zoom={15}
+                    preferCanvas={true}
+                    wheelDebounceTime={40}
                     style={{ height: '100%', width: '100%' }}
-                    scrollWheelZoom={true}
                 >
                     <TileLayer
                         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                        keepBuffer={6}
+                        updateWhenZooming={false}
+                        updateWhenIdle={true}
+                    />
+
+                    {/* Cooperative gestures (touch scroll protection & desktop ctrl+scroll) */}
+                    <CooperativeGestures
+                        isFullscreen={isFullscreen}
+                        onHint={setGestureHint}
+                        onClearHint={() => setGestureHint(null)}
                     />
 
                     {hasOrigin && (
@@ -152,41 +239,27 @@ export default function MapViewer({
                     {route && (
                         <Polyline
                             positions={route}
-                            pathOptions={{ color: 'var(--primary)', weight: 5, opacity: 0.7, lineJoin: 'round' }}
+                            pathOptions={{ color: 'var(--amber, #E2892F)', weight: 5, opacity: 0.85, lineJoin: 'round' }}
                         />
                     )}
 
                     <ChangeView bounds={bounds} />
                 </MapContainer>
 
+                {/* Route Summary Card */}
                 {route && stats.distance > 0 && (
-                    <div className="route-stats-card" style={{
-                        position: 'absolute',
-                        bottom: '20px',
-                        left: '20px',
-                        zIndex: 1000,
-                        background: 'rgba(255, 255, 255, 0.85)',
-                        backdropFilter: 'blur(10px)',
-                        padding: '12px 16px',
-                        borderRadius: '12px',
-                        border: '1px solid rgba(255, 255, 255, 0.3)',
-                        boxShadow: 'var(--shadow-lg)',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        gap: '4px',
-                        minWidth: '140px'
-                    }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-bold)', fontSize: '0.9rem', fontWeight: '700' }}>
-                            <Navigation size={14} className="text-primary" />
-                            Route Details
+                    <div className="route-stats-card">
+                        <div className="route-stats-header">
+                            <Navigation size={13} />
+                            <span>Route Details</span>
                         </div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', color: 'var(--text-main)' }}>
+                        <div className="route-stats-row">
                             <span>Distance:</span>
-                            <span style={{ fontWeight: '600' }}>{stats.distance} km</span>
+                            <span className="route-stats-val">{stats.distance} km</span>
                         </div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', color: 'var(--text-main)' }}>
+                        <div className="route-stats-row">
                             <span>Duration:</span>
-                            <span style={{ fontWeight: '600' }}>~{stats.duration} mins</span>
+                            <span className="route-stats-val">~{stats.duration} mins</span>
                         </div>
                     </div>
                 )}

@@ -31,6 +31,18 @@ export function AuthProvider({ children }) {
         other.removeItem('abs_refreshToken');
     }, []);
 
+    const updateUser = useCallback((updatedUserData) => {
+        setUser((prev) => {
+            const next = typeof updatedUserData === 'function' ? updatedUserData(prev) : { ...prev, ...updatedUserData };
+            if (localStorage.getItem('abs_user')) {
+                localStorage.setItem('abs_user', JSON.stringify(next));
+            } else if (sessionStorage.getItem('abs_user')) {
+                sessionStorage.setItem('abs_user', JSON.stringify(next));
+            }
+            return next;
+        });
+    }, []);
+
     const logout = useCallback(() => {
         setUser(null);
         setToken(null);
@@ -43,7 +55,7 @@ export function AuthProvider({ children }) {
     }, []);
 
     return (
-        <AuthContext.Provider value={{ user, token, login, logout, isAuthenticated: !!user }}>
+        <AuthContext.Provider value={{ user, token, login, logout, updateUser, isAuthenticated: !!user }}>
             {children}
         </AuthContext.Provider>
     );

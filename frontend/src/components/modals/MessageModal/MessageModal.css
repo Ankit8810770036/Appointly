@@ -209,3 +209,59 @@
     gap: 0.75rem;
     margin-top: 0.25rem;
 }
+
+/* Light mode overrides */
+html.light .msg-modal-overlay,
+:root.light .msg-modal-overlay {
+    background: rgba(15, 23, 42, 0.45);
+}
+
+html.light .msg-modal-card,
+:root.light .msg-modal-card {
+    background: #FFFFFF;
+    color: #0F172A;
+    border-color: #E2E8F0;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.08);
+}
+
+html.light .msg-provider-name,
+:root.light .msg-provider-name {
+    color: #0F172A;
+}
+
+html.light .msg-modal-close,
+:root.light .msg-modal-close {
+    background: #F1F5F9;
+    border-color: #E2E8F0;
+    color: #64748B;
+}
+
+html.light .msg-avatar-badge,
+:root.light .msg-avatar-badge {
+    background: #F1F5F9;
+    border-color: #E2E8F0;
+}
+
+html.light .msg-info-banner,
+:root.light .msg-info-banner {
+    background: #FEF3C7;
+    border-color: #FDE68A;
+    color: #92400E;
+}
+
+html.light .msg-field-group label,
+:root.light .msg-field-group label {
+    color: #0F172A;
+}
+
+html.light .msg-textarea,
+:root.light .msg-textarea {
+    background: #FFFFFF;
+    border-color: #CBD5E1;
+    color: #0F172A;
+}
+
+html.light .msg-textarea::placeholder,
+:root.light .msg-textarea::placeholder {
+    color: #94A3B8;
+}

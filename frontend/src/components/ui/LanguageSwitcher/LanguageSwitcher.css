@@ -24,14 +24,20 @@
     text-align: center;
 }
 
-/* Light mode overrides if needed */
+/* Light mode overrides */
+html.light .lang-switcher,
+:root.light .lang-switcher,
 [data-theme='light'] .lang-switcher {
-    background: rgba(0, 0, 0, 0.05);
-    border-color: rgba(0, 0, 0, 0.1);
-    color: #1e293b;
+    background: #FFFFFF;
+    border-color: #E2E8F0;
+    color: #0F172A;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
+html.light .lang-switcher:hover,
+:root.light .lang-switcher:hover,
 [data-theme='light'] .lang-switcher:hover {
-    background: rgba(0, 0, 0, 0.08);
-    border-color: rgba(0, 0, 0, 0.2);
-}
+    background: #F1F5F9;
+    border-color: #CBD5E1;
+    color: #0F172A;
+}

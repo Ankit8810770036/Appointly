@@ -110,3 +110,45 @@
     color: var(--paper-dim, #C9C6BC);
 }
 
+/* Light mode overrides */
+html.light .review-card-exact,
+html.light .review-card-compact,
+:root.light .review-card-exact,
+:root.light .review-card-compact,
+[data-theme='light'] .review-card-exact,
+[data-theme='light'] .review-card-compact {
+    background: #FFFFFF !important;
+    border: 1px solid #E2E8F0 !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+html.light .review-card-exact:hover,
+html.light .review-card-compact:hover,
+:root.light .review-card-exact:hover,
+:root.light .review-card-compact:hover,
+[data-theme='light'] .review-card-exact:hover,
+[data-theme='light'] .review-card-compact:hover {
+    border-color: #CBD5E1 !important;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+}
+
+html.light .review-card-author-name,
+:root.light .review-card-author-name,
+[data-theme='light'] .review-card-author-name {
+    color: #0F172A !important;
+}
+
+html.light .review-comment-body,
+:root.light .review-comment-body,
+[data-theme='light'] .review-comment-body {
+    color: #334155 !important;
+}
+
+html.light .review-card-avatar,
+:root.light .review-card-avatar,
+[data-theme='light'] .review-card-avatar {
+    background: #FEF3C7 !important;
+    border-color: #FDE68A !important;
+    color: #D97706 !important;
+}
+

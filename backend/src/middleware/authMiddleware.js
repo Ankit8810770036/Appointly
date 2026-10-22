@@ -55,3 +55,29 @@ export const requireRole = (...allowedRoles) => {
     };
 };
 
+/**
+ * Middleware that extracts user context if a valid Bearer token is supplied,
+ * but allows unauthenticated guest requests to proceed safely without error.
+ */
+export const optionalAuth = async (req, res, next) => {
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+        const token = authHeader.split(' ')[1];
+        try {
+            if (process.env.JWT_SECRET) {
+                const decoded = jwt.verify(token, process.env.JWT_SECRET);
+                if (decoded?.id) {
+                    req.user = await prisma.user.findUnique({
+                        where: { id: decoded.id },
+                        select: { id: true, name: true, email: true, role: true }
+                    });
+                }
+            }
+        } catch {
+            // Invalid or expired token on optional route - proceed gracefully as guest
+            req.user = null;
+        }
+    }
+    next();
+};
+

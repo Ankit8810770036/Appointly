@@ -1,6 +1,12 @@
 @import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,500;0,9..144,600;0,9..144,700;1,9..144,500;1,9..144,600&family=Inter:wght@400;500;600;700&display=swap');
 @import url('https://unpkg.com/leaflet@1.9.4/dist/leaflet.css');
 
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
 :root {
   /* Editorial Directory Palette (Ink, Panels, Paper, Amber, Teal, Hairline) */
   --ink: #0E1116;
@@ -55,14 +61,19 @@
   --surface: #171B22;
   --surface-raised: #1D222B;
   --card-bg: #171B22;
+  --bg-card: #171B22;
+  --bg-hover: #1D222B;
   --input-bg: #0E1116;
 
   --text: #C9C6BC;
+  --text-rgb: 201, 198, 188;
   --text-primary: #F4F1E8;
   --text-bold: #F4F1E8;
   --text-secondary: #C9C6BC;
   --text-muted: #8D897D;
+  --text-main: #F4F1E8;
   --border: #272B34;
+  --border-color: #272B34;
   --border-glass: #272B34;
 
   --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.5);
@@ -159,8 +170,54 @@
   --card-bg: #171B22;
 }
 
+html.light,
+:root.light {
+  --ink: #F8FAFC;
+  --panel: #FFFFFF;
+  --panel-2: #F1F5F9;
+  --paper: #0F172A;
+  --paper-dim: #475569;
+  --muted: #64748B;
+  --amber: #D97706;
+  --amber-dim: #FEF3C7;
+  --teal: #0D9488;
+  --teal-dim: #CCFBF1;
+  --line: #E2E8F0;
+  --primary-faint: #FEF3C7;
+  --secondary-soft: #F1F5F9;
+  --accent-soft: #CCFBF1;
+  --grad-surface: #FFFFFF;
+  --grad-primary: #D97706;
+
+  --bg: #F8FAFC;
+  --bg-canvas: #F8FAFC;
+  --bg-subtle: #F1F5F9;
+  --text: #334155;
+  --text-rgb: 51, 65, 85;
+  --text-primary: #0F172A;
+  --text-bold: #0F172A;
+  --text-muted: #64748B;
+  --text-main: #0F172A;
+  --border: #E2E8F0;
+  --border-color: #E2E8F0;
+  --border-glass: #E2E8F0;
+  --input-bg: #FFFFFF;
+  --surface: #FFFFFF;
+  --surface-raised: #F8FAFC;
+  --card-bg: #FFFFFF;
+  --bg-card: #FFFFFF;
+  --bg-hover: #F1F5F9;
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 12px -2px rgba(0, 0, 0, 0.08);
+  --shadow-lg: 0 12px 24px -4px rgba(0, 0, 0, 0.12);
+}
+
+html,
 body {
   margin: 0;
+  padding: 0;
+  max-width: 100vw;
+  overflow-x: hidden;
   background-color: var(--bg);
   color: var(--text);
   font-family: var(--font-sans);
@@ -282,6 +339,7 @@ code {
     opacity: 0;
     transform: translateY(10px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -295,10 +353,7 @@ code {
 /* Modal Overlay Base */
 .modal-overlay {
   position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  inset: 0;
   width: 100vw;
   height: 100vh;
   background: rgba(14, 17, 22, 0.85);
@@ -310,6 +365,14 @@ code {
   z-index: 99999;
   padding: 1.5rem;
   overflow-y: auto;
+  box-sizing: border-box;
+}
+
+@media (max-width: 640px), (max-height: 700px) {
+  .modal-overlay {
+    align-items: flex-start;
+    padding: 1rem 0.75rem 2.5rem 0.75rem;
+  }
 }
 
 /* Glass & Card Utilities */

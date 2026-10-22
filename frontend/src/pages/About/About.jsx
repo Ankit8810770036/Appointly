@@ -1,5 +1,5 @@
 import React from 'react';
-import { Sparkles, Target, Lightbulb, Users, ArrowRight, Github, Twitter, Linkedin } from 'lucide-react';
+import { Sparkles, Target, Lightbulb, Users, ArrowRight, Github, Twitter, Linkedin, PlayCircle } from 'lucide-react';
 import Navbar from '../../components/ui/Navbar/Navbar';
 import Button from '../../components/ui/Button/Button';
 import ThemeToggle from '../../components/ui/ThemeToggle/ThemeToggle';
@@ -25,22 +25,22 @@ const About = () => {
         {
             name: 'Ankit Kumar Singh',
             role: 'Founder & Lead Architect',
-            bio: 'A visionary developer passionate about building tools that bridge the gap between local professionals and digital convenience.',
-            avatar: '🧑‍💻',
+            bio: 'Passionate about building dependable software that connects local professionals with clients.',
+            initials: 'AK',
             socials: { twitter: '#', linkedin: '#', github: '#' }
         },
         {
             name: 'Priya Verma',
             role: 'Operations Head',
             bio: 'Ensuring seamless service delivery and professional vetting for a trusted community experience.',
-            avatar: '👩🏽‍💼',
+            initials: 'PV',
             socials: { linkedin: '#' }
         },
         {
             name: 'Rahul Gupta',
             role: 'Product Designer',
-            bio: 'Crafting the premium, intuitive interfaces that make Appointly a joy to use.',
-            avatar: '🎨',
+            bio: 'Crafting clean, accessible interfaces that make appointment scheduling straightforward.',
+            initials: 'RG',
             socials: { github: '#' }
         }
     ];
@@ -59,11 +59,18 @@ const About = () => {
                                 onClick={() => setShowVideoGuide(true)}
                                 style={{ gap: '6px' }}
                             >
-                                📺 {t('instruction_video')}
+                                <PlayCircle size={15} /> {t('instruction_video')}
                             </Button>
-                            <div className="navbar__user-profile" onClick={() => navigate(user?.role?.toLowerCase() === 'provider' ? '/dashboard/provider' : '/dashboard/client')} style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                                <div className="sidebar__avatar" style={{ width: '38px', height: '38px', fontSize: '1.2rem', margin: 0 }}>
-                                    {user?.role?.toLowerCase() === 'provider' ? '🧑‍💼' : '🙋'}
+                            <div
+                                className="navbar__user-profile"
+                                onClick={() => {
+                                    const r = user?.role?.toUpperCase();
+                                    navigate(r === 'PROVIDER' ? '/dashboard/provider' : r === 'ADMIN' ? '/dashboard/admin' : '/dashboard/client');
+                                }}
+                                style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.75rem' }}
+                            >
+                                <div className="sidebar__avatar" style={{ width: '38px', height: '38px', fontSize: '0.9rem', margin: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--panel-2)', color: 'var(--amber)', fontWeight: '600' }}>
+                                    {user?.name ? user.name.slice(0, 2).toUpperCase() : 'AC'}
                                 </div>
                                 <span className="text-bold" style={{ fontSize: '0.9rem' }}>{user?.name ? user.name.split(' ')[0] : 'Account'}</span>
                             </div>
@@ -77,7 +84,7 @@ const About = () => {
                                 onClick={() => setShowVideoGuide(true)}
                                 style={{ gap: '6px' }}
                             >
-                                📺 {t('instruction_video')}
+                                <PlayCircle size={15} /> {t('instruction_video')}
                             </Button>
                             <Button variant="ghost" size="sm" onClick={() => navigate('/login')}>Log in</Button>
                             <Button variant="primary" size="sm" onClick={() => navigate('/signup')}>Sign up free</Button>
@@ -130,8 +137,8 @@ const About = () => {
                                 whileHover={{ y: -5 }}
                             >
                                 <div className="card-icon"><Sparkles className="text-primary" /></div>
-                                <h3>Premium Experience</h3>
-                                <p>From glassmorphic interfaces to lightning-fast bookings, we never compromise on the quality of the user experience for both clients and providers.</p>
+                                <h3>Reliable Experience</h3>
+                                <p>From transparent availability to verified professionals, we prioritize clarity and dependability for both clients and providers.</p>
                             </motion.div>
                         </div>
                     </div>
@@ -141,7 +148,7 @@ const About = () => {
                 <section className="about-section team-section">
                     <div className="about-container">
                         <div className="section-header">
-                            <h2 className="section-title">Meet the <span className="text-gradient">Team</span></h2>
+                            <h2 className="section-title">Meet the Team</h2>
                             <p className="section-sub">Bringing together expertise in design, engineering, and operations.</p>
                         </div>
 
@@ -154,7 +161,7 @@ const About = () => {
                                     animate={{ opacity: 1, y: 0 }}
                                     transition={{ delay: idx * 0.1 }}
                                 >
-                                    <div className="member-avatar">{member.avatar}</div>
+                                    <div className="member-avatar" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '700', fontSize: '1.1rem', color: 'var(--amber)', background: 'var(--panel-2)', borderRadius: '50%' }}>{member.initials}</div>
                                     <h4 className="member-name">{member.name}</h4>
                                     <p className="member-role">{member.role}</p>
                                     <p className="member-bio">{member.bio}</p>
@@ -173,11 +180,11 @@ const About = () => {
                 <section className="about-cta">
                     <div className="about-container">
                         <div className="cta-card glass">
-                            <h2>Ready to experience the future of <span className="text-gradient">booking</span>?</h2>
-                            <p>Join thousands of users who have simplified their professional lives.</p>
+                            <h2>Ready to schedule your appointment?</h2>
+                            <p>Browse verified providers and schedule your consultation directly online.</p>
                             <div className="cta-actions">
-                                <Button variant="primary" size="lg" onClick={() => navigate('/signup')}>Get Started Free</Button>
-                                <Button variant="ghost" size="lg" onClick={() => navigate('/#providers-list')}>Explore Services <ArrowRight size={18} /></Button>
+                                <Button variant="primary" size="lg" onClick={() => navigate('/signup')}>Get Started</Button>
+                                <Button variant="ghost" size="lg" onClick={() => navigate('/#providers')}>Explore Services <ArrowRight size={18} /></Button>
                             </div>
                         </div>
                     </div>

@@ -1,0 +1,239 @@
+/* ── MapViewer Styling (Dark Editorial Palette) ── */
+
+.map-viewer-container {
+  margin-bottom: var(--space-2, 8px);
+  position: relative;
+  font-family: inherit;
+}
+
+.map-viewer-topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--space-3, 12px);
+  gap: 12px;
+}
+
+.map-viewer-title {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--paper, #F4F1E8);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.map-viewer-title-icon {
+  color: var(--amber, #E2892F);
+  flex-shrink: 0;
+}
+
+.map-viewer-calc {
+  font-size: 11px;
+  color: var(--muted, #8D897D);
+  font-weight: 400;
+}
+
+.map-viewer-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.map-open-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: #0E1116;
+  text-decoration: none;
+  font-weight: 600;
+  padding: 6px 14px;
+  border-radius: 8px;
+  background: var(--amber, #E2892F);
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 8px rgba(226, 137, 47, 0.25);
+}
+
+.map-open-btn:hover {
+  background: #F0983F;
+  transform: translateY(-0.5px);
+}
+
+/* Map Canvas Wrapper */
+.map-viewer-stage {
+  width: 100%;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid var(--line, #272B34);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+  background: #E8ECEF;
+  position: relative;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* ── Fullscreen Mode ── */
+.map-viewer-stage.is-fullscreen {
+  position: fixed !important;
+  inset: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  border-radius: 0 !important;
+  border: none !important;
+  z-index: 99999 !important;
+  margin: 0 !important;
+}
+
+/* Discrete Expand / Collapse Button */
+.map-expand-btn {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 900;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(23, 27, 34, 0.92);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid var(--line, #272B34);
+  color: var(--paper, #F4F1E8);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 6px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
+  transition: all 0.18s ease;
+  user-select: none;
+}
+
+.map-expand-btn:hover {
+  background: var(--panel-2, #1D222B);
+  color: var(--amber, #E2892F);
+  border-color: var(--amber, #E2892F);
+  transform: translateY(-0.5px);
+}
+
+.map-expand-btn:active {
+  transform: translateY(0);
+}
+
+/* Fullscreen Top HUD Pill */
+.map-fullscreen-hud {
+  position: absolute;
+  top: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 900;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(23, 27, 34, 0.94);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(226, 137, 47, 0.4);
+  color: var(--paper, #F4F1E8);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 6px 14px;
+  border-radius: 20px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  pointer-events: none;
+  animation: hudSlideDown 0.2s ease-out;
+}
+
+@keyframes hudSlideDown {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -8px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+
+/* Route Details HUD Card */
+.route-stats-card {
+  position: absolute;
+  bottom: 16px;
+  left: 16px;
+  z-index: 800;
+  background: rgba(23, 27, 34, 0.94);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  padding: 12px 16px;
+  border-radius: 10px;
+  border: 1px solid var(--line, #272B34);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 150px;
+  color: var(--paper, #F4F1E8);
+}
+
+.route-stats-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--amber, #E2892F);
+  font-size: 12.5px;
+  font-weight: 700;
+  margin-bottom: 2px;
+}
+
+.route-stats-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 11.5px;
+  color: var(--muted, #8D897D);
+}
+
+.route-stats-val {
+  font-weight: 600;
+  color: var(--paper, #F4F1E8);
+}
+
+/* ── Cooperative Gesture Handling Overlay ── */
+.map-gesture-hint-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(14, 17, 22, 0.6);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  z-index: 1000;
+  pointer-events: none;
+  animation: gestureFadeIn 0.18s ease-out;
+}
+
+@keyframes gestureFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.map-gesture-hint-box {
+  background: var(--panel, #171B22);
+  border: 1px solid var(--line, #272B34);
+  color: var(--paper, #F4F1E8);
+  font-size: 12.5px;
+  font-weight: 600;
+  padding: 10px 18px;
+  border-radius: 20px;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.6);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  text-align: center;
+}

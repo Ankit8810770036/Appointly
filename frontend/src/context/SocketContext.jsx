@@ -1,7 +1,8 @@
-import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
+import { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { io } from 'socket.io-client';
 import { useAuth } from './AuthContext';
 import { sound } from '../utils/sound';
+import { registerServiceWorker, showBackgroundNotification } from '../utils/pushNotifications';
 
 const SocketContext = createContext(null);
 
@@ -47,9 +48,27 @@ export const SocketProvider = ({ children }) => {
                 });
             });
 
+            // Initialize Service Worker for Web Push in background
+            registerServiceWorker();
+
             newSocket.on('new_notification', (notif) => {
                 console.log('New notification received:', notif);
                 sound.notification();
+                showBackgroundNotification(notif.title || 'Appointly Notification', {
+                    body: notif.message,
+                    data: { link: notif.link || '/' }
+                });
+            });
+
+            newSocket.on('receive_message', (msg) => {
+                // If receiving incoming message from another user
+                if (msg && msg.senderId !== user?.id) {
+                    sound.notification();
+                    showBackgroundNotification(`💬 Message from ${msg.sender?.name || 'User'}`, {
+                        body: msg.content,
+                        data: { link: user?.role === 'PROVIDER' ? '/dashboard/provider' : '/dashboard/client' }
+                    });
+                }
             });
 
             Promise.resolve().then(() => {

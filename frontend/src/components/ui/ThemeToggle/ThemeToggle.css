@@ -50,3 +50,13 @@
     /* Yellow 500 */
     filter: drop-shadow(0 0 10px rgba(234, 179, 8, 0.3));
 }
+
+/* ─── Light Mode Overrides ─── */
+html.light .theme-toggle,
+:root.light .theme-toggle,
+[data-theme='light'] .theme-toggle {
+    background: #FFFFFF;
+    border-color: #E2E8F0;
+    color: #0F172A;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}

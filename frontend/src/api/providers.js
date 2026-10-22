@@ -17,6 +17,7 @@ export const providerApi = {
     },
     getById: (id, token) => request(`/providers/${id}`, token ? { headers: { Authorization: `Bearer ${token}` } } : {}),
     addService: (payload, token) => request('/providers/services', { method: 'POST', body: payload, headers: { Authorization: `Bearer ${token}` } }),
+    updateService: (id, payload, token) => request(`/providers/services/${id}`, { method: 'PUT', body: payload, headers: { Authorization: `Bearer ${token}` } }),
     deleteService: (id, token) => request(`/providers/services/${id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } }),
     updateProfile: (payload, token) => request('/providers/profile', { method: 'PUT', body: payload, headers: { Authorization: `Bearer ${token}` } }),
     getEarnings: (token) => request('/providers/earnings', { headers: { Authorization: `Bearer ${token}` } }),

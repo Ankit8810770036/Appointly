@@ -7,6 +7,7 @@ import rateLimit from 'express-rate-limit';
 export const authLimiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
     max: 20, // Limit each IP to 20 requests per window
+    skip: () => process.env.NODE_ENV === 'test',
     standardHeaders: true, // Return rate limit info in `RateLimit-*` headers
     legacyHeaders: false, // Disable `X-RateLimit-*` headers
     message: {
@@ -21,6 +22,7 @@ export const authLimiter = rateLimit({
 export const otpLimiter = rateLimit({
     windowMs: 10 * 60 * 1000, // 10 minutes
     max: 8, // Limit each IP to 8 OTP requests per 10 minutes
+    skip: () => process.env.NODE_ENV === 'test',
     standardHeaders: true,
     legacyHeaders: false,
     message: {
@@ -35,6 +37,7 @@ export const otpLimiter = rateLimit({
 export const apiLimiter = rateLimit({
     windowMs: 1 * 60 * 1000, // 1 minute
     max: 120, // 120 requests per minute per IP
+    skip: () => process.env.NODE_ENV === 'test',
     standardHeaders: true,
     legacyHeaders: false,
     message: {

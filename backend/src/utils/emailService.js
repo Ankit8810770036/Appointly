@@ -55,6 +55,15 @@ export const sendWelcomeEmail = async (user) => {
 
 export const sendBookingRequestEmail = async (appointment) => {
     const subject = 'New Booking Request - Appointly';
+    const d = new Date(appointment.date);
+    const pad = (n) => String(n).padStart(2, '0');
+    const h = d.getUTCHours();
+    const m = pad(d.getUTCMinutes());
+    const period = h >= 12 ? 'PM' : 'AM';
+    const h12 = h % 12 === 0 ? 12 : h % 12;
+    const timeFormatted = `${h12}:${m} ${period}`;
+    const dateFormatted = `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}`;
+
     const html = `
         <div style="font-family: sans-serif; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #eee; border-radius: 10px;">
             <h2 style="color: #4f46e5;">New Appointment Request</h2>
@@ -62,8 +71,8 @@ export const sendBookingRequestEmail = async (appointment) => {
             <p>You have received a new booking request for <strong>${appointment.service.name}</strong>.</p>
             <div style="background: #f9fafb; padding: 15px; border-radius: 5px; margin: 20px 0;">
                 <p><strong>Client:</strong> ${appointment.client.name}</p>
-                <p><strong>Date:</strong> ${new Date(appointment.date).toLocaleDateString()}</p>
-                <p><strong>Time:</strong> ${new Date(appointment.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
+                <p><strong>Date:</strong> ${dateFormatted}</p>
+                <p><strong>Time:</strong> ${timeFormatted}</p>
             </div>
             <p>Please log in to your dashboard to confirm or decline this request.</p>
             <div style="margin: 30px 0;">
@@ -79,6 +88,15 @@ export const sendBookingStatusEmail = async (appointment) => {
     const subject = `Appointment ${status.charAt(0).toUpperCase() + status.slice(1)} - Appointly`;
     const isPositive = status === 'confirmed' || status === 'completed';
 
+    const d = new Date(appointment.date);
+    const pad = (n) => String(n).padStart(2, '0');
+    const h = d.getUTCHours();
+    const m = pad(d.getUTCMinutes());
+    const period = h >= 12 ? 'PM' : 'AM';
+    const h12 = h % 12 === 0 ? 12 : h % 12;
+    const timeFormatted = `${h12}:${m} ${period}`;
+    const dateFormatted = `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}`;
+
     const html = `
         <div style="font-family: sans-serif; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #eee; border-radius: 10px;">
             <h2 style="color: ${isPositive ? '#10b981' : '#ef4444'};">Appointment ${status.charAt(0).toUpperCase() + status.slice(1)}</h2>
@@ -86,8 +104,8 @@ export const sendBookingStatusEmail = async (appointment) => {
             <p>Your appointment with <strong>${appointment.provider.user.name}</strong> for <strong>${appointment.service.name}</strong> has been <strong>${status}</strong>.</p>
             <div style="background: #f9fafb; padding: 15px; border-radius: 5px; margin: 20px 0;">
                 <p><strong>Service:</strong> ${appointment.service.name}</p>
-                <p><strong>Date:</strong> ${new Date(appointment.date).toLocaleDateString()}</p>
-                <p><strong>Time:</strong> ${new Date(appointment.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
+                <p><strong>Date:</strong> ${dateFormatted}</p>
+                <p><strong>Time:</strong> ${timeFormatted}</p>
             </div>
             <div style="margin: 30px 0;">
                 <a href="${process.env.FRONTEND_URL || 'http://localhost:5173'}/dashboard/client" style="background-color: #4f46e5; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; font-weight: bold;">Go to Dashboard</a>

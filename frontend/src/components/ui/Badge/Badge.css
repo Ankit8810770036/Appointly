@@ -48,3 +48,46 @@
     color: var(--paper, #F4F1E8);
     border: 1px solid var(--line, #272B34);
 }
+
+/* Light mode overrides */
+html.light .badge--default,
+:root.light .badge--default {
+    background: #F1F5F9;
+    color: #475569;
+    border-color: #E2E8F0;
+}
+
+html.light .badge--primary,
+:root.light .badge--primary {
+    background: #FEF3C7;
+    color: #D97706;
+    border-color: #FDE68A;
+}
+
+html.light .badge--success,
+:root.light .badge--success {
+    background: #DCFCE7;
+    color: #15803D;
+    border-color: #86EFAC;
+}
+
+html.light .badge--warning,
+:root.light .badge--warning {
+    background: #FEF3C7;
+    color: #D97706;
+    border-color: #FDE68A;
+}
+
+html.light .badge--danger,
+:root.light .badge--danger {
+    background: #FEE2E2;
+    color: #DC2626;
+    border-color: #FCA5A5;
+}
+
+html.light .badge--info,
+:root.light .badge--info {
+    background: #EFF6FF;
+    color: #2563EB;
+    border-color: #BFDBFE;
+}

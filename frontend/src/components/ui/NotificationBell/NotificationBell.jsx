@@ -1,9 +1,17 @@
 import { useState, useEffect, useRef } from 'react';
-import { Bell } from 'lucide-react';
+import { Bell, Smartphone, Check, Send } from 'lucide-react';
 import { notificationApi } from '../../../api/notifications';
 import { useAuth } from '../../../context/AuthContext';
 import { useSocket } from '../../../context/SocketContext';
 import { useSound } from '../../../hooks/useSound';
+import { toast } from '../../../utils/toast';
+import {
+    isPushSupported,
+    subscribeToWebPush,
+    unsubscribeFromWebPush,
+    checkIsSubscribed,
+    sendTestPush
+} from '../../../utils/pushNotifications';
 import './NotificationBell.css';
 
 /**
@@ -18,6 +26,11 @@ export default function NotificationBell({ onNavigate }) {
     const dropdownRef = useRef(null);
     const { play } = useSound();
     const prevUnreadCount = useRef(0);
+
+    // Push notification states
+    const [pushSupported, setPushSupported] = useState(false);
+    const [pushSubscribed, setPushSubscribed] = useState(false);
+    const [pushLoading, setPushLoading] = useState(false);
 
     const unreadCount = notifications.filter(n => !n.isRead && n.type !== 'NEW_MESSAGE').length;
 
@@ -106,6 +119,47 @@ export default function NotificationBell({ onNavigate }) {
         }
     };
 
+    // Check Push status when dropdown opens
+    useEffect(() => {
+        if (showDropdown && isPushSupported()) {
+            setPushSupported(true);
+            checkIsSubscribed().then(setPushSubscribed);
+        }
+    }, [showDropdown]);
+
+    const handleTogglePush = async () => {
+        if (!token) return;
+        setPushLoading(true);
+        try {
+            if (pushSubscribed) {
+                await unsubscribeFromWebPush(token);
+                setPushSubscribed(false);
+                toast.info('Browser desktop notifications turned off.');
+            } else {
+                await subscribeToWebPush(token);
+                setPushSubscribed(true);
+                toast.success('Native browser desktop notifications activated!');
+            }
+        } catch (err) {
+            toast.error(err.message || 'Could not update notification permission');
+        } finally {
+            setPushLoading(false);
+        }
+    };
+
+    const handleSendTestPush = async () => {
+        if (!token) return;
+        setPushLoading(true);
+        try {
+            await sendTestPush(token);
+            toast.success('Test alert dispatched! Look at your desktop.');
+        } catch (err) {
+            toast.error(err.message || 'Failed to dispatch test notification');
+        } finally {
+            setPushLoading(false);
+        }
+    };
+
     return (
         <div className="notification-bell-container" ref={dropdownRef}>
             <button
@@ -127,6 +181,60 @@ export default function NotificationBell({ onNavigate }) {
                             </button>
                         )}
                     </div>
+
+                    {/* Native Desktop / Web Push Banner */}
+                    {pushSupported && (
+                        <div className={`notif-push-banner ${pushSubscribed ? 'notif-push-banner--active' : ''}`}>
+                            <div className="notif-push-info">
+                                {pushSubscribed ? (
+                                    <Check size={14} className="notif-push-icon notif-push-icon--success" />
+                                ) : (
+                                    <Smartphone size={14} className="notif-push-icon" />
+                                )}
+                                <div>
+                                    <div className="notif-push-title">
+                                        {pushSubscribed ? 'Desktop Alerts Active' : 'Enable Desktop Alerts'}
+                                    </div>
+                                    <div className="notif-push-desc">
+                                        {pushSubscribed ? 'Receiving background notifications' : 'Get alerts even when tab is closed'}
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="notif-push-actions">
+                                {pushSubscribed ? (
+                                    <>
+                                        <button
+                                            type="button"
+                                            className="notif-push-btn notif-push-btn--test"
+                                            onClick={handleSendTestPush}
+                                            disabled={pushLoading}
+                                            title="Send a test notification to your desktop"
+                                        >
+                                            <Send size={11} /> Test
+                                        </button>
+                                        <button
+                                            type="button"
+                                            className="notif-push-btn notif-push-btn--disable"
+                                            onClick={handleTogglePush}
+                                            disabled={pushLoading}
+                                            title="Disable desktop notifications"
+                                        >
+                                            Off
+                                        </button>
+                                    </>
+                                ) : (
+                                    <button
+                                        type="button"
+                                        className="notif-push-btn notif-push-btn--enable"
+                                        onClick={handleTogglePush}
+                                        disabled={pushLoading}
+                                    >
+                                        {pushLoading ? '...' : 'Enable'}
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+                    )}
 
                     <div className="notif-list">
                         {notifications.length === 0 ? (

@@ -176,3 +176,24 @@
         font-size: 1.25rem;
     }
 }
+
+/* Light Mode Overrides */
+html.light .otp-modal-container,
+:root.light .otp-modal-container {
+    background: #FFFFFF;
+    border-color: #E2E8F0;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.08);
+}
+
+html.light .otp-digit-input,
+:root.light .otp-digit-input {
+    background: #F8FAFC;
+    border-color: #CBD5E1;
+    color: #0F172A;
+}
+
+html.light .otp-digit-input:focus,
+:root.light .otp-digit-input:focus {
+    background: #FFFFFF;
+    border-color: var(--primary);
+}

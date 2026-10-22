@@ -18,7 +18,10 @@ export const initSocket = (server) => {
                 if (allowedOrigins.includes(origin) || allowedOrigins.includes('*')) {
                     return callback(null, true);
                 }
-                return callback(null, true);
+                if (process.env.NODE_ENV !== 'production' && origin.includes('localhost')) {
+                    return callback(null, true);
+                }
+                return callback(new Error(`Socket CORS blocked for origin: ${origin}`));
             },
             methods: ['GET', 'POST'],
             credentials: true

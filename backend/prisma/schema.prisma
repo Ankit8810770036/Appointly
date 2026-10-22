@@ -35,6 +35,7 @@ model User {
   marketingEnabled     Boolean          @default(false)
   remindersEnabled     Boolean          @default(true)
   lastSeen             DateTime?
+  avatarUrl            String?
   clientAppointments   Appointment[]    @relation("ClientAppointments")
   favorites            Favorite[]       @relation("ClientFavorites")
   receivedMessages     Message[]        @relation("ReceivedMessages")
@@ -43,6 +44,9 @@ model User {
   providerProfile      ProviderProfile?
   siteReviews          SiteReview[]
   addresses            Address[]
+  complaints           Complaint[]      @relation("ClientComplaints")
+  pushSubscriptions    PushSubscription[]
+  auditLogs            AuditLog[]       @relation("AdminAuditLogs")
 }
 
 model Address {
@@ -117,12 +121,16 @@ model Appointment {
   latitude       Float?
   longitude      Float?
   date           DateTime
-  status         Status          @default(PENDING)
-  note           String?
-  client         User            @relation("ClientAppointments", fields: [clientId], references: [id])
-  provider       ProviderProfile @relation("ProviderAppointments", fields: [providerId], references: [id])
-  service        Service         @relation(fields: [serviceId], references: [id])
-  review         Review?
+  status             Status          @default(PENDING)
+  note               String?
+  cancellationReason String?
+  cancelledBy        String?        // "CLIENT" | "PROVIDER" | "ADMIN"
+  cancelledAt        DateTime?
+  client             User            @relation("ClientAppointments", fields: [clientId], references: [id])
+  provider           ProviderProfile @relation("ProviderAppointments", fields: [providerId], references: [id])
+  service            Service         @relation(fields: [serviceId], references: [id])
+  review             Review?
+  complaints         Complaint[]
 }
 
 model Review {
@@ -192,3 +200,51 @@ enum Status {
   COMPLETED
   CANCELLED
 }
+
+model Complaint {
+  id            String       @id @default(uuid())
+  clientId      String
+  providerId    String?
+  appointmentId String?
+  subject       String
+  description   String
+  category      String       @default("SERVICE_QUALITY")
+  status        String       @default("PENDING") // PENDING | UNDER_REVIEW | RESOLVED | DISMISSED
+  adminNotes    String?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  client        User         @relation("ClientComplaints", fields: [clientId], references: [id], onDelete: Cascade)
+  appointment   Appointment? @relation(fields: [appointmentId], references: [id], onDelete: SetNull)
+}
+
+model PushSubscription {
+  id        String   @id @default(uuid())
+  userId    String
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  adminId    String
+  action     String   // e.g. "SPECIALIST_VERIFIED", "SPECIALIST_REJECTED", "USER_DELETED", "APPOINTMENT_OVERRIDE", "COMPLAINT_RESOLVED", "REVIEW_DELETED"
+  targetType String   // "SPECIALIST", "USER", "APPOINTMENT", "COMPLAINT", "REVIEW"
+  targetId   String?
+  details    String?
+  reason     String?
+  ipAddress  String?
+  createdAt  DateTime @default(now())
+
+  admin      User     @relation("AdminAuditLogs", fields: [adminId], references: [id], onDelete: Cascade)
+
+  @@index([adminId])
+  @@index([action])
+  @@index([targetType])
+  @@index([createdAt])
+}
+

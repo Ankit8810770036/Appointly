@@ -4,7 +4,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { addressApi } from '../../api/addresses';
 import { detectCoordinatesAndAddress } from '../../utils/geolocation';
-import { CalendarDays, Clock, MapPin, Navigation, CheckCircle2, CheckCircle, XCircle, MessageCircle, Stethoscope, Star, Heart, Inbox, UserRound, Sparkles, UserCircle, Mail, User, Phone, ShieldCheck, Globe, Calendar, Lock, Edit3, Eye, Hourglass, Home, Briefcase, Trash2, Plus, Compass } from 'lucide-react';
+import { CalendarDays, Clock, MapPin, Navigation, CheckCircle2, CheckCircle, XCircle, MessageCircle, Stethoscope, Star, Heart, Inbox, UserRound, Sparkles, UserCircle, Mail, User, Phone, ShieldCheck, Globe, Calendar, Lock, Edit3, Eye, Hourglass, Home, Briefcase, Trash2, Plus, Compass, Camera, Loader2, ShieldAlert, AlertTriangle, HelpCircle, Copy } from 'lucide-react';
 import Button from '../../components/ui/Button/Button';
 import Badge from '../../components/ui/Badge/Badge';
 import Card from '../../components/ui/Card/Card';
@@ -13,9 +13,12 @@ import ThemeToggle from '../../components/ui/ThemeToggle/ThemeToggle';
 import { useAuth } from '../../context/AuthContext';
 import { appointmentApi } from '../../api/appointments';
 import { favoriteApi } from '../../api/favorites';
+import { complaintApi } from '../../api/complaints';
 import { authApi } from '../../api/auth';
 import { notificationApi } from '../../api/notifications';
 import ReviewModal from '../../components/modals/ReviewModal/ReviewModal';
+import ComplaintModal from '../../components/modals/ComplaintModal/ComplaintModal';
+import CancellationModal from '../../components/modals/CancellationModal/CancellationModal';
 import { reviewApi } from '../../api/reviews';
 import { messageApi } from '../../api/messages';
 import { useSocket } from '../../context/SocketContext';
@@ -28,7 +31,8 @@ import WatchGuidesTab from '../../components/dashboard/WatchGuidesTab/WatchGuide
 import MapPicker from '../../components/ui/Map/MapPicker';
 import MapViewer from '../../components/ui/Map/MapViewer';
 import MapDirectionsModal from '../../components/modals/MapDirectionsModal/MapDirectionsModal';
-import LocationPromptModal from '../../components/modals/LocationPromptModal/LocationPromptModal';
+import NearbyProvidersMapModal from '../../components/modals/NearbyProvidersMapModal/NearbyProvidersMapModal';
+import CalendarExportDropdown from '../../components/ui/CalendarExport/CalendarExportDropdown';
 import '../ProviderDashboard/ProviderDashboard.css';
 import './ClientDashboard.css';
 
@@ -48,9 +52,8 @@ const STATUS_VARIANT = {
 
 /* ─── Sub-components ─────────────────────────────── */
 
-function AppointmentCard({ appt, onCancel, onRebook, onReview, onMessage, onShowMap, index = 0 }) {
+function AppointmentCard({ appt, onCancel, onRebook, onReview, onMessage, onShowMap, onComplain, index = 0 }) {
     const navigate = useNavigate();
-    const [showCancel, setShowCancel] = useState(false);
 
     const handleViewProfile = () => {
         const targetId = appt.providerId || appt.providerProfileId;
@@ -74,14 +77,31 @@ function AppointmentCard({ appt, onCancel, onRebook, onReview, onMessage, onShow
                 style={{ cursor: 'pointer' }}
             >
                 <div className="my-booking-avatar">
-                    <UserRound size={22} />
+                    {appt.providerAvatarUrl ? (
+                        <img src={appt.providerAvatarUrl} alt={appt.provider} className="my-booking-avatar-img" />
+                    ) : (
+                        <UserRound size={22} />
+                    )}
                 </div>
                 <div className="my-booking-details">
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
                         <h3 className="my-booking-name">{appt.provider}</h3>
                         <span style={{ fontSize: '0.72rem', background: 'rgba(226, 137, 47, 0.15)', color: 'var(--amber, #E2892F)', padding: '1px 6px', borderRadius: '4px', border: '1px solid rgba(226, 137, 47, 0.3)' }}>
                             View Profile ↗
                         </span>
+                        {appt.id && (
+                            <span
+                                className="client-booking-id-tag"
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    navigator.clipboard.writeText(appt.id);
+                                    toast.success(`Copied Booking ID: #APT-${appt.id.replace(/-/g, '').slice(0, 8).toUpperCase()}`);
+                                }}
+                                title="Click to copy Booking ID for admin support"
+                            >
+                                #APT-{appt.id.replace(/-/g, '').slice(0, 8).toUpperCase()} <Copy size={10} />
+                            </span>
+                        )}
                     </div>
                     <span className="my-booking-service">{appt.service} • {appt.specialty}</span>
                     <div className="my-booking-location-row">
@@ -134,16 +154,37 @@ function AppointmentCard({ appt, onCancel, onRebook, onReview, onMessage, onShow
                     <Navigation size={13} /> Get Directions
                 </button>
 
-                {(appt.status === 'pending' || appt.status === 'confirmed') && (
-                    <>
-                        <button className="my-booking-btn" onClick={() => onMessage(appt.providerId)}>
-                            <MessageCircle size={13} /> Message
-                        </button>
-                        <button className="my-booking-btn my-booking-btn--danger" onClick={() => setShowCancel(true)}>
-                            <XCircle size={13} /> Cancel Booking
-                        </button>
-                    </>
-                )}
+                {(appt.status === 'pending' || appt.status === 'confirmed') && (() => {
+                    const apptDate = new Date(appt.rawDate || `${appt.date}T${appt.time}:00Z`);
+                    const diffHours = (apptDate.getTime() - Date.now()) / (1000 * 60 * 60);
+                    const isUnder2Hours = diffHours < 2;
+
+                    return (
+                        <>
+                            <CalendarExportDropdown
+                                title={`${appt.service || 'Appointment'} with Dr. ${appt.provider}`}
+                                details={`Appointly consultation with Dr. ${appt.provider}\nService: ${appt.service}\nSpecialty: ${appt.specialty}\nLocation: ${appt.serviceAddress || appt.location || 'Consultation'}\n\nDashboard: https://appointly.live/dashboard/client`}
+                                location={appt.serviceAddress || appt.location || 'Appointly Consultation'}
+                                startDate={new Date(appt.rawDate || `${appt.date}T${appt.time}:00Z`)}
+                                durationMinutes={parseInt(appt.duration, 10) || 30}
+                                size="sm"
+                                variant="outline"
+                                fullWidth={true}
+                                buttonText="Add to Calendar"
+                            />
+                            <button className="my-booking-btn" onClick={() => onMessage(appt)}>
+                                <MessageCircle size={13} /> Message
+                            </button>
+                            <button
+                                className={`my-booking-btn ${isUnder2Hours ? 'my-booking-btn--subtle' : 'my-booking-btn--danger'}`}
+                                onClick={() => onCancel(appt)}
+                                title={isUnder2Hours ? 'Cancellation policy locked: Less than 2 hours before start time' : 'Cancel Appointment (Structured Policy)'}
+                            >
+                                <XCircle size={13} /> {isUnder2Hours ? 'Cancel (Locked <2h)' : 'Cancel Booking'}
+                            </button>
+                        </>
+                    );
+                })()}
 
                 {appt.status === 'completed' && (
                     <>
@@ -159,24 +200,37 @@ function AppointmentCard({ appt, onCancel, onRebook, onReview, onMessage, onShow
                 )}
 
                 {appt.status === 'cancelled' && (
-                    <button className="my-booking-btn my-booking-btn--primary" onClick={() => onRebook(appt)}>
-                        <Sparkles size={13} /> Rebook Session
-                    </button>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', width: '100%' }}>
+                        <button className="my-booking-btn my-booking-btn--primary" onClick={() => onRebook(appt)}>
+                            <Sparkles size={13} /> Rebook Session
+                        </button>
+                        {appt.cancellationReason && (
+                            <div style={{
+                                fontSize: '0.74rem',
+                                color: '#f87171',
+                                background: 'rgba(239, 68, 68, 0.08)',
+                                border: '1px solid rgba(239, 68, 68, 0.2)',
+                                padding: '4px 8px',
+                                borderRadius: '6px',
+                                lineHeight: '1.3'
+                            }}>
+                                <strong>Cancelled {appt.cancelledBy ? `by ${appt.cancelledBy.toLowerCase()}` : ''}:</strong> {appt.cancellationReason}
+                            </div>
+                        )}
+                    </div>
                 )}
+
+                {/* Direct Admin Escalation / Complaint Button */}
+                <button
+                    className="my-booking-btn my-booking-btn--subtle"
+                    onClick={() => onComplain && onComplain(appt)}
+                    title="Report issue or dispute directly to Admin"
+                    style={{ borderColor: 'rgba(239, 68, 68, 0.3)', color: '#f87171' }}
+                >
+                    <ShieldAlert size={13} color="#ef4444" /> Report Issue
+                </button>
             </div>
 
-            {/* Cancel confirmation modal overlay inside card if clicked */}
-            {showCancel && (
-                <div className="appt-cancel-confirm" style={{ gridColumn: 'span 4', marginTop: '10px' }}>
-                    <p style={{ margin: 0, color: '#fca5a5' }}>Are you sure you want to cancel this appointment?</p>
-                    <div className="appt-cancel-confirm__actions" style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
-                        <Button variant="ghost" size="sm" onClick={() => setShowCancel(false)}>Keep it</Button>
-                        <Button variant="danger" size="sm" onClick={() => { onCancel(appt.id); setShowCancel(false); }}>
-                            Yes, cancel
-                        </Button>
-                    </div>
-                </div>
-            )}
         </motion.div>
     );
 }
@@ -219,6 +273,8 @@ export default function ClientDashboard() {
     // Dynamic data state
     const [appointments, setAppointments] = useState([]);
     const [favorites, setFavorites] = useState([]);
+    const [complaints, setComplaints] = useState([]);
+    const [complaintTarget, setComplaintTarget] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [syncTick, setSyncTick] = useState(0);
@@ -226,6 +282,7 @@ export default function ClientDashboard() {
     const [unreadMessages, setUnreadMessages] = useState(0);
     const [unreadAppointments, setUnreadAppointments] = useState(0);
     const [mapTarget, setMapTarget] = useState(null);
+    const [cancellingAppointment, setCancellingAppointment] = useState(null);
     const socket = useSocket();
 
     const [savedLocation, setSavedLocation] = useState(() => {
@@ -301,27 +358,42 @@ export default function ClientDashboard() {
 
         const fetchData = async () => {
             try {
-                const [apptData, favData, msgsData, notifData] = await Promise.all([
-                    appointmentApi.getMy(token),
-                    favoriteApi.getMy(token),
-                    messageApi.getConversations(token),
-                    notificationApi.getMy(token)
+                const [apptData, favData, msgsData, notifData, complaintData] = await Promise.all([
+                    appointmentApi.getMy(token).catch(err => { console.error('Error fetching appointments:', err); return []; }),
+                    favoriteApi.getMy(token).catch(err => { console.error('Error fetching favorites:', err); return []; }),
+                    messageApi.getConversations(token).catch(err => { console.error('Error fetching conversations:', err); return []; }),
+                    notificationApi.getMy(token).catch(err => { console.error('Error fetching notifications:', err); return []; }),
+                    complaintApi.getMy(token).catch(err => { console.error('Error fetching complaints:', err); return []; })
                 ]);
 
+                setComplaints(Array.isArray(complaintData) ? complaintData : []);
+
                 // Initial Message Count
-                const sum = msgsData.reduce((acc, c) => acc + c.unreadCount, 0);
+                const validMsgs = Array.isArray(msgsData) ? msgsData : [];
+                const sum = validMsgs.reduce((acc, c) => acc + (c?.unreadCount || 0), 0);
                 if (activeSectionRef.current !== 'messages') {
                     setUnreadMessages(sum);
                 }
 
                 // Initial Appointment Status Notification Count
-                const unreadNotifs = notifData.filter(n => !n.isRead && n.type.startsWith('BOOKING_')).length;
+                const validNotifs = Array.isArray(notifData) ? notifData : [];
+                const unreadNotifs = validNotifs.filter(n => n && !n.isRead && n.type && n.type.startsWith('BOOKING_')).length;
                 if (activeSectionRef.current !== 'appointments') {
                     setUnreadAppointments(unreadNotifs);
                 }
 
-                const formattedAppts = apptData.map(appt => {
+                const validAppts = Array.isArray(apptData) ? apptData : [];
+                const formattedAppts = validAppts.map(appt => {
                     const dateObj = new Date(appt.date);
+                    const pad = (n) => String(n).padStart(2, '0');
+                    const hours = pad(dateObj.getUTCHours());
+                    const minutes = pad(dateObj.getUTCMinutes());
+                    const hNum = parseInt(hours, 10);
+                    const period = hNum >= 12 ? 'PM' : 'AM';
+                    const h12 = hNum % 12 === 0 ? 12 : hNum % 12;
+                    const timeFormatted = `${h12}:${minutes} ${period}`;
+                    const dateFormatted = `${dateObj.getUTCFullYear()}-${pad(dateObj.getUTCMonth() + 1)}-${pad(dateObj.getUTCDate())}`;
+
                     return {
                         id: appt.id,
                         providerId: appt.provider?.userId || appt.provider?.id || appt.providerId,
@@ -332,14 +404,19 @@ export default function ClientDashboard() {
                         specialty: appt.provider?.specialty || 'General',
                         service: appt.service?.name || 'Service',
                         serviceName: appt.service?.name || 'Service',
-                        date: dateObj.toISOString().split('T')[0],
-                        time: dateObj.toTimeString().substring(0, 5),
+                        rawDate: appt.date,
+                        date: dateFormatted,
+                        time: timeFormatted,
                         duration: appt.service?.duration || 30,
                         price: appt.service?.price || 0,
                         status: appt.status.toLowerCase(),
+                        cancellationReason: appt.cancellationReason,
+                        cancelledBy: appt.cancelledBy,
+                        cancelledAt: appt.cancelledAt,
                         review: appt.review,
                         serviceAddress: appt.serviceAddress,
                         address: appt.address,
+                        providerAvatarUrl: appt.provider?.user?.avatarUrl || null,
                         avatar: <UserCircle size={24} className="icon-muted" />,
                         location: appt.provider?.user?.location || appt.provider?.location || 'Not specified',
                         latitude: appt.provider?.user?.latitude,
@@ -352,20 +429,22 @@ export default function ClientDashboard() {
                     setFilter('pending');
                 }
 
-                const formattedFavs = favData.map(f => ({
+                const validFavs = Array.isArray(favData) ? favData : [];
+                const formattedFavs = validFavs.filter(f => f && f.providerProfile).map(f => ({
                     id: f.id,
                     providerProfileId: f.providerProfile.id,
                     providerId: f.providerProfile.userId,
-                    name: f.providerProfile.user.name,
+                    name: f.providerProfile.user?.name || 'Provider',
+                    avatarUrl: f.providerProfile.user?.avatarUrl || null,
                     specialty: f.providerProfile.specialty,
-                    rating: f.providerProfile.rating || 4.5,
+                    rating: f.providerProfile.rating && Number(f.providerProfile.rating) > 0 ? Number(f.providerProfile.rating).toFixed(1) : '5.0',
                     avatar: <UserCircle size={24} className="icon-muted" />,
                     location: f.providerProfile.location || 'Not specified',
                     price: f.providerProfile.services?.[0]?.price || 0
                 }));
                 setFavorites(formattedFavs);
             } catch (err) {
-                console.error(err);
+                console.error('ClientDashboard fetchData error:', err);
                 setError('Failed to load dashboard data.');
             } finally {
                 setLoading(false);
@@ -388,23 +467,26 @@ export default function ClientDashboard() {
         cancelled: appointments.filter(a => a.status === 'cancelled').length,
     };
 
-    const handleCancel = async (id) => {
-        try {
-            await appointmentApi.updateStatus(id, 'cancelled', token);
-            setAppointments(prev => prev.map(a => a.id === id ? { ...a, status: 'cancelled' } : a));
-            toast.success('Appointment cancelled successfully');
-            setSyncTick(t => t + 1);
-        } catch (err) {
-            toast.error('Failed to cancel appointment: ' + err.message);
-        }
+    const handleCancel = (appt) => {
+        setCancellingAppointment(appt);
     };
 
-    const handleRebook = (appt) => navigate(`/provider/${appt.providerId}`);
+    const handleRebook = (appt) => {
+        const targetId = appt.providerId || appt.providerProfileId || appt.rawProvider?.userId;
+        if (targetId) navigate(`/provider/${targetId}`);
+    };
 
     const handleMessage = (appt) => {
+        const isObj = typeof appt === 'object' && appt !== null;
+        const target = isObj ? appt : appointments.find(a => a.providerId === appt || a.id === appt) || {};
+        const recipientUserId = target.providerId || target.rawProvider?.userId || target.provider?.userId || (typeof appt === 'string' ? appt : null);
         setMessageTarget({
-            id: appt.providerId,
-            name: appt.providerName || appt.provider
+            id: recipientUserId,
+            name: target.providerName || target.provider || 'Specialist',
+            avatarUrl: target.providerAvatarUrl || target.provider?.user?.avatarUrl || target.avatarUrl || null,
+            title: target.specialty || target.service || 'Medical Specialist',
+            specialty: target.specialty || target.service,
+            providerProfile: { specialty: target.specialty || target.service }
         });
     };
 
@@ -427,7 +509,8 @@ export default function ClientDashboard() {
     const displayUser = {
         name: user?.name || 'Client',
         email: user?.email || '',
-        avatar: <UserRound size={20} />,
+        avatarUrl: user?.avatarUrl,
+        avatar: user?.avatarUrl || <UserRound size={20} />,
         memberSince
     };
 
@@ -451,6 +534,7 @@ export default function ClientDashboard() {
                     { id: 'appointments', icon: 'Calendar', label: 'Appointments', badgeCount: unreadAppointments },
                     { id: 'messages', icon: 'MessageSquare', label: 'Messages', badgeCount: unreadMessages },
                     { id: 'favourites', icon: 'Heart', label: 'Favourites' },
+                    { id: 'complaints', icon: 'ShieldAlert', label: 'Disputes & Support', badgeCount: complaints.filter(c => c.status === 'PENDING').length },
                     { id: 'settings', icon: 'Settings', label: 'Settings' },
                 ]}
                 footerItems={[
@@ -497,62 +581,49 @@ export default function ClientDashboard() {
                         </div>
                     </div>
                 ) : error ? (
-                    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', color: 'red', minHeight: '300px' }}>
-                        {error}
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '350px', gap: '1rem', color: 'var(--paper)', textAlign: 'center', padding: '2rem' }}>
+                        <AlertTriangle size={36} color="var(--amber, #E2892F)" />
+                        <h3 style={{ margin: 0, fontSize: '1.2rem' }}>Unable to load dashboard data</h3>
+                        <p style={{ color: 'var(--muted)', margin: 0, fontSize: '14px', maxWidth: '400px' }}>{error}</p>
+                        <Button variant="primary" size="sm" onClick={() => { setError(null); setLoading(true); setSyncTick(t => t + 1); }}>
+                            Retry Now
+                        </Button>
                     </div>
                 ) : (
                     <>
                         {/* ── Overview ── */}
                         {activeSection === 'overview' && (
-                    <div className="dashboard__content animate-fade-in">
-                        <div className="dashboard__header">
-                            <div>
-                                <h1 style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                    Good evening, {displayUser.name.split(' ')[0]} <Sparkles size={24} className="text-primary" />
-                                </h1>
-                                <p>Here's a summary of your appointments.</p>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '8px' }}>
-                                    <span style={{
-                                        fontSize: '0.84rem',
-                                        color: '#cbd5e1',
-                                        background: '#0b0f17',
-                                        border: '1px solid rgba(255, 255, 255, 0.12)',
-                                        boxShadow: '0 4px 16px rgba(0, 0, 0, 0.3)',
-                                        padding: '6px 16px',
-                                        borderRadius: '9999px',
-                                        display: 'inline-flex',
-                                        alignItems: 'center',
-                                        gap: '8px'
-                                    }}>
-                                        <MapPin size={14} strokeWidth={2} style={{ color: '#f59e0b', flexShrink: 0 }} />
-                                        <span>Showing specialists within <strong style={{ color: '#ffffff', fontWeight: 600 }}>50 km</strong> of <strong style={{ color: '#ffffff', fontWeight: 600 }}>{savedLocation?.name || user?.city || 'My Location'}</strong></span>
-                                        <span style={{ color: '#475569', margin: '0 2px' }}>·</span>
-                                        <button
-                                            type="button"
-                                            style={{
-                                                background: 'none',
-                                                border: 'none',
-                                                color: '#f59e0b',
-                                                cursor: 'pointer',
-                                                fontWeight: 600,
-                                                fontSize: '0.84rem',
-                                                padding: 0,
-                                                display: 'inline-flex',
-                                                alignItems: 'center'
-                                            }}
-                                            onClick={() => setShowLocationModal(true)}
-                                        >
-                                            Change
-                                        </button>
-                                    </span>
+                            <div className="dashboard__content animate-fade-in">
+                                <div className="dashboard__header">
+                                    <div>
+                                        <h1 style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                            {(() => {
+                                                const h = new Date().getHours();
+                                                return h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';
+                                            })()}, {displayUser.name.split(' ')[0]} <Sparkles size={24} className="text-primary" />
+                                        </h1>
+                                        <p>Here's a summary of your appointments.</p>
+                                        <div className="client-location-banner">
+                                            <span className="client-location-pill">
+                                                <MapPin size={14} strokeWidth={2} className="client-location-icon" />
+                                                <span>Showing specialists within <strong className="client-location-strong">50 km</strong> of <strong className="client-location-strong">{savedLocation?.name || user?.city || 'My Location'}</strong></span>
+                                                <span className="client-location-divider">·</span>
+                                                <button
+                                                    type="button"
+                                                    className="client-location-change-btn"
+                                                    onClick={() => setShowLocationModal(true)}
+                                                >
+                                                    Change
+                                                </button>
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <div className="header-actions">
+                                        <ThemeToggle />
+                                        <NotificationBell onNavigate={handleNotifNavigate} />
+                                        <Button variant="primary" onClick={() => navigate('/', { state: { askLocation: true } })}>+ New Booking</Button>
+                                    </div>
                                 </div>
-                            </div>
-                            <div className="header-actions">
-                                <ThemeToggle />
-                                <NotificationBell onNavigate={handleNotifNavigate} />
-                                <Button variant="primary" onClick={() => navigate('/', { state: { askLocation: true } })}>+ New Booking</Button>
-                            </div>
-                        </div>
 
                         <div className="stats-grid">
                             {dynamicStats.map((stat, i) => (
@@ -580,9 +651,9 @@ export default function ClientDashboard() {
                             </div>
                             <div className="appointments-list">
                                 {appointments.filter(a => a.status === 'pending' || a.status === 'confirmed').length === 0
-                                    ? <EmptyState onBook={() => navigate('/')} />
+                                    ? <EmptyState onBook={() => navigate('/', { state: { askLocation: true, autoOpenMap: true } })} />
                                     : appointments.filter(a => a.status === 'pending' || a.status === 'confirmed').map(a => (
-                                        <AppointmentCard key={a.id} appt={a} onCancel={handleCancel} onRebook={handleRebook} onReview={setReviewingAppointment} onMessage={() => handleMessage(a)} onShowMap={(appt) => setMapTarget(appt)} />
+                                        <AppointmentCard key={a.id} appt={a} onCancel={handleCancel} onRebook={handleRebook} onReview={setReviewingAppointment} onMessage={() => handleMessage(a)} onShowMap={(appt) => setMapTarget(appt)} onComplain={(appt) => setComplaintTarget(appt)} />
                                     ))
                                 }
                             </div>
@@ -595,7 +666,7 @@ export default function ClientDashboard() {
                             </div>
                             <div className="appointments-list">
                                 {appointments.filter(a => a.status === 'completed' || a.status === 'cancelled').slice(0, 3).map(a => (
-                                    <AppointmentCard key={a.id} appt={a} onCancel={handleCancel} onRebook={handleRebook} onReview={setReviewingAppointment} onMessage={() => handleMessage(a)} onShowMap={(appt) => setMapTarget(appt)} />
+                                    <AppointmentCard key={a.id} appt={a} onCancel={handleCancel} onRebook={handleRebook} onReview={setReviewingAppointment} onMessage={() => handleMessage(a)} onShowMap={(appt) => setMapTarget(appt)} onComplain={(appt) => setComplaintTarget(appt)} />
                                 ))}
                             </div>
                         </div>
@@ -612,7 +683,7 @@ export default function ClientDashboard() {
                             </div>
                             <div className="header-actions">
                                 <NotificationBell onNavigate={handleNotifNavigate} />
-                                <Button variant="primary" onClick={() => navigate('/')}>+ New Booking</Button>
+                                <Button variant="primary" onClick={() => navigate('/', { state: { askLocation: true, autoOpenMap: true } })}>+ New Booking</Button>
                             </div>
                         </div>
 
@@ -620,9 +691,9 @@ export default function ClientDashboard() {
 
                         <div className="appointments-list">
                             {filtered.length === 0
-                                ? <EmptyState onBook={() => navigate('/')} />
+                                ? <EmptyState onBook={() => navigate('/', { state: { askLocation: true, autoOpenMap: true } })} />
                                 : filtered.map((a, i) => (
-                                    <AppointmentCard key={a.id} appt={a} index={i} onCancel={handleCancel} onRebook={handleRebook} onReview={setReviewingAppointment} onMessage={() => handleMessage(a)} onShowMap={(appt) => setMapTarget(appt)} />
+                                    <AppointmentCard key={a.id} appt={a} index={i} onCancel={handleCancel} onRebook={handleRebook} onReview={setReviewingAppointment} onMessage={() => handleMessage(a)} onShowMap={(appt) => setMapTarget(appt)} onComplain={(appt) => setComplaintTarget(appt)} />
                                 ))
                             }
                         </div>
@@ -660,7 +731,7 @@ export default function ClientDashboard() {
                                     <div className="empty-state__icon"><Heart size={40} strokeWidth={1.5} /></div>
                                     <h3>No favourites yet</h3>
                                     <p>Browse providers and click the heart icon to save them here.</p>
-                                    <Button variant="primary" onClick={() => navigate('/')}>Browse Services</Button>
+                                    <Button variant="primary" onClick={() => navigate('/', { state: { askLocation: true, autoOpenMap: true } })}>Browse Services</Button>
                                 </div>
                             ) : (
                                 favorites.map(p => (
@@ -672,7 +743,13 @@ export default function ClientDashboard() {
                                         onClick={() => navigate(`/provider/${p.providerId || p.providerProfileId}`)}
                                         style={{ cursor: 'pointer' }}
                                     >
-                                        <div className="fav-avatar"><Stethoscope size={24} strokeWidth={1.5} /></div>
+                                        <div className="fav-avatar" style={{ overflow: 'hidden' }}>
+                                            {p.avatarUrl ? (
+                                                <img src={p.avatarUrl} alt={p.name} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} />
+                                            ) : (
+                                                <Stethoscope size={24} strokeWidth={1.5} />
+                                            )}
+                                        </div>
                                         <div className="fav-name">{p.name}</div>
                                         <div className="fav-specialty">{p.specialty}</div>
                                         <div className="fav-meta"><Star size={14} fill="currentColor" /> {p.rating} · from ₹{p.price}</div>
@@ -694,11 +771,106 @@ export default function ClientDashboard() {
                     </div>
                 )}
 
+                {/* ── Complaints & Disputes Tab ── */}
+                {activeSection === 'complaints' && (
+                    <div className="dashboard__content animate-fade-in">
+                        <div className="dashboard__header">
+                            <div>
+                                <h1>Disputes & Admin Escalations</h1>
+                                <p>Track your complaints and admin resolution decisions in real time.</p>
+                            </div>
+                            <div className="header-actions">
+                                <Button variant="primary" onClick={() => setComplaintTarget({})}>
+                                    <ShieldAlert size={15} /> + File New Issue / Dispute
+                                </Button>
+                            </div>
+                        </div>
+
+                        {complaints.length === 0 ? (
+                            <div className="empty-state">
+                                <div className="empty-state__icon"><ShieldCheck size={42} strokeWidth={1.5} color="#10b981" /></div>
+                                <h3>No Active Complaints or Disputes</h3>
+                                <p>All your consultations and bookings are in good standing. If you ever face an issue with a provider, service quality, or billing, report it here for immediate admin intervention.</p>
+                                <Button variant="outline" onClick={() => setComplaintTarget({})}>File an Escalation</Button>
+                            </div>
+                        ) : (
+                            <div className="complaints-grid-container">
+                                {complaints.map(c => {
+                                    const statusMap = {
+                                        PENDING: { label: 'Under Review', color: '#e2892f', bg: 'rgba(226, 137, 47, 0.15)' },
+                                        UNDER_REVIEW: { label: 'Investigating', color: '#38bdf8', bg: 'rgba(56, 189, 248, 0.15)' },
+                                        RESOLVED: { label: 'Resolved by Admin', color: '#10b981', bg: 'rgba(16, 185, 129, 0.15)' },
+                                        DISMISSED: { label: 'Dismissed', color: '#9ba3af', bg: 'rgba(155, 163, 175, 0.15)' },
+                                    };
+                                    const badge = statusMap[c.status] || statusMap.PENDING;
+                                    const dateStr = new Date(c.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+                                    const provUser = c.appointment?.provider?.user || c.providerUser;
+
+                                    return (
+                                        <Card key={c.id} variant="default" className="client-complaint-card">
+                                            <div className="c-card-top">
+                                                <div className="c-card-category-badge">
+                                                    <span>{c.category?.replace('_', ' ') || 'SERVICE ISSUE'}</span>
+                                                </div>
+                                                <div className="c-card-status-pill" style={{ color: badge.color, background: badge.bg, border: `1px solid ${badge.color}40` }}>
+                                                    ● {badge.label}
+                                                </div>
+                                            </div>
+
+                                            <h3 className="c-card-subject">{c.subject}</h3>
+                                            <p className="c-card-desc">{c.description}</p>
+
+                                            <div className="c-card-meta-row">
+                                                {provUser && (
+                                                    <div className="c-card-prov">
+                                                        <span className="c-label">Provider:</span>
+                                                        <strong>{provUser.name}</strong>
+                                                    </div>
+                                                )}
+                                                {c.appointment && (
+                                                    <div className="c-card-appt">
+                                                        <span className="c-label">Booking:</span>
+                                                        <span>#{c.appointment.id.slice(0, 8)} ({c.appointment.service?.name})</span>
+                                                    </div>
+                                                )}
+                                                <div className="c-card-date">
+                                                    <span className="c-label">Submitted:</span>
+                                                    <span>{dateStr}</span>
+                                                </div>
+                                            </div>
+
+                                            {c.adminNotes && (
+                                                <div className="c-card-admin-response">
+                                                    <div className="c-admin-response-title">
+                                                        <ShieldCheck size={14} color="#10b981" />
+                                                        <span>Admin Resolution & Findings:</span>
+                                                    </div>
+                                                    <p className="c-admin-response-text">{c.adminNotes}</p>
+                                                </div>
+                                            )}
+                                        </Card>
+                                    );
+                                })}
+                            </div>
+                        )}
+                    </div>
+                )}
+
                 {/* ── Settings ── */}
                 {activeSection === 'settings' && (
                     <ClientSettingsTab displayUser={displayUser} />
                 )}
                     </>
+                )}
+
+                {complaintTarget && (
+                    <ComplaintModal
+                        appointment={complaintTarget?.id ? complaintTarget : null}
+                        onClose={() => setComplaintTarget(null)}
+                        onSuccess={() => {
+                            setSyncTick(t => t + 1);
+                        }}
+                    />
                 )}
 
 
@@ -717,6 +889,21 @@ export default function ClientDashboard() {
                         onClose={() => setMessageTarget(null)}
                         onSuccess={() => {
                             toast.success('Message sent! You can follow up in the Messages tab.');
+                            setSyncTick(t => t + 1);
+                        }}
+                    />
+                )}
+                {cancellingAppointment && (
+                    <CancellationModal
+                        appointment={cancellingAppointment}
+                        userRole="CLIENT"
+                        onClose={() => setCancellingAppointment(null)}
+                        onSuccess={(updated) => {
+                            setAppointments(prev => prev.map(a => a.id === cancellingAppointment.id ? {
+                                ...a,
+                                status: 'cancelled',
+                                cancellationReason: updated.cancellationReason || 'Cancelled by client'
+                            } : a));
                             setSyncTick(t => t + 1);
                         }}
                     />
@@ -743,21 +930,43 @@ export default function ClientDashboard() {
                 clientName={user?.name || "Me"}
             />
 
-            <LocationPromptModal
-                isOpen={showLocationModal}
-                onClose={() => setShowLocationModal(false)}
-                onSelectLocation={(loc) => setSavedLocation(loc)}
-                currentLocation={savedLocation}
-                canDismiss={true}
-            />
+            {showLocationModal && (
+                <NearbyProvidersMapModal
+                    isOpen={showLocationModal}
+                    onClose={() => setShowLocationModal(false)}
+                    providers={[]}
+                    initialLocation={savedLocation}
+                    currentLocationName={savedLocation?.name || user?.city || 'My Location'}
+                    onSelectLocation={(loc) => {
+                        setSavedLocation(loc);
+                        if (loc) {
+                            try {
+                                localStorage.setItem('appointly_client_location', JSON.stringify(loc));
+                            } catch {
+                                // Ignore
+                            }
+                            toast.success(`📍 Location set to ${loc.name || loc.city || 'Selected Location'}`);
+                        } else {
+                            try {
+                                localStorage.removeItem('appointly_client_location');
+                            } catch {
+                                // Ignore
+                            }
+                            toast.info('Location cleared. Showing nationwide specialists.');
+                        }
+                    }}
+                />
+            )}
         </div>
     );
 }
 
 function ClientSettingsTab() {
-    const { user, token, login } = useAuth();
+    const { user, token, login, updateUser } = useAuth();
 
     const [isEditing, setIsEditing] = useState(false);
+    const [uploadingAvatar, setUploadingAvatar] = useState(false);
+    const fileInputRef = useRef(null);
 
     // Form fields
     const nameParts = (user?.name || '').split(' ');
@@ -772,6 +981,40 @@ function ClientSettingsTab() {
     const [latitude, setLatitude] = useState(user?.latitude || null);
     const [longitude, setLongitude] = useState(user?.longitude || null);
     const [saving, setSaving] = useState(false);
+
+    const handleAvatarUpload = async (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        if (!file.type.startsWith('image/')) {
+            toast.error('Please select a valid image file (PNG, JPG, WEBP).');
+            return;
+        }
+
+        if (file.size > 5 * 1024 * 1024) {
+            toast.error('Image size must be under 5MB.');
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append('avatar', file);
+
+        setUploadingAvatar(true);
+        try {
+            const res = await authApi.uploadAvatar(formData);
+            if (updateUser) {
+                updateUser({ avatarUrl: res.avatarUrl });
+            } else if (res.user) {
+                login(res.user, token);
+            }
+            toast.success('Profile photo uploaded to Cloudinary CDN successfully!');
+        } catch (err) {
+            toast.error(err.message || 'Failed to upload profile photo');
+        } finally {
+            setUploadingAvatar(false);
+            if (fileInputRef.current) fileInputRef.current.value = '';
+        }
+    };
 
     const handleSave = async (e) => {
         if (e) e.preventDefault();
@@ -789,7 +1032,11 @@ function ClientSettingsTab() {
                 latitude,
                 longitude
             }, token);
-            login(updated, token);
+            if (updateUser) {
+                updateUser(updated);
+            } else {
+                login(updated, token);
+            }
             toast.success('Profile updated successfully!');
             setIsEditing(false);
         } catch (err) {
@@ -808,15 +1055,31 @@ function ClientSettingsTab() {
             {/* Top Profile Header Card */}
             <div className="pcd-settings-profile-card">
                 <div className="pcd-settings-profile-left">
-                    <div className="pcd-settings-profile-avatar">
-                        {avatarUrl
-                            ? <img src={avatarUrl} alt={user?.name} />
-                            : <span>{initials}</span>
-                        }
+                    <div className="pcd-settings-profile-avatar-container">
+                        <div className="pcd-settings-profile-avatar">
+                            {uploadingAvatar ? (
+                                <Loader2 size={24} className="pcd-avatar-spinner" />
+                            ) : avatarUrl ? (
+                                <img src={avatarUrl} alt={user?.name} />
+                            ) : (
+                                <span>{initials}</span>
+                            )}
+                        </div>
+                        <label className="pcd-avatar-upload-badge" title="Upload new photo (Cloudinary CDN)">
+                            <Camera size={14} />
+                            <input
+                                ref={fileInputRef}
+                                type="file"
+                                accept="image/png, image/jpeg, image/webp, image/gif"
+                                style={{ display: 'none' }}
+                                onChange={handleAvatarUpload}
+                                disabled={uploadingAvatar}
+                            />
+                        </label>
                     </div>
                     <div className="pcd-settings-profile-meta">
                         <div className="pcd-settings-profile-name-row">
-                            <h2 className="pcd-settings-profile-name">{user?.name || '—'}</h2>
+                            <h2 className="pcd-settings-profile-name">{user?.name || '-'}</h2>
                             <span className="pcd-settings-profile-badge">✓ Verified Client</span>
                         </div>
                         <div className="pcd-settings-profile-start-date">
@@ -953,7 +1216,7 @@ function ClientSettingsTab() {
                             </div>
                             <div className="pcd-settings-details-info">
                                 <span className="pcd-settings-details-label">FULL NAME</span>
-                                <span className="pcd-settings-details-value">{user?.name || '—'}</span>
+                                <span className="pcd-settings-details-value">{user?.name || '-'}</span>
                             </div>
                         </div>
 
@@ -964,7 +1227,7 @@ function ClientSettingsTab() {
                             <div className="pcd-settings-details-info">
                                 <span className="pcd-settings-details-label">EMAIL</span>
                                 <span className="pcd-settings-details-value">
-                                    {user?.email || '—'}
+                                    {user?.email || '-'}
                                 </span>
                             </div>
                         </div>
@@ -986,7 +1249,7 @@ function ClientSettingsTab() {
                             <div className="pcd-settings-details-info">
                                 <span className="pcd-settings-details-label">NUMBER</span>
                                 <span className="pcd-settings-details-value">
-                                    {user?.phone || '—'}
+                                    {user?.phone || '-'}
                                 </span>
                             </div>
                         </div>
@@ -997,7 +1260,7 @@ function ClientSettingsTab() {
                             </div>
                             <div className="pcd-settings-details-info">
                                 <span className="pcd-settings-details-label">COUNTRY</span>
-                                <span className="pcd-settings-details-value">{country || '—'}</span>
+                                <span className="pcd-settings-details-value">{country || '-'}</span>
                             </div>
                         </div>
 
@@ -1007,7 +1270,7 @@ function ClientSettingsTab() {
                             </div>
                             <div className="pcd-settings-details-info">
                                 <span className="pcd-settings-details-label">OFFICE ADDRESS</span>
-                                <span className="pcd-settings-details-value">{streetAddress || '—'}</span>
+                                <span className="pcd-settings-details-value">{streetAddress || '-'}</span>
                             </div>
                         </div>
 
@@ -1017,7 +1280,7 @@ function ClientSettingsTab() {
                             </div>
                             <div className="pcd-settings-details-info">
                                 <span className="pcd-settings-details-label">CITY / STATE</span>
-                                <span className="pcd-settings-details-value">{[city, state].filter(Boolean).join(', ') || '—'}</span>
+                                <span className="pcd-settings-details-value">{[city, state].filter(Boolean).join(', ') || '-'}</span>
                             </div>
                         </div>
 
@@ -1027,7 +1290,7 @@ function ClientSettingsTab() {
                             </div>
                             <div className="pcd-settings-details-info">
                                 <span className="pcd-settings-details-label">POSTAL CODE</span>
-                                <span className="pcd-settings-details-value">{zipCode || '—'}</span>
+                                <span className="pcd-settings-details-value">{zipCode || '-'}</span>
                             </div>
                         </div>
                     </div>

@@ -1,4 +1,4 @@
-/* ─── Messages Tab — Editorial Directory Chat UI ────────────────── */
+/* ─── Messages Tab : Editorial Directory Chat UI ────────────────── */
 
 .msg-tab {
     height: calc(100vh - 160px);
@@ -159,6 +159,14 @@
     font-size: 13px;
     font-weight: 700;
     box-shadow: none;
+    overflow: hidden;
+}
+
+.msg-avatar-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 50%;
 }
 
 .msg-presence-badge {
@@ -721,17 +729,246 @@
     margin-top: 0.75rem;
 }
 
+/* Mobile Back to List Button */
+.msg-back-to-list-btn {
+    display: none;
+    background: transparent;
+    border: 1px solid var(--line, #272B34);
+    color: var(--paper, #F4F1E8);
+    cursor: pointer;
+    padding: 6px;
+    border-radius: var(--radius, 6px);
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s ease;
+    flex-shrink: 0;
+}
+
+.msg-back-to-list-btn:hover {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.2);
+}
+
 /* Responsive */
 @media (max-width: 768px) {
     .msg-layout {
         grid-template-columns: 1fr;
     }
 
-    .msg-sidebar {
-        display: none;
+    /* When NO chat is selected on mobile: show list, hide chat window */
+    .msg-layout.no-active-chat .msg-sidebar {
+        display: flex;
+        width: 100%;
+        height: 100%;
+    }
+
+    .msg-layout.no-active-chat .msg-chat-area {
+        display: none !important;
+    }
+
+    /* When a chat IS selected on mobile: hide list, show chat window */
+    .msg-layout.has-active-chat .msg-sidebar {
+        display: none !important;
+    }
+
+    .msg-layout.has-active-chat .msg-chat-area {
+        display: flex;
+        width: 100%;
+        height: 100%;
+    }
+
+    .msg-back-to-list-btn {
+        display: flex;
+        margin-right: 8px;
     }
 
     .msg-tab {
         height: calc(100vh - 120px);
     }
+}
+
+/* Light mode overrides */
+html.light .msg-layout,
+:root.light .msg-layout {
+    background: #F8FAFC;
+    border-color: #E2E8F0;
+}
+
+html.light .msg-sidebar,
+:root.light .msg-sidebar {
+    background: #FFFFFF;
+    border-right-color: #E2E8F0;
+}
+
+html.light .msg-sidebar__header,
+:root.light .msg-sidebar__header {
+    border-bottom-color: #E2E8F0;
+}
+
+html.light .msg-sidebar__header h2,
+:root.light .msg-sidebar__header h2 {
+    color: #0F172A;
+}
+
+html.light .msg-search-input,
+:root.light .msg-search-input {
+    background: #F8FAFC;
+    border-color: #CBD5E1;
+    color: #0F172A;
+}
+
+html.light .msg-chat-header,
+:root.light .msg-chat-header {
+    background: #FFFFFF;
+    border-bottom-color: #E2E8F0;
+}
+
+html.light .msg-chat-name,
+:root.light .msg-chat-name,
+html.light .msg-chat-user h3,
+:root.light .msg-chat-user h3 {
+    color: #0F172A;
+}
+
+html.light .msg-conv-name,
+:root.light .msg-conv-name {
+    color: #0F172A;
+}
+
+html.light .msg-conv-item,
+:root.light .msg-conv-item {
+    border-bottom-color: #E2E8F0;
+}
+
+html.light .msg-conv-item:hover,
+:root.light .msg-conv-item:hover {
+    background: #F1F5F9;
+}
+
+html.light .msg-conv-item--active,
+:root.light .msg-conv-item--active {
+    background: #FEF3C7 !important;
+    border-left: 3.5px solid #D97706 !important;
+}
+
+html.light .msg-conv-item--active .msg-conv-name,
+:root.light .msg-conv-item--active .msg-conv-name {
+    color: #92400E;
+}
+
+html.light .msg-conv-avatar,
+:root.light .msg-conv-avatar,
+html.light .msg-chat-avatar,
+:root.light .msg-chat-avatar {
+    background: #FEF3C7;
+    color: #D97706;
+    border-color: #FDE68A;
+}
+
+html.light .msg-presence-badge,
+:root.light .msg-presence-badge {
+    border-color: #FFFFFF;
+}
+
+html.light .msg-chat-area,
+:root.light .msg-chat-area {
+    background: #F8FAFC !important;
+}
+
+html.light .msg-input-bar,
+:root.light .msg-input-bar {
+    background: #FFFFFF;
+    border-top-color: #E2E8F0;
+}
+
+html.light .msg-input,
+:root.light .msg-input {
+    background: #F8FAFC;
+    border-color: #CBD5E1;
+    color: #0F172A;
+}
+
+html.light .msg-input:focus,
+:root.light .msg-input:focus {
+    background: #FFFFFF;
+    border-color: #D97706;
+}
+
+html.light .msg-header-btn,
+:root.light .msg-header-btn {
+    background: #F1F5F9;
+    border-color: #E2E8F0;
+    color: #475569;
+}
+
+html.light .msg-header-btn:hover,
+:root.light .msg-header-btn:hover {
+    background: #FEF3C7;
+    border-color: #D97706;
+    color: #D97706;
+}
+
+html.light .msg-bubble--sent,
+:root.light .msg-bubble--sent {
+    background: #FEF3C7;
+    border-color: #FDE68A;
+    color: #0F172A;
+}
+
+html.light .msg-bubble--sent .msg-bubble-time,
+:root.light .msg-bubble--sent .msg-bubble-time {
+    color: #92400E;
+}
+
+html.light .msg-bubble--received,
+:root.light .msg-bubble--received {
+    background: #FFFFFF;
+    border-color: #E2E8F0;
+    color: #0F172A;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+html.light .msg-date-divider span,
+:root.light .msg-date-divider span {
+    background: #FFFFFF;
+    border-color: #E2E8F0;
+    color: #64748B;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+html.light .msg-date-divider::before,
+:root.light .msg-date-divider::before,
+html.light .msg-date-divider::after,
+:root.light .msg-date-divider::after {
+    background: #E2E8F0;
+}
+
+html.light .msg-security-banner,
+:root.light .msg-security-banner {
+    background: #FEF3C7;
+    border-color: #FDE68A;
+    color: #92400E;
+}
+
+html.light .msg-empty-chat__icon,
+:root.light .msg-empty-chat__icon {
+    background: #FEF3C7;
+    border-color: #FDE68A;
+    color: #D97706;
+}
+
+html.light .msg-empty-chat h3,
+:root.light .msg-empty-chat h3 {
+    color: #0F172A;
+}
+
+html.light .msg-conv-preview--unread,
+:root.light .msg-conv-preview--unread {
+    color: #0F172A;
+}
+
+html.light .msg-back-to-list-btn,
+:root.light .msg-back-to-list-btn {
+    border-color: #CBD5E1;
+    color: #0F172A;
 }

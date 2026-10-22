@@ -184,3 +184,54 @@
         min-width: 190px;
     }
 }
+
+/* Light mode overrides */
+html.light .video-guide-modal,
+:root.light .video-guide-modal,
+[data-theme='light'] .video-guide-modal {
+    background: #FFFFFF;
+    border-color: #E2E8F0;
+    box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.2);
+}
+
+html.light .video-guide-modal__header,
+:root.light .video-guide-modal__header,
+[data-theme='light'] .video-guide-modal__header {
+    background: #F8FAFC;
+    border-bottom-color: #E2E8F0;
+}
+
+html.light .modal-close-btn,
+:root.light .modal-close-btn,
+[data-theme='light'] .modal-close-btn {
+    background: #FFFFFF;
+    border-color: #CBD5E1;
+    color: #64748B;
+}
+
+html.light .video-guide-modal__sidebar,
+:root.light .video-guide-modal__sidebar,
+[data-theme='light'] .video-guide-modal__sidebar {
+    background: #F8FAFC;
+    border-right-color: #E2E8F0;
+}
+
+html.light .video-guide-item:hover,
+:root.light .video-guide-item:hover,
+[data-theme='light'] .video-guide-item:hover {
+    background: #FFFFFF;
+}
+
+html.light .video-guide-item--active,
+:root.light .video-guide-item--active,
+[data-theme='light'] .video-guide-item--active {
+    background: #FFFFFF;
+    border-color: var(--primary);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+html.light .video-guide-modal__player,
+:root.light .video-guide-modal__player,
+[data-theme='light'] .video-guide-modal__player {
+    background: #F1F5F9;
+}

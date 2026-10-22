@@ -27,6 +27,7 @@ export default function ClientProfileModal({ booking, onClose, onMessage, onShow
 
     const joinDate = client.createdAt ? new Date(client.createdAt).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : 'Jan 2024';
     const bookingNote = booking.note || booking.notes || client.notes || client.bio;
+    const avatarUrl = client.avatarUrl || client.avatar || booking.clientAvatarUrl;
 
     return (
         <div className="client-modal-overlay" onClick={onClose} role="dialog" aria-modal="true">
@@ -42,8 +43,8 @@ export default function ClientProfileModal({ booking, onClose, onMessage, onShow
                 <div className="client-modal-header">
                     <div className="client-profile-header-info">
                         <div className="client-avatar-ring">
-                            {client.avatar ? (
-                                <img src={client.avatar} alt={name} className="client-avatar-img" />
+                            {avatarUrl ? (
+                                <img src={avatarUrl} alt={name} className="client-avatar-img" />
                             ) : (
                                 <span className="client-avatar-text">{name.slice(0, 2).toUpperCase()}</span>
                             )}

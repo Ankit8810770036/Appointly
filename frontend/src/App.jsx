@@ -8,7 +8,7 @@ import { LanguageProvider } from './context/LanguageContext';
 import { Toaster } from 'sonner';
 import LoadingFallback from './components/ui/LoadingFallback/LoadingFallback';
 import ProtectedRoute from './components/auth/ProtectedRoute';
-import './App.css';
+import ErrorBoundary from './components/ui/ErrorBoundary/ErrorBoundary';
 
 // Immediate primary import for instant Home page load
 import Home from './pages/Home/Home';
@@ -91,51 +91,74 @@ function App() {
             <Toaster position="top-right" richColors />
             <SocketProvider>
               <Router>
-                <Suspense fallback={<LoadingFallback />}>
-                  <Routes>
-                    <Route path="/" element={<Home />} />
+                <ErrorBoundary sectionName="Page Navigation">
+                  <Suspense fallback={<LoadingFallback />}>
+                    <Routes>
+                      <Route path="/" element={<Home />} />
 
-                    {/* Provider Profile & Direct Booking */}
-                    <Route path="/provider/:id" element={<ProviderProfile />} />
-                    <Route path="/providers/:id" element={<ProviderProfile />} />
-                    <Route path="/profile" element={<ProfileRedirect />} />
-                    <Route path="/book/:providerId" element={<BookRedirect />} />
+                      {/* Provider Profile & Direct Booking */}
+                      <Route
+                        path="/provider/:id"
+                        element={
+                          <ErrorBoundary sectionName="Specialist Profile">
+                            <ProviderProfile />
+                          </ErrorBoundary>
+                        }
+                      />
+                      <Route
+                        path="/providers/:id"
+                        element={
+                          <ErrorBoundary sectionName="Specialist Profile">
+                            <ProviderProfile />
+                          </ErrorBoundary>
+                        }
+                      />
+                      <Route path="/profile" element={<ProfileRedirect />} />
+                      <Route path="/book/:providerId" element={<BookRedirect />} />
 
-                    {/* Role-Specific Dashboards */}
-                    <Route path="/dashboard" element={<DashboardRedirect />} />
+                      {/* Role-Specific Dashboards */}
+                      <Route path="/dashboard" element={<DashboardRedirect />} />
 
-                    {/* Specific Dashboards */}
-                    <Route
-                      path="/dashboard/client"
-                      element={
-                        <ProtectedRoute requiredRole="client">
-                          <ClientDashboard />
-                        </ProtectedRoute>
-                      }
-                    />
-                    <Route
-                      path="/dashboard/provider"
-                      element={
-                        <ProtectedRoute requiredRole="provider">
-                          <ProviderDashboard />
-                        </ProtectedRoute>
-                      }
-                    />
-                    <Route
-                      path="/dashboard/admin"
-                      element={
-                        <ProtectedRoute requiredRole="admin">
-                          <AdminDashboard />
-                        </ProtectedRoute>
-                      }
-                    />
+                      {/* Specific Dashboards */}
+                      <Route
+                        path="/dashboard/client"
+                        element={
+                          <ProtectedRoute requiredRole="client">
+                            <ErrorBoundary sectionName="Client Dashboard">
+                              <ClientDashboard />
+                            </ErrorBoundary>
+                          </ProtectedRoute>
+                        }
+                      />
+                      <Route
+                        path="/dashboard/provider"
+                        element={
+                          <ProtectedRoute requiredRole="provider">
+                            <ErrorBoundary sectionName="Provider Dashboard">
+                              <ProviderDashboard />
+                            </ErrorBoundary>
+                          </ProtectedRoute>
+                        }
+                      />
+                      <Route
+                        path="/dashboard/admin"
+                        element={
+                          <ProtectedRoute requiredRole="admin">
+                            <ErrorBoundary sectionName="Admin Portal">
+                              <AdminDashboard />
+                            </ErrorBoundary>
+                          </ProtectedRoute>
+                        }
+                      />
 
-                    {/* Auth & Static Pages */}
-                    <Route path="/login" element={<Login />} />
-                    <Route path="/signup" element={<Signup />} />
-                    <Route path="/forgot-password" element={<ForgotPassword />} />
-                    <Route path="/terms" element={<Terms />} />
-                    <Route path="/privacy" element={<Privacy />} />
+                      {/* Auth & Static Pages */}
+                      <Route path="/login" element={<Login />} />
+                      <Route path="/signup" element={<Signup />} />
+                      <Route path="/forgot-password" element={<ForgotPassword />} />
+                      <Route path="/terms" element={<Terms />} />
+                      <Route path="/terms-and-conditions" element={<Terms />} />
+                      <Route path="/privacy" element={<Privacy />} />
+                      <Route path="/privacy-policy" element={<Privacy />} />
                     <Route path="/about" element={<About />} />
                     <Route path="/contact" element={<Contact />} />
 
@@ -143,7 +166,8 @@ function App() {
                     <Route path="*" element={<NotFound />} />
                   </Routes>
                 </Suspense>
-              </Router>
+              </ErrorBoundary>
+            </Router>
             </SocketProvider>
           </AuthProvider>
         </LanguageProvider>

@@ -1,0 +1,488 @@
+.bdm-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 1100;
+    background: rgba(4, 7, 13, 0.75);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+}
+
+.bdm-card {
+    background: #0f172a;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.05) inset;
+    border-radius: 16px;
+    width: 100%;
+    max-width: 680px;
+    max-height: 90vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    color: #f8fafc;
+    font-family: inherit;
+}
+
+.bdm-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1.25rem 1.5rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(15, 23, 42, 0.8);
+}
+
+.bdm-header-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.bdm-id-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(226, 137, 47, 0.12);
+    border: 1px solid rgba(226, 137, 47, 0.35);
+    color: #f59e0b;
+    padding: 4px 12px;
+    border-radius: 9999px;
+    font-family: 'JetBrains Mono', monospace, monospace;
+    font-size: 0.86rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.bdm-id-pill:hover {
+    background: rgba(226, 137, 47, 0.22);
+    border-color: #f59e0b;
+    transform: translateY(-1px);
+}
+
+.bdm-copy-btn {
+    display: flex;
+    align-items: center;
+}
+
+.bdm-status-badge {
+    font-size: 0.8rem;
+    font-weight: 600;
+    padding: 4px 10px;
+    border-radius: 9999px;
+}
+
+.bdm-close-btn {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: #94a3b8;
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.bdm-close-btn:hover {
+    background: rgba(255, 255, 255, 0.15);
+    color: #ffffff;
+}
+
+.bdm-body {
+    padding: 1.5rem;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+}
+
+.bdm-summary-banner {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    background: rgba(30, 41, 59, 0.6);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 12px;
+    padding: 1rem;
+}
+
+.bdm-summary-item {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.bdm-summary-label {
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #94a3b8;
+}
+
+.bdm-summary-val {
+    font-size: 0.95rem;
+    color: #f1f5f9;
+}
+
+.bdm-summary-sub {
+    font-size: 0.78rem;
+    color: #e2892f;
+    font-weight: 600;
+}
+
+.bdm-parties-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+}
+
+.bdm-party-card {
+    background: rgba(30, 41, 59, 0.4);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 12px;
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.bdm-party-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.bdm-party-tag {
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: #64748b;
+    letter-spacing: 0.06em;
+}
+
+.bdm-party-sub {
+    font-size: 0.75rem;
+    color: #94a3b8;
+    font-family: monospace;
+}
+
+.bdm-party-info {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+}
+
+.bdm-avatar {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: #334155;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    overflow: hidden;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 1.1rem;
+    color: #f8fafc;
+}
+
+.bdm-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.bdm-party-name {
+    margin: 0 0 4px 0;
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: #ffffff;
+}
+
+.bdm-meta-line {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.78rem;
+    color: #94a3b8;
+    margin-bottom: 2px;
+}
+
+.bdm-meta-line svg {
+    color: #64748b;
+    flex-shrink: 0;
+}
+
+.bdm-section-box {
+    background: rgba(30, 41, 59, 0.35);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 10px;
+    padding: 0.85rem 1rem;
+}
+
+.bdm-section-title {
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: #cbd5e1;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 4px;
+}
+
+.bdm-note-text {
+    margin: 0;
+    font-size: 0.86rem;
+    color: #e2e8f0;
+    font-style: italic;
+    line-height: 1.4;
+}
+
+.bdm-dispute-box {
+    background: rgba(239, 68, 68, 0.08);
+    border: 1px solid rgba(239, 68, 68, 0.25);
+    border-radius: 12px;
+    padding: 1rem;
+}
+
+.bdm-dispute-header {
+    margin-bottom: 8px;
+}
+
+.bdm-complaints-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.bdm-complaint-item {
+    background: rgba(15, 23, 42, 0.6);
+    border: 1px solid rgba(239, 68, 68, 0.15);
+    border-radius: 8px;
+    padding: 8px 12px;
+}
+
+.bdm-comp-status {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: #f87171;
+}
+
+.bdm-comp-resolve-btn {
+    background: none;
+    border: none;
+    color: #38bdf8;
+    font-size: 0.78rem;
+    font-weight: 600;
+    cursor: pointer;
+    padding: 4px 0 0 0;
+    display: inline-block;
+}
+
+.bdm-comp-resolve-btn:hover {
+    text-decoration: underline;
+}
+
+.bdm-admin-actions-card {
+    background: #090e17;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    padding: 1.1rem;
+}
+
+.bdm-admin-action-header {
+    font-size: 0.88rem;
+    font-weight: 700;
+    color: #ffffff;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 4px;
+}
+
+.bdm-action-buttons-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+}
+
+.bdm-status-btn {
+    padding: 8px 12px;
+    border-radius: 8px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    cursor: pointer;
+    background: rgba(30, 41, 59, 0.6);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: #cbd5e1;
+    transition: all 0.15s;
+}
+
+.bdm-status-btn:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.1);
+    color: #ffffff;
+}
+
+.bdm-status-btn.active-completed {
+    background: rgba(16, 185, 129, 0.2);
+    border-color: #10b981;
+    color: #34d399;
+}
+
+.bdm-status-btn.active-confirmed {
+    background: rgba(56, 189, 248, 0.2);
+    border-color: #38bdf8;
+    color: #7dd3fc;
+}
+
+.bdm-status-btn.active-pending {
+    background: rgba(226, 137, 47, 0.2);
+    border-color: #f59e0b;
+    color: #fbbf24;
+}
+
+.bdm-status-btn.active-cancelled {
+    background: rgba(239, 68, 68, 0.2);
+    border-color: #ef4444;
+    color: #f87171;
+}
+
+.bdm-empty {
+    padding: 3rem;
+    text-align: center;
+    color: #94a3b8;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+}
+
+@media (max-width: 640px) {
+    .bdm-summary-banner {
+        grid-template-columns: 1fr;
+    }
+    .bdm-parties-grid {
+        grid-template-columns: 1fr;
+    }
+    .bdm-action-buttons-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* Light mode overrides */
+html.light .bdm-overlay,
+:root.light .bdm-overlay {
+    background: rgba(15, 23, 42, 0.45);
+}
+
+html.light .bdm-card,
+:root.light .bdm-card {
+    background: #FFFFFF;
+    color: #0F172A;
+    border-color: #E2E8F0;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1), 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+html.light .bdm-header,
+:root.light .bdm-header {
+    background: #F8FAFC;
+    border-bottom-color: #E2E8F0;
+}
+
+html.light .bdm-close-btn,
+:root.light .bdm-close-btn {
+    background: #F1F5F9;
+    border-color: #E2E8F0;
+    color: #64748B;
+}
+
+html.light .bdm-close-btn:hover,
+:root.light .bdm-close-btn:hover {
+    background: #E2E8F0;
+    color: #0F172A;
+}
+
+html.light .bdm-summary-banner,
+:root.light .bdm-summary-banner {
+    background: #F8FAFC;
+    border-color: #E2E8F0;
+}
+
+html.light .bdm-summary-label,
+:root.light .bdm-summary-label {
+    color: #64748B;
+}
+
+html.light .bdm-summary-val,
+:root.light .bdm-summary-val {
+    color: #0F172A;
+}
+
+html.light .bdm-party-card,
+:root.light .bdm-party-card {
+    background: #F8FAFC;
+    border-color: #E2E8F0;
+}
+
+html.light .bdm-party-name,
+:root.light .bdm-party-name {
+    color: #0F172A;
+}
+
+html.light .bdm-avatar,
+:root.light .bdm-avatar {
+    background: #E2E8F0;
+    border-color: #CBD5E1;
+    color: #0F172A;
+}
+
+html.light .bdm-section-box,
+:root.light .bdm-section-box {
+    background: #F8FAFC;
+    border-color: #E2E8F0;
+}
+
+html.light .bdm-section-title,
+:root.light .bdm-section-title {
+    color: #334155;
+}
+
+html.light .bdm-note-text,
+:root.light .bdm-note-text {
+    color: #475569;
+}
+
+html.light .bdm-admin-actions-card,
+:root.light .bdm-admin-actions-card {
+    background: #F8FAFC;
+    border-color: #E2E8F0;
+}
+
+html.light .bdm-admin-action-header,
+:root.light .bdm-admin-action-header {
+    color: #0F172A;
+}
+
+html.light .bdm-status-btn,
+:root.light .bdm-status-btn {
+    background: #FFFFFF;
+    border-color: #CBD5E1;
+    color: #334155;
+}
+
+html.light .bdm-status-btn:hover:not(:disabled),
+:root.light .bdm-status-btn:hover:not(:disabled) {
+    background: #F1F5F9;
+    color: #0F172A;
+}

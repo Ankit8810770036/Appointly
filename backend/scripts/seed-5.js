@@ -47,7 +47,7 @@ async function seed() {
 
     // 2. Providers
     const providers = [
-        { name: 'Dr. Rahul Mehta', email: 'mehta@provider.com', specialty: 'Dentist', about: 'Experienced dental surgeon with a focus on painless treatments.', city: 'Delhi', state: 'Delhi', zipCode: '110001', country: 'India', location: 'Connaught Place, Delhi', lat: 28.6304, lng: 77.2177 },
+        { name: 'Dr. Rahul Mehta', email: 'mehta@provider.com', specialty: 'ENT & Sinus Specialist', about: 'Otolaryngologist offering advanced solutions for sinusitis, allergic rhinitis, vertigo, and hearing health.', city: 'Delhi', state: 'Delhi', zipCode: '110001', country: 'India', location: 'Connaught Place, Delhi', lat: 28.6304, lng: 77.2177 },
         { name: 'Deepika Padukone',     email: 'deepika@provider.com', specialty: 'Yoga Instructor', about: 'Professional wellness coach helping you find balance and peace.', city: 'Mumbai', state: 'Maharashtra', zipCode: '400050', country: 'India', location: 'Bandra, Mumbai', lat: 19.0596, lng: 72.8295 },
         { name: 'Sunil Gavaskar', email: 'sunil@provider.com', specialty: 'Legal Consultant', about: 'Corporate law specialist with 20 years of experience.', city: 'Pune', state: 'Maharashtra', zipCode: '411001', country: 'India', location: 'Koregaon Park, Pune', lat: 18.5362, lng: 73.8930 },
         { name: 'Kiran Mazumdar', email: 'kiran@provider.com', specialty: 'Education Consultant', about: 'Helping students achieve their dreams in global universities.', city: 'Bengaluru', state: 'Karnataka', zipCode: '560001', country: 'India', location: 'Indiranagar, Bengaluru', lat: 12.9784, lng: 77.6408 },
@@ -65,7 +65,30 @@ async function seed() {
                 zipCode: userData.zipCode,
                 location: userData.location,
                 latitude: lat,
-                longitude: lng
+                longitude: lng,
+                providerProfile: {
+                    upsert: {
+                        create: {
+                            specialty,
+                            about,
+                            location: userData.location,
+                            phone: '+91 88107 70036',
+                            isVerified: true,
+                            services: {
+                                create: [
+                                    { name: `Standard ${specialty} Session`, duration: 30, price: 500 },
+                                    { name: `Premium ${specialty} Consultation`, duration: 60, price: 1200 }
+                                ]
+                            }
+                        },
+                        update: {
+                            specialty,
+                            about,
+                            location: userData.location,
+                            isVerified: true
+                        }
+                    }
+                }
             },
             create: {
                 ...userData,
@@ -81,6 +104,7 @@ async function seed() {
                         about,
                         location: userData.location,
                         phone: '+91 88107 70036',
+                        isVerified: true,
                         services: {
                             create: [
                                 { name: `Standard ${specialty} Session`, duration: 30, price: 500 },

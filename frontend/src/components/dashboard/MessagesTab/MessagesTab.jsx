@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Send, Search, MessageSquare, Phone, Video, Info, Paperclip, Smile, Check, CheckCheck, Lock, ShieldCheck } from 'lucide-react';
+import { Send, Search, MessageSquare, Phone, Video, Info, Paperclip, Smile, Check, CheckCheck, Lock, ShieldCheck, ArrowLeft } from 'lucide-react';
 import { toast } from '../../../utils/toast';
 import { messageApi } from '../../../api/messages';
 import { useAuth } from '../../../context/AuthContext';
@@ -293,7 +293,7 @@ export default function MessagesTab({ initialUserId }) {
 
     return (
         <div className="msg-tab animate-fade-in">
-            <div className="msg-layout">
+            <div className={`msg-layout ${selectedId ? 'has-active-chat' : 'no-active-chat'}`}>
                 {/* ── Sidebar ── */}
                 <div className="msg-sidebar">
                     <div className="msg-sidebar__header">
@@ -330,7 +330,11 @@ export default function MessagesTab({ initialUserId }) {
                                     >
                                         <div className="msg-conv-avatar-wrap">
                                             <div className="msg-conv-avatar">
-                                                {getInitials(conv.otherUser.name)}
+                                                {conv.otherUser.avatarUrl ? (
+                                                    <img src={conv.otherUser.avatarUrl} alt={conv.otherUser.name} className="msg-avatar-img" />
+                                                ) : (
+                                                    getInitials(conv.otherUser.name)
+                                                )}
                                             </div>
                                             <span
                                                 className={`msg-presence-badge ${isOnline ? 'msg-presence-badge--online' : 'msg-presence-badge--offline'}`}
@@ -371,10 +375,24 @@ export default function MessagesTab({ initialUserId }) {
                         <>
                             {/* Chat Header */}
                             <div className="msg-chat-header">
+                                <button
+                                    type="button"
+                                    className="msg-back-to-list-btn"
+                                    onClick={() => setSelectedId(null)}
+                                    aria-label="Back to conversations list"
+                                    title="Back to conversations"
+                                >
+                                    <ArrowLeft size={18} />
+                                </button>
+
                                 <div className="msg-chat-header-user">
                                     <div className="msg-chat-avatar-wrap">
                                         <div className="msg-chat-avatar">
-                                            {getInitials(selectedConv?.otherUser.name || '')}
+                                            {selectedConv?.otherUser.avatarUrl ? (
+                                                <img src={selectedConv.otherUser.avatarUrl} alt={selectedConv.otherUser.name} className="msg-avatar-img" />
+                                            ) : (
+                                                getInitials(selectedConv?.otherUser.name || '')
+                                            )}
                                         </div>
                                         <span className={`msg-presence-badge ${isSelectedOnline ? 'msg-presence-badge--online' : 'msg-presence-badge--offline'}`} />
                                     </div>

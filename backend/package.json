@@ -9,7 +9,8 @@
     "db:clear": "node scripts/clear-db.js",
     "db:seed-5": "node scripts/seed-5.js",
     "db:seed-bulk": "node scripts/seed-60-providers-20-clients.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "keywords": [],
   "author": "",
@@ -19,6 +20,7 @@
     "@emailjs/nodejs": "^5.0.2",
     "@prisma/client": "^6.19.2",
     "bcrypt": "^6.0.0",
+    "cloudinary": "^2.11.0",
     "cors": "^2.8.6",
     "dotenv": "^17.3.1",
     "express": "^5.2.1",
@@ -32,10 +34,13 @@
     "pg": "^8.20.0",
     "socket.io": "^4.8.3",
     "stripe": "^20.4.1",
-    "twilio": "^5.13.1"
+    "twilio": "^5.13.1",
+    "web-push": "^3.6.7"
   },
   "devDependencies": {
     "nodemon": "^3.1.14",
-    "prisma": "^6.19.2"
+    "prisma": "^6.19.2",
+    "supertest": "^7.3.1",
+    "vitest": "^5.0.5"
   }
 }

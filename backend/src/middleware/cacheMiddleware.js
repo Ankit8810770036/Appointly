@@ -12,8 +12,14 @@ export const cacheResponse = (ttlSeconds = 300, customPrefix = '') => {
             return next();
         }
 
+        // Never cache user-specific or authenticated /me endpoints
+        const urlToCheck = req.originalUrl || req.url || '';
+        if (urlToCheck.includes('/me') || req.params?.id === 'me') {
+            return next();
+        }
+
         const prefix = customPrefix ? `${customPrefix}:` : 'cache:';
-        const cacheKey = `${prefix}${req.originalUrl || req.url}`;
+        const cacheKey = `${prefix}${urlToCheck}`;
 
         try {
             const cachedData = await getCache(cacheKey);

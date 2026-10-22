@@ -1,7 +1,8 @@
 import express from 'express';
-import { registerUser, loginUser, refreshToken, getMe, updateMe, forgotPassword, resetPassword, requestOTP, verifyOTP, googleLogin, sendSignupOTP, verifySignupOTP } from '../controllers/authController.js';
+import { registerUser, loginUser, refreshToken, getMe, updateMe, forgotPassword, resetPassword, requestOTP, verifyOTP, googleLogin, sendSignupOTP, verifySignupOTP, uploadAvatar } from '../controllers/authController.js';
 import { protect } from '../middleware/authMiddleware.js';
 import { authLimiter, otpLimiter } from '../middleware/rateLimitMiddleware.js';
+import { uploadAvatarMiddleware } from '../middleware/uploadMiddleware.js';
 
 const router = express.Router();
 
@@ -20,5 +21,6 @@ router.post('/request-otp', protect, otpLimiter, requestOTP);
 router.post('/verify-otp', protect, otpLimiter, verifyOTP);
 router.get('/me', protect, getMe);
 router.put('/me', protect, updateMe);
+router.post('/upload-avatar', protect, uploadAvatarMiddleware.single('avatar'), uploadAvatar);
 
 export default router;

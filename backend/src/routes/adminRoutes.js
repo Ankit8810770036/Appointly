@@ -6,7 +6,13 @@ import {
     getAllUsers,
     deleteUser,
     getAllReviews,
-    deleteReview
+    deleteReview,
+    getAllComplaints,
+    updateComplaintStatus,
+    getAllAppointments,
+    getAppointmentById,
+    updateAdminAppointmentStatus,
+    getAdminAuditLogs
 } from '../controllers/adminController.js';
 import { protect } from '../middleware/authMiddleware.js';
 import { isAdmin } from '../middleware/adminMiddleware.js';
@@ -25,5 +31,14 @@ router.get('/users', getAllUsers);
 router.delete('/users/:id', deleteUser);
 router.get('/reviews', getAllReviews);
 router.delete('/reviews/:id', deleteReview);
+
+router.get('/complaints', getAllComplaints);
+router.patch('/complaints/:id', updateComplaintStatus);
+
+router.get('/appointments', getAllAppointments);
+router.get('/appointments/:id', getAppointmentById);
+router.patch('/appointments/:id/status', updateAdminAppointmentStatus);
+
+router.get('/audit-logs', getAdminAuditLogs);
 
 export default router;

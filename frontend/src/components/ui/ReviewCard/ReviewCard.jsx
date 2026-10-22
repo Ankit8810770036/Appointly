@@ -3,7 +3,7 @@ import './ReviewCard.css';
 
 export default function ReviewCard({ review }) {
     const clientName = review?.appointment?.client?.name || review?.clientName || review?.name || 'Client Feedback';
-    const clientAvatar = review?.appointment?.client?.avatar || review?.avatar;
+    const clientAvatar = review?.appointment?.client?.avatarUrl || review?.appointment?.client?.avatar || review?.avatarUrl || review?.avatar;
     const rating = Math.max(1, Math.min(5, review?.rating || 5));
 
     let dateStr = '';
@@ -14,7 +14,7 @@ export default function ReviewCard({ review }) {
         }
     }
 
-    const commentText = review?.comment || review?.text || "Very satisfied with the consultation. The provider was professional, clear in communication, and delivered excellent care.";
+    const commentText = review?.comment || review?.text || '';
 
     const initials = clientName
         .split(' ')

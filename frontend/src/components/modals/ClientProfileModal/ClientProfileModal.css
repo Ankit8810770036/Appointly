@@ -53,7 +53,7 @@
     width: 48px;
     height: 48px;
     border-radius: 50%;
-    background: linear-gradient(135deg, var(--amber, #E2892F) 0%, #B86E20 100%);
+    background: var(--amber, #E2892F);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -61,7 +61,7 @@
     font-weight: 800;
     font-size: 1.05rem;
     flex-shrink: 0;
-    box-shadow: 0 4px 12px rgba(226, 137, 47, 0.25);
+    box-shadow: none;
 }
 
 .client-avatar-img {
@@ -232,4 +232,57 @@
     gap: 0.75rem;
     padding-top: 0.5rem;
     border-top: 1px solid var(--line, #272B34);
+}
+
+/* Light Mode Overrides */
+html.light .client-modal-overlay,
+:root.light .client-modal-overlay {
+    background: rgba(15, 23, 42, 0.45);
+}
+
+html.light .client-modal-card,
+:root.light .client-modal-card {
+    background: #FFFFFF;
+    color: #0F172A;
+    border-color: #E2E8F0;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+html.light .client-modal-name,
+:root.light .client-modal-name {
+    color: #0F172A;
+}
+
+html.light .client-modal-close,
+:root.light .client-modal-close {
+    background: #F1F5F9;
+    border-color: #E2E8F0;
+    color: #64748B;
+}
+
+html.light .client-info-item,
+:root.light .client-info-item {
+    background: #F8FAFC;
+    border-color: #E2E8F0;
+}
+
+html.light .client-item-val,
+:root.light .client-item-val {
+    color: #0F172A;
+}
+
+html.light .client-notes-card,
+:root.light .client-notes-card {
+    background: #F8FAFC;
+    border-color: #E2E8F0;
+}
+
+html.light .client-notes-text,
+:root.light .client-notes-text {
+    color: #334155;
+}
+
+html.light .client-modal-footer,
+:root.light .client-modal-footer {
+    border-color: #E2E8F0;
 }

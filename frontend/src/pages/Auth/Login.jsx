@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Mail, Lock, Sparkles, CheckCircle2, ShieldCheck, Zap, MessageSquare } from 'lucide-react';
+import { Mail, Lock, Sparkles, CheckCircle2, ShieldCheck, Zap, MessageSquare, User, Star, Briefcase, Shield, ArrowLeft } from 'lucide-react';
 import { useLocation, useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import Button from '../../components/ui/Button/Button';
@@ -21,10 +21,19 @@ export default function Login() {
     const query = new URLSearchParams(location.search);
     const isExpired = query.get('expired') === 'true';
 
+    const [pendingBooking] = useState(() => {
+        try {
+            const saved = sessionStorage.getItem('appointly_pending_booking');
+            return saved ? JSON.parse(saved) : null;
+        } catch {
+            return null;
+        }
+    });
+
     const [form, setForm] = useState({ email: '', password: '', role: 'client', rememberMe: true });
     const [loading, setLoading] = useState(false);
     const [errors, setErrors] = useState(isExpired ? { _form: 'Your session has expired. Please log in again.' } : {});
-    const [showRedirectMessage, setShowRedirectMessage] = useState(!!from);
+    const [showRedirectMessage, setShowRedirectMessage] = useState(!!from && !pendingBooking);
 
     useEffect(() => {
         if (showRedirectMessage) {
@@ -96,7 +105,9 @@ export default function Login() {
                 }
             }
 
-            if (from) {
+            if (pendingBooking && pendingBooking.providerId) {
+                navigate(`/provider/${pendingBooking.providerId}`, { replace: true });
+            } else if (from) {
                 navigate(from, { replace: true, state: { askLocation: true } });
             } else {
                 const userRole = user?.role?.toLowerCase();
@@ -105,7 +116,7 @@ export default function Login() {
                 } else if (userRole === 'provider') {
                     navigate('/dashboard/provider');
                 } else {
-                    navigate('/', { state: { askLocation: true } });
+                    navigate('/', { state: { askLocation: true, autoOpenMap: true } });
                 }
             }
         } catch (err) {
@@ -151,12 +162,17 @@ export default function Login() {
                 return;
             }
 
+            if (pendingBooking && pendingBooking.providerId) {
+                navigate(`/provider/${pendingBooking.providerId}`, { replace: true });
+                return;
+            }
+
             const destination = from || (userRole === 'admin'
                 ? '/dashboard/admin'
                 : userRole === 'provider'
                     ? '/dashboard/provider'
                     : '/');
-            navigate(destination, { replace: true, state: { askLocation: userRole === 'client' } });
+            navigate(destination, { replace: true, state: { askLocation: userRole === 'client', autoOpenMap: userRole === 'client' } });
         } catch (err) {
             play('error');
             setErrors({ _form: err.message || 'Google login failed' });
@@ -189,7 +205,7 @@ export default function Login() {
                     <div className="auth-preview-card">
                         <div className="auth-preview-top">
                             <div className="auth-preview-provider">
-                                <div className="auth-preview-avatar">👩‍⚕️</div>
+                                <div className="auth-preview-avatar"><User size={16} /></div>
                                 <div>
                                     <div className="auth-preview-name">Dr. Maya Sharma</div>
                                     <div className="auth-preview-role">Wellness &amp; Health Specialist</div>
@@ -201,31 +217,32 @@ export default function Login() {
                             </span>
                         </div>
                         <div className="auth-preview-bottom">
-                            <span>⭐ <strong>4.98</strong> (180+ reviews)</span>
-                            <span style={{ color: '#F59E0B', fontWeight: 600 }}>Confirmed: Today, 4:30 PM</span>
+                            <span className="auth-preview-verified"><Star size={13} className="auth-preview-star" /> <strong>Verified Specialist</strong></span>
+                            <span className="auth-preview-highlight auth-preview-highlight--amber">Confirmed: Today, 4:30 PM</span>
                         </div>
                     </div>
 
                     {/* Feature Highlights */}
                     <div className="auth-feature-tags">
-                        <span className="auth-feature-tag"><Zap size={13} style={{ color: '#F59E0B' }} /> Instant Slot Confirmation</span>
-                        <span className="auth-feature-tag"><MessageSquare size={13} style={{ color: '#38BDF8' }} /> Real-Time Chat &amp; Blue Ticks</span>
-                        <span className="auth-feature-tag"><ShieldCheck size={13} style={{ color: '#10B981' }} /> 100% Verified Profiles</span>
+                        <span className="auth-feature-tag"><Zap size={13} className="auth-tag-icon auth-tag-icon--amber" /> Instant Slot Confirmation</span>
+                        <span className="auth-feature-tag"><MessageSquare size={13} className="auth-tag-icon auth-tag-icon--blue" /> Real-Time Chat &amp; Blue Ticks</span>
+                        <span className="auth-feature-tag"><ShieldCheck size={13} className="auth-tag-icon auth-tag-icon--green" /> 100% Verified Profiles</span>
                     </div>
 
-                    {/* Social proof */}
+                    {/* Community highlights */}
                     <div className="auth-social-proof">
                         <div className="auth-avatars">
-                            {['👩🏽', '👨🏻', '👩🏼', '👨🏾'].map((a, i) => (
-                                <span key={i} className="auth-avatar" style={{ zIndex: 4 - i }}>{a}</span>
-                            ))}
+                            <span className="auth-avatar auth-avatar--1">AK</span>
+                            <span className="auth-avatar auth-avatar--2">RS</span>
+                            <span className="auth-avatar auth-avatar--3">MD</span>
+                            <span className="auth-avatar auth-avatar--4">SK</span>
                         </div>
-                        <span><strong>5,000+</strong> top-tier specialists &amp; clients trust Appointly</span>
+                        <span className="auth-social-text">Direct scheduling with <strong>verified local professionals</strong></span>
                     </div>
                 </div>
             </div>
 
-            {/* Right Panel — Form */}
+            {/* Right Panel : Form */}
             <div className="auth-panel auth-panel--form">
                 <motion.div
                     className="auth-form-box"
@@ -233,8 +250,40 @@ export default function Login() {
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.3 }}
                 >
+                    <div className="auth-back-nav">
+                        <Link to="/" className="auth-back-link">
+                            <ArrowLeft size={14} /> Back to Home
+                        </Link>
+                    </div>
+
                     <div className="auth-form-header">
                         <h1>Welcome back</h1>
+                        {pendingBooking && (
+                            <div className="auth-pending-slot-banner" style={{
+                                background: 'rgba(226, 137, 47, 0.12)',
+                                border: '1px solid rgba(226, 137, 47, 0.35)',
+                                borderRadius: '10px',
+                                padding: '12px 14px',
+                                marginBottom: '14px',
+                                display: 'flex',
+                                alignItems: 'flex-start',
+                                gap: '10px',
+                                color: 'var(--paper, #F4F1E8)'
+                            }}>
+                                <span style={{ color: 'var(--amber, #E2892F)', marginTop: '2px', display: 'inline-flex' }}><Sparkles size={16} /></span>
+                                <div style={{ fontSize: '13px', lineHeight: '1.45', textAlign: 'left' }}>
+                                    <strong style={{ color: 'var(--amber, #E2892F)', display: 'block', marginBottom: '2px' }}>
+                                        Your appointment slot is held!
+                                    </strong>
+                                    <span>
+                                        {pendingBooking.providerName ? `Consultation with ${pendingBooking.providerName}` : 'Appointment'}
+                                        {pendingBooking.formattedDate ? ` on ${pendingBooking.formattedDate}` : ''}
+                                        {pendingBooking.formattedTime ? ` at ${pendingBooking.formattedTime}` : ''}.
+                                        Sign in to complete your booking.
+                                    </span>
+                                </div>
+                            </div>
+                        )}
                         {showRedirectMessage && (
                             <div className="auth-info-alert" style={{
                                 background: 'rgba(37, 99, 235, 0.1)',
@@ -264,7 +313,12 @@ export default function Login() {
                                     setErrors({});
                                 }}
                             >
-                                {r === 'client' ? '🙋 Client' : r === 'provider' ? '🧑‍💼 Provider' : '🛡️ Admin'}
+                                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                                    {r === 'client' && <User size={14} />}
+                                    {r === 'provider' && <Briefcase size={14} />}
+                                    {r === 'admin' && <Shield size={14} />}
+                                    {r === 'client' ? 'Client' : r === 'provider' ? 'Provider' : 'Admin'}
+                                </span>
                             </button>
                         ))}
                     </div>

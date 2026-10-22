@@ -6,12 +6,10 @@ export const statsApi = {
 };
 
 export const siteReviewApi = {
-    create: (payload, token = null) => {
-        const headers = token ? { Authorization: `Bearer ${token}` } : {};
+    create: (payload) => {
         return request('/site-reviews', {
             method: 'POST',
-            body: payload,
-            headers
+            body: payload
         });
     }
 };

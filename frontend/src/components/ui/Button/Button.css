@@ -132,3 +132,28 @@
         background-position: -200% 0;
     }
 }
+
+/* Light mode overrides */
+html.light .btn--secondary:hover:not(:disabled),
+:root.light .btn--secondary:hover:not(:disabled) {
+    border-color: #CBD5E1;
+    background: #E2E8F0;
+    color: #0F172A;
+}
+
+html.light .btn--ghost:hover:not(:disabled),
+:root.light .btn--ghost:hover:not(:disabled) {
+    border-color: #E2E8F0;
+    background: #F1F5F9;
+    color: #0F172A;
+}
+
+html.light .btn__skeleton-shimmer,
+:root.light .btn__skeleton-shimmer {
+    background: linear-gradient(
+        90deg,
+        transparent 0%,
+        rgba(0, 0, 0, 0.08) 50%,
+        transparent 100%
+    );
+}

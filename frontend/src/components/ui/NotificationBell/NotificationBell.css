@@ -223,3 +223,142 @@
     box-shadow: 0 0 10px var(--primary);
     border: 2px solid var(--bg);
 }
+
+/* ===== WEB PUSH NOTIFICATION BANNER ===== */
+.notif-push-banner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 14px;
+    background: rgba(226, 137, 47, 0.08);
+    border-bottom: 1px solid rgba(226, 137, 47, 0.2);
+    gap: 10px;
+    transition: all 0.2s ease;
+}
+
+.notif-push-banner--active {
+    background: rgba(16, 185, 129, 0.08);
+    border-bottom-color: rgba(16, 185, 129, 0.2);
+}
+
+.notif-push-info {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+}
+
+.notif-push-icon {
+    color: var(--accent, #e2892f);
+    flex-shrink: 0;
+}
+
+.notif-push-icon--success {
+    color: #10b981;
+}
+
+.notif-push-title {
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: var(--text-bold, #ffffff);
+    line-height: 1.2;
+}
+
+.notif-push-desc {
+    font-size: 0.68rem;
+    color: var(--text-muted, #94a3b8);
+    line-height: 1.2;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.notif-push-actions {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    flex-shrink: 0;
+}
+
+.notif-push-btn {
+    border: none;
+    border-radius: 6px;
+    font-size: 0.72rem;
+    font-weight: 600;
+    padding: 4px 10px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    transition: all 0.15s ease;
+}
+
+.notif-push-btn--enable {
+    background: var(--accent, #e2892f);
+    color: #ffffff;
+    box-shadow: 0 2px 6px rgba(226, 137, 47, 0.3);
+}
+
+.notif-push-btn--enable:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 10px rgba(226, 137, 47, 0.4);
+}
+
+.notif-push-btn--test {
+    background: rgba(56, 189, 248, 0.15);
+    color: #38bdf8;
+    border: 1px solid rgba(56, 189, 248, 0.3);
+}
+
+.notif-push-btn--test:hover:not(:disabled) {
+    background: rgba(56, 189, 248, 0.25);
+    color: #ffffff;
+}
+
+.notif-push-btn--disable {
+    background: rgba(239, 68, 68, 0.1);
+    color: #ef4444;
+    border: 1px solid rgba(239, 68, 68, 0.25);
+}
+
+.notif-push-btn--disable:hover:not(:disabled) {
+    background: rgba(239, 68, 68, 0.2);
+    color: #ffffff;
+}
+
+.notif-push-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* Light Mode Overrides */
+html.light .bell-btn,
+:root.light .bell-btn {
+    background: #FFFFFF;
+    border-color: #E2E8F0;
+    color: #0F172A;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+html.light .notification-dropdown,
+:root.light .notification-dropdown {
+    background: #FFFFFF;
+    border-color: #E2E8F0;
+    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.12);
+}
+
+html.light .notif-header,
+:root.light .notif-header {
+    background: #F8FAFC;
+    border-bottom-color: #E2E8F0;
+}
+
+html.light .notif-push-title,
+:root.light .notif-push-title {
+    color: #0F172A;
+}
+
+html.light .notif-item,
+:root.light .notif-item {
+    border-bottom-color: #E2E8F0;
+}

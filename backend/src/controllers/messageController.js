@@ -16,36 +16,49 @@ export const sendMessage = async (req, res) => {
 
         const sanitizedContent = content.trim().substring(0, 2000);
 
-        if (receiverId === senderId) {
+        let targetReceiverId = receiverId;
+        let receiver = await prisma.user.findUnique({ where: { id: targetReceiverId } });
+        if (!receiver) {
+            const profile = await prisma.providerProfile.findUnique({
+                where: { id: targetReceiverId },
+                select: { userId: true }
+            });
+            if (profile) {
+                targetReceiverId = profile.userId;
+                receiver = await prisma.user.findUnique({ where: { id: targetReceiverId } });
+            } else {
+                return res.status(404).json({ message: 'Recipient user not found' });
+            }
+        }
+
+        if (targetReceiverId === senderId) {
             return res.status(400).json({ message: 'You cannot send a message to yourself' });
         }
 
-        const recipientOnline = isUserOnline(receiverId);
+        const recipientOnline = isUserOnline(targetReceiverId);
         const initialStatus = recipientOnline ? 'DELIVERED' : 'SENT';
         const deliveredAt = recipientOnline ? new Date() : null;
 
         const message = await prisma.message.create({
             data: {
                 senderId,
-                receiverId,
+                receiverId: targetReceiverId,
                 content: sanitizedContent,
                 status: initialStatus,
                 deliveredAt
             },
             include: {
-                sender: { select: { id: true, name: true, role: true, lastSeen: true } },
-                receiver: { select: { id: true, name: true, role: true, lastSeen: true } }
+                sender: { select: { id: true, name: true, role: true, avatarUrl: true, lastSeen: true } },
+                receiver: { select: { id: true, name: true, role: true, avatarUrl: true, lastSeen: true } }
             }
         });
 
-        const receiver = await prisma.user.findUnique({ where: { id: receiverId } });
-
         // Emit real-time Socket.io message directly to sender and receiver
-        sendSocketMessage(receiverId, senderId, message);
+        sendSocketMessage(targetReceiverId, senderId, message);
 
         // Trigger a notification for the receiver
         await createNotification({
-            userId: receiverId,
+            userId: targetReceiverId,
             type: 'NEW_MESSAGE',
             title: 'New Message',
             message: `${req.user.name} sent you a message: "${content.substring(0, 30)}${content.length > 30 ? '...' : ''}"`,
@@ -75,8 +88,8 @@ export const getConversations = async (req, res) => {
                 ]
             },
             include: {
-                sender: { select: { id: true, name: true, role: true, lastSeen: true } },
-                receiver: { select: { id: true, name: true, role: true, lastSeen: true } }
+                sender: { select: { id: true, name: true, role: true, avatarUrl: true, lastSeen: true } },
+                receiver: { select: { id: true, name: true, role: true, avatarUrl: true, lastSeen: true } }
             },
             orderBy: { createdAt: 'desc' }
         });
@@ -117,21 +130,20 @@ export const getConversations = async (req, res) => {
 export const getChatHistory = async (req, res) => {
     try {
         const userId = req.user.id;
-        const { otherUserId } = req.params;
+        let { otherUserId } = req.params;
 
-        const messages = await prisma.message.findMany({
-            where: {
-                OR: [
-                    { senderId: userId, receiverId: otherUserId },
-                    { senderId: otherUserId, receiverId: userId }
-                ]
-            },
-            orderBy: { createdAt: 'asc' }
+        // Resolve otherUserId if it is a providerProfile ID
+        const profile = await prisma.providerProfile.findUnique({
+            where: { id: otherUserId },
+            select: { userId: true }
         });
+        if (profile) {
+            otherUserId = profile.userId;
+        }
 
         const now = new Date();
 
-        // Mark messages from other user as read
+        // Mark messages from other user as read first
         const updateRes = await prisma.message.updateMany({
             where: {
                 senderId: otherUserId,
@@ -155,6 +167,17 @@ export const getChatHistory = async (req, res) => {
             }
         }
 
+        // Return updated messages reflecting read status
+        const messages = await prisma.message.findMany({
+            where: {
+                OR: [
+                    { senderId: userId, receiverId: otherUserId },
+                    { senderId: otherUserId, receiverId: userId }
+                ]
+            },
+            orderBy: { createdAt: 'asc' }
+        });
+
         res.json(messages);
     } catch (error) {
         console.error(error);
@@ -168,7 +191,16 @@ export const getChatHistory = async (req, res) => {
 export const markConversationAsRead = async (req, res) => {
     try {
         const userId = req.user.id;
-        const { otherUserId } = req.params;
+        let { otherUserId } = req.params;
+
+        const profile = await prisma.providerProfile.findUnique({
+            where: { id: otherUserId },
+            select: { userId: true }
+        });
+        if (profile) {
+            otherUserId = profile.userId;
+        }
+
         const now = new Date();
 
         const updateRes = await prisma.message.updateMany({

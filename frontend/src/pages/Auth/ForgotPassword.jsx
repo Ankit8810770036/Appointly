@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Mail, Lock, RotateCw } from 'lucide-react';
+import { Mail, Lock, RotateCw, CheckCircle2 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import Button from '../../components/ui/Button/Button';
 import Input from '../../components/ui/Input/Input';
@@ -65,7 +65,10 @@ export default function ForgotPassword() {
         <div className="auth-page">
             <div className="auth-panel auth-panel--brand">
                 <div className="auth-panel__inner">
-                    <Link to="/" className="auth-logo">Appointly</Link>
+                    <Link to="/" className="auth-logo-badge">
+                        <div className="auth-logo-icon">A</div>
+                        <span className="auth-logo-text">Appointly</span>
+                    </Link>
                     <div className="auth-brand-copy">
                         <h2>Recover Account 🔐</h2>
                         <p>Don't worry, it happens! Enter your email and we'll help you get back into your account.</p>
@@ -82,7 +85,7 @@ export default function ForgotPassword() {
 
                     {success ? (
                         <div style={{ textAlign: 'center', padding: '2rem 0' }}>
-                            <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>🎉</div>
+                            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '1rem' }}><CheckCircle2 size={48} color="#10B981" /></div>
                             <h2 style={{ marginBottom: '0.5rem' }}>Success!</h2>
                             <p>Your password has been reset. Redirecting to login...</p>
                             <Button variant="primary" style={{ marginTop: '1.5rem' }} onClick={() => navigate('/login')}>Sign in now</Button>

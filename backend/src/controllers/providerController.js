@@ -1,8 +1,10 @@
 import jwt from 'jsonwebtoken';
 import fs from 'fs';
 import prisma from '../prisma.js';
-import { validateFileSignature } from '../middleware/uploadMiddleware.js';
+import { validateFileSignature, validateBufferSignature } from '../middleware/uploadMiddleware.js';
+import { uploadDocumentStream, deleteImage } from '../utils/cloudinary.js';
 import { deleteCache } from '../utils/redis.js';
+import { createNotification } from '../utils/notificationHelper.js';
 
 // Haversine distance formula in kilometers
 function calculateDistanceKm(lat1, lon1, lat2, lon2) {
@@ -32,6 +34,7 @@ export const getProviders = async (req, res) => {
             where: {
                 role: 'PROVIDER',
                 providerProfile: {
+                    isVerified: true,
                     services: {
                         some: {} // Only providers with at least one service
                     }
@@ -43,6 +46,7 @@ export const getProviders = async (req, res) => {
                 name: true,
                 email: true,
                 role: true,
+                avatarUrl: true,
                 phone: true,
                 location: true,
                 latitude: true,
@@ -58,12 +62,14 @@ export const getProviders = async (req, res) => {
                     include: {
                         services: true,
                         appointments: {
-                            where: {
-                                status: { in: ['PENDING', 'CONFIRMED'] }
-                            },
                             select: {
                                 date: true,
-                                status: true
+                                status: true,
+                                review: {
+                                    select: {
+                                        rating: true
+                                    }
+                                }
                             }
                         }
                     }
@@ -72,21 +78,28 @@ export const getProviders = async (req, res) => {
         };
 
         if (search) {
+            const rawSearch = search.trim();
+            const lowerSearch = rawSearch.toLowerCase();
             const categoryMap = {
-                'Health & Wellness': ['Dentist', 'Doctor', 'Therapist', 'Health', 'Wellness', 'Medicine'],
-                'Beauty & Spa': ['Salon', 'Barber', 'Beauty', 'Spa', 'Nail', 'Hair'],
-                'Home Services': ['Plumber', 'Electrician', 'Cleaner', 'Home', 'Repair'],
-                'Fitness': ['Fitness', 'Yoga', 'Trainer', 'Gym'],
-                'Legal & Finance': ['Legal', 'Finance', 'Accountant', 'Lawyer', 'Consultant'],
-                'Education': ['Education', 'Tutor', 'Coach', 'Teacher', 'Specialist']
+                'health': ['Cardiologist', 'Physician', 'Dermatologist', 'Physiotherapist', 'Neurologist', 'Surgeon', 'Pediatrician', 'ENT', 'Nutritionist', 'Doctor', 'Therapist', 'Health', 'Wellness', 'Medicine'],
+                'health & wellness': ['Cardiologist', 'Physician', 'Dermatologist', 'Physiotherapist', 'Neurologist', 'Surgeon', 'Pediatrician', 'ENT', 'Nutritionist', 'Doctor', 'Therapist', 'Health', 'Wellness', 'Medicine'],
+                'beauty': ['Salon', 'Barber', 'Beauty', 'Spa', 'Nail', 'Hair', 'Makeup'],
+                'beauty & spa': ['Salon', 'Barber', 'Beauty', 'Spa', 'Nail', 'Hair', 'Makeup'],
+                'home': ['Plumber', 'Electrician', 'Cleaner', 'Home', 'Repair', 'Architect', 'Appliance'],
+                'home services': ['Plumber', 'Electrician', 'Cleaner', 'Home', 'Repair', 'Architect', 'Appliance'],
+                'fitness': ['Fitness', 'Yoga', 'Trainer', 'Gym', 'Nutritionist', 'Metabolism'],
+                'legal': ['Legal', 'Finance', 'Accountant', 'Lawyer', 'Consultant', 'Wealth'],
+                'legal & finance': ['Legal', 'Finance', 'Accountant', 'Lawyer', 'Consultant', 'Wealth'],
+                'education': ['Education', 'Tutor', 'Coach', 'Teacher', 'Specialist', 'IELTS']
             };
 
-            const keywords = categoryMap[search] || [search];
+            const keywords = categoryMap[lowerSearch] || [rawSearch];
 
             query.where.AND.push({
                 OR: keywords.flatMap(kw => [
                     { name: { contains: kw, mode: 'insensitive' } },
-                    { providerProfile: { specialty: { contains: kw, mode: 'insensitive' } } }
+                    { providerProfile: { specialty: { contains: kw, mode: 'insensitive' } } },
+                    { providerProfile: { services: { some: { name: { contains: kw, mode: 'insensitive' } } } } }
                 ])
             });
         }
@@ -112,15 +125,18 @@ export const getProviders = async (req, res) => {
         }
 
         if (maxPrice) {
-            query.where.AND.push({
-                providerProfile: {
-                    services: {
-                        some: {
-                            price: { lte: parseFloat(maxPrice) }
+            const parsedPrice = parseFloat(maxPrice);
+            if (!isNaN(parsedPrice) && parsedPrice >= 0 && parsedPrice <= 500000) {
+                query.where.AND.push({
+                    providerProfile: {
+                        services: {
+                            some: {
+                                price: { lte: parsedPrice }
+                            }
                         }
                     }
-                }
-            });
+                });
+            }
         }
 
         // Fix if no AND conditions
@@ -167,29 +183,50 @@ export const getProviders = async (req, res) => {
             });
         }
 
-        // Distance / Radius Filtering (Default: 50 km if lat & lng provided)
-        if (lat && lng) {
-            const userLat = parseFloat(lat);
-            const userLng = parseFloat(lng);
-            const maxRadius = radius ? parseFloat(radius) : 50;
+        // Distance & Dynamic Rating Calculation
+        const userLat = (lat && lng) ? parseFloat(lat) : null;
+        const userLng = (lat && lng) ? parseFloat(lng) : null;
+        const maxRadius = radius ? parseFloat(radius) : (userLat && userLng ? 50 : null);
 
-            providers = providers
-                .map(p => {
-                    const pLat = p.latitude != null ? p.latitude : p.providerProfile?.latitude;
-                    const pLng = p.longitude != null ? p.longitude : p.providerProfile?.longitude;
-                    const distance = calculateDistanceKm(userLat, userLng, pLat, pLng);
-                    return {
-                        ...p,
-                        distanceKm: distance
-                    };
-                })
-                .filter(p => p.distanceKm !== null && p.distanceKm <= maxRadius)
-                .sort((a, b) => a.distanceKm - b.distanceKm);
-        } else {
-            providers = providers.map(p => ({
+        providers = providers.map(p => {
+            const allReviews = (p.providerProfile?.appointments || [])
+                .map(a => a.review)
+                .filter(Boolean);
+            const reviewCount = allReviews.length;
+            const dynamicRating = reviewCount > 0
+                ? parseFloat((allReviews.reduce((sum, r) => sum + r.rating, 0) / reviewCount).toFixed(1))
+                : (p.providerProfile?.rating && p.providerProfile.rating > 0 ? parseFloat(p.providerProfile.rating.toFixed(1)) : 0);
+
+            const pLat = p.latitude != null ? p.latitude : p.providerProfile?.latitude;
+            const pLng = p.longitude != null ? p.longitude : p.providerProfile?.longitude;
+            const distance = (userLat !== null && userLng !== null)
+                ? calculateDistanceKm(userLat, userLng, pLat, pLng)
+                : null;
+
+            return {
                 ...p,
-                distanceKm: null
-            }));
+                rating: dynamicRating,
+                reviewsCount: reviewCount,
+                providerProfile: {
+                    ...p.providerProfile,
+                    rating: dynamicRating,
+                    reviewsCount: reviewCount
+                },
+                distanceKm: distance
+            };
+        });
+
+        if (userLat !== null && userLng !== null && maxRadius !== null) {
+            providers = providers
+                .filter(p => p.distanceKm !== null && p.distanceKm <= maxRadius)
+                .sort((a, b) => (a.distanceKm ?? 0) - (b.distanceKm ?? 0));
+        } else {
+            providers.sort((a, b) => {
+                const rA = Number(a.rating) || 0;
+                const rB = Number(b.rating) || 0;
+                if (rB !== rA) return rB - rA;
+                return (b.reviewsCount || 0) - (a.reviewsCount || 0);
+            });
         }
 
         res.json(providers);
@@ -209,6 +246,7 @@ export const getProviderById = async (req, res) => {
             name: true,
             email: true,
             role: true,
+            avatarUrl: true,
             phone: true,
             location: true,
             streetAddress: true,
@@ -222,7 +260,18 @@ export const getProviderById = async (req, res) => {
             isPhoneVerified: true,
             providerProfile: {
                 include: {
-                    services: true
+                    services: true,
+                    appointments: {
+                        select: {
+                            date: true,
+                            status: true,
+                            review: {
+                                select: {
+                                    rating: true
+                                }
+                            }
+                        }
+                    }
                 }
             }
         };
@@ -265,7 +314,24 @@ export const getProviderById = async (req, res) => {
         }
 
         if (provider && provider.role === 'PROVIDER') {
-            res.json(provider);
+            const allReviews = (provider.providerProfile?.appointments || [])
+                .map(a => a.review)
+                .filter(Boolean);
+            const reviewCount = allReviews.length;
+            const dynamicRating = reviewCount > 0
+                ? parseFloat((allReviews.reduce((sum, r) => sum + r.rating, 0) / reviewCount).toFixed(1))
+                : (provider.providerProfile?.rating && provider.providerProfile.rating > 0 ? parseFloat(provider.providerProfile.rating.toFixed(1)) : 0);
+
+            res.json({
+                ...provider,
+                rating: dynamicRating,
+                reviewsCount: reviewCount,
+                providerProfile: {
+                    ...provider.providerProfile,
+                    rating: dynamicRating,
+                    reviewsCount: reviewCount
+                }
+            });
         } else {
             res.status(404).json({ message: 'Provider not found' });
         }
@@ -287,6 +353,18 @@ export const addService = async (req, res) => {
 
         const { name, duration, price, category } = req.body;
 
+        if (!name || typeof name !== 'string' || !name.trim()) {
+            return res.status(400).json({ message: 'Service name is required' });
+        }
+        const parsedDuration = parseInt(duration, 10);
+        if (isNaN(parsedDuration) || parsedDuration <= 0) {
+            return res.status(400).json({ message: 'Valid positive duration in minutes is required' });
+        }
+        const parsedPrice = parseFloat(price);
+        if (isNaN(parsedPrice) || parsedPrice < 0) {
+            return res.status(400).json({ message: 'Valid price (0 or greater) is required' });
+        }
+
         const profile = await prisma.providerProfile.findUnique({
             where: { userId: req.user.id }
         });
@@ -297,10 +375,10 @@ export const addService = async (req, res) => {
 
         const service = await prisma.service.create({
             data: {
-                name,
-                category: category || 'General',
-                duration: parseInt(duration),
-                price: parseFloat(price),
+                name: name.trim(),
+                category: category && typeof category === 'string' ? category.trim() : 'General',
+                duration: parsedDuration,
+                price: parsedPrice,
                 providerProfileId: profile.id
             }
         });
@@ -366,6 +444,66 @@ export const deleteService = async (req, res) => {
     }
 };
 
+// @desc    Update an existing service in provider profile
+// @route   PUT /api/providers/services/:id
+// @access  Private (Provider only)
+export const updateService = async (req, res) => {
+    try {
+        const serviceId = req.params.id;
+        const userId = req.user.id;
+        const { name, duration, price, category } = req.body;
+
+        const service = await prisma.service.findUnique({
+            where: { id: serviceId },
+            include: { providerProfile: true }
+        });
+
+        if (!service) {
+            return res.status(404).json({ message: 'Service not found' });
+        }
+
+        if (service.providerProfile.userId !== userId && req.user.role !== 'ADMIN') {
+            return res.status(403).json({ message: 'Not authorized to update this service' });
+        }
+
+        const updateData = {};
+        if (name && typeof name === 'string' && name.trim()) updateData.name = name.trim();
+        if (duration !== undefined) {
+            const parsedDuration = parseInt(duration, 10);
+            if (isNaN(parsedDuration) || parsedDuration <= 0) {
+                return res.status(400).json({ message: 'Duration must be a positive number of minutes' });
+            }
+            updateData.duration = parsedDuration;
+        }
+        if (price !== undefined) {
+            const parsedPrice = parseFloat(price);
+            if (isNaN(parsedPrice) || parsedPrice < 0) {
+                return res.status(400).json({ message: 'Price cannot be negative' });
+            }
+            updateData.price = parsedPrice;
+        }
+        if (category && typeof category === 'string' && category.trim()) updateData.category = category.trim();
+
+        const updated = await prisma.service.update({
+            where: { id: serviceId },
+            data: updateData
+        });
+
+        // Invalidate provider listings & stats caches
+        deleteCache('cache:/api/providers*').catch(() => {});
+        deleteCache('cache:/api/public/stats*').catch(() => {});
+
+        res.json({
+            success: true,
+            message: 'Service updated successfully',
+            service: updated
+        });
+    } catch (error) {
+        console.error('Update Service Error:', error);
+        res.status(500).json({ message: 'Server Error' });
+    }
+};
+
 // @desc    Get earnings analytics for provider
 // @route   GET /api/providers/earnings
 // @access  Private (Provider only)
@@ -397,7 +535,7 @@ export const getEarningsStats = async (req, res) => {
 
         appointments.forEach(appt => {
             const dateStr = appt.date.toISOString().split('T')[0];
-            const amount = appt.service.price;
+            const amount = appt.service?.price || 0;
 
             dailyEarnings[dateStr] = (dailyEarnings[dateStr] || 0) + amount;
             totalEarnings += amount;
@@ -429,8 +567,11 @@ export const updateProviderProfile = async (req, res) => {
 
         const { name, specialty, phone, location, streetAddress, city, state, zipCode, country, latitude, longitude, about, workingDays, availableSlots, workSchedule, blockedDates } = req.body;
 
-        // Update the user's name if provided
-        if (name || streetAddress || city || state || zipCode || country || phone || location) {
+        const parsedLat = (latitude !== undefined && latitude !== null && latitude !== '') ? parseFloat(latitude) : undefined;
+        const parsedLng = (longitude !== undefined && longitude !== null && longitude !== '') ? parseFloat(longitude) : undefined;
+
+        // Update the user's details if provided
+        if (name || streetAddress || city || state || zipCode || country || phone || location || parsedLat !== undefined || parsedLng !== undefined) {
             await prisma.user.update({
                 where: { id: req.user.id },
                 data: {
@@ -442,19 +583,21 @@ export const updateProviderProfile = async (req, res) => {
                     country: country || undefined,
                     phone: phone || undefined,
                     location: location || undefined,
-                    latitude: latitude ? parseFloat(latitude) : undefined,
-                    longitude: longitude ? parseFloat(longitude) : undefined
+                    latitude: parsedLat,
+                    longitude: parsedLng
                 }
             });
         }
 
-        // Upsert the provider profile
+        // Upsert the provider profile with location coordinates
         const profile = await prisma.providerProfile.upsert({
             where: { userId: req.user.id },
             update: {
                 specialty: specialty !== undefined ? specialty : undefined,
                 phone: phone !== undefined ? phone : undefined,
                 location: location !== undefined ? location : undefined,
+                latitude: parsedLat,
+                longitude: parsedLng,
                 about: about !== undefined ? about : undefined,
                 workingDays: workingDays !== undefined ? workingDays : undefined,
                 availableSlots: availableSlots !== undefined ? availableSlots : undefined,
@@ -466,6 +609,8 @@ export const updateProviderProfile = async (req, res) => {
                 specialty: specialty || '',
                 phone: phone || '',
                 location: location || '',
+                latitude: parsedLat !== undefined ? parsedLat : null,
+                longitude: parsedLng !== undefined ? parsedLng : null,
                 about: about || '',
                 workingDays: workingDays || ["MON", "TUE", "WED", "THU", "FRI"],
                 availableSlots: availableSlots || ["08:00", "09:00", "10:00", "11:00", "12:00", "13:00", "14:00", "15:00", "16:00", "17:00", "18:00", "19:00", "20:00", "21:00"],
@@ -516,14 +661,13 @@ export const updateProviderProfile = async (req, res) => {
 // @access  Private (Provider only)
 export const uploadVerificationDocument = async (req, res) => {
     try {
-        if (!req.file) {
-            return res.status(400).json({ message: 'Please upload a file' });
+        if (!req.file || !req.file.buffer) {
+            return res.status(400).json({ message: 'Please upload a valid document file' });
         }
 
-        // Validate binary magic numbers on disk
-        const isValidSignature = validateFileSignature(req.file.path);
+        // Validate binary magic numbers directly in memory
+        const isValidSignature = validateBufferSignature(req.file.buffer);
         if (!isValidSignature) {
-            if (fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
             return res.status(400).json({ message: 'Invalid or corrupted file format. Only authentic JPEG, PNG, and PDF files are allowed.' });
         }
 
@@ -532,24 +676,19 @@ export const uploadVerificationDocument = async (req, res) => {
         });
 
         if (!profile) {
-            if (fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
             return res.status(404).json({ message: 'Provider profile not found' });
         }
 
-        // Clean up previous verification document if exists
-        if (profile.verificationDocument && fs.existsSync(profile.verificationDocument)) {
-            try {
-                fs.unlinkSync(profile.verificationDocument);
-            } catch (unlinkErr) {
-                console.warn('[uploadVerificationDocument] Could not remove old document:', unlinkErr.message);
-            }
-        }
+        // Upload directly to Cloudinary (resource_type: auto for PDF / Image)
+        const uploadResult = await uploadDocumentStream(req.file.buffer, {
+            folder: 'appointly/verifications'
+        });
 
         const updatedProfile = await prisma.providerProfile.update({
             where: { id: profile.id },
             data: {
-                verificationDocument: req.file.path.replace(/\\/g, '/'), // normalization
-                isVerified: false // Reset verification status if they upload a new doc
+                verificationDocument: uploadResult.secureUrl, // Permanent Cloudinary CDN URL
+                isVerified: false // Reset verification status upon new document submission for admin review
             }
         });
 
@@ -561,6 +700,9 @@ export const uploadVerificationDocument = async (req, res) => {
                 name: true,
                 email: true,
                 role: true,
+                avatarUrl: true,
+                phone: true,
+                location: true,
                 isEmailVerified: true,
                 isPhoneVerified: true,
                 providerProfile: {
@@ -571,12 +713,36 @@ export const uploadVerificationDocument = async (req, res) => {
             }
         });
 
+        // Invalidate provider cache & stats so changes take effect immediately
+        deleteCache(`cache:/api/providers*`).catch(() => {});
+        deleteCache('cache:/api/public/stats*').catch(() => {});
+
+        // Real-time alert to platform Admins about the new document submission
+        try {
+            const admins = await prisma.user.findMany({
+                where: { role: 'ADMIN' },
+                select: { id: true }
+            });
+            for (const admin of admins) {
+                await createNotification({
+                    userId: admin.id,
+                    type: 'SYSTEM',
+                    title: 'New Verification Document Submitted',
+                    message: `Specialist ${updatedUser.name} submitted professional credentials for admin verification.`,
+                    link: '/dashboard/admin'
+                });
+            }
+        } catch (adminErr) {
+            console.error('Error notifying admins on document upload:', adminErr);
+        }
+
         res.json({
-            message: 'Verification document uploaded successfully. It is now under review.',
-            user: updatedUser
+            message: 'Verification document uploaded successfully to Cloudinary. It is now under admin review.',
+            user: updatedUser,
+            documentUrl: uploadResult.secureUrl
         });
     } catch (error) {
-        console.error('Upload Error:', error);
-        res.status(500).json({ message: 'Server Error' });
+        console.error('Verification Document Upload Error:', error);
+        res.status(500).json({ message: error.message || 'Server Error' });
     }
 };

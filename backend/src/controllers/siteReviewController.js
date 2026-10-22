@@ -14,7 +14,11 @@ export const createSiteReview = async (req, res) => {
             return res.status(400).json({ message: 'Rating must be an integer between 1 and 5' });
         }
 
-        const sanitizedName = typeof name === 'string' ? name.trim().substring(0, 100) : (req.user?.name || 'Anonymous');
+        const trimmedName = typeof name === 'string' ? name.trim() : '';
+        const sanitizedName = trimmedName.length > 0 
+            ? trimmedName.substring(0, 100) 
+            : (req.user?.name || 'Anonymous User');
+            
         const sanitizedComment = typeof comment === 'string' ? comment.trim().substring(0, 1000) : '';
 
         if (!sanitizedComment) {
@@ -30,8 +34,9 @@ export const createSiteReview = async (req, res) => {
             }
         });
 
-        // Invalidate public site-reviews cache
+        // Invalidate public site-reviews and stats caches
         deleteCache('cache:/api/public/site-reviews*').catch(() => {});
+        deleteCache('cache:/api/public/stats*').catch(() => {});
 
         res.status(201).json(review);
     } catch (error) {
